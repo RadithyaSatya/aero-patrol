@@ -114,3 +114,28 @@ button {
     background-color: #0f0f0f69;
   }
 }
+
+/* ROI marker pulse animation */
+@keyframes roiPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Crosshair cursor for ROI map selection */
+.cursor-crosshair .leaflet-container {
+  cursor: crosshair !important;
+}
+
+.cursor-crosshair .leaflet-grab {
+  cursor: crosshair !important;
+}
+
+.cursor-crosshair .leaflet-dragging .leaflet-grab {
+  cursor: crosshair !important;
+}

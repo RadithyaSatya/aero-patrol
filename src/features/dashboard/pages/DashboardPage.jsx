@@ -25,7 +25,7 @@ export default function DashboardPage() {
                 </div>
                 {/* Bottom Container View */}
                 <div className="h-[240px] flex flex-row p-[14px] gap-[16px] shrink-0 bg-[#27313D] border border-[#2a3240] rounded-[24px] shadow-lg overflow-hidden">
-                    <div className="w-[413px] h-full shrink-0">
+                    <div className={`w-[413px] h-full shrink-0 ${(isLaunchDialogOpen || isLaunchFormOpen) ? 'invisible' : ''}`}>
                         <MapViewPanel />
                     </div>
                     <div className="flex-1 h-full min-w-0">
