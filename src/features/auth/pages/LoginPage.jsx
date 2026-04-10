@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../../services/api';
+import backgroundImage from '../../../assets/images/image_background_login.png';
+import formBorderBackground from '../../../assets/images/image_border_form_login.png';
+import loginButton from '../../../assets/images/btn_login.png';
+import iconApp from '../../../assets/images/icon_app.svg';
 
 export default function LoginPage() {
     const [username, setUsername] = useState('Admin');
@@ -36,73 +40,86 @@ export default function LoginPage() {
         <div className="min-h-screen bg-[#111620] flex items-center justify-center relative overflow-hidden font-sans">
             {/* Background design elements to mimic the network/tech feel */}
             <div className="absolute inset-0 pointer-events-none opacity-30">
-                <div className="absolute inset-0" style={{ backgroundImage: `url('/src/assets/img_background.png')`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
-
+                <img
+                    src={backgroundImage}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full object-cover object-center select-none"
+                />
             </div>
 
-            <div className="max-w-5xl w-full flex flex-col md:flex-row items-center justify-center gap-16 md:gap-32 z-10 px-8">
+            <div className="max-w-6xl w-full flex flex-col md:flex-row items-center justify-center gap-20 md:gap-40 lg:gap-48 z-10 px-8">
 
                 {/* Left Side: Logo & Branding */}
-                <div className="flex flex-col items-center text-center">
-                    <div className="w-[200px] h-[140px] mb-4 relative flex items-center justify-center">
+                <div className="flex flex-col items-center text-center md:flex-[0_0_auto]">
+                    <div className="w-[min(88vw,380px)] aspect-[10/7] md:w-[420px] md:h-[196px] md:aspect-auto mb-6 relative flex items-center justify-center">
                         {/* Custom Drone SVG Logo mimicking the image */}
-                        <img src="/src/assets/icon_app.png" alt="Drone" className="w-full h-full" />
+                        <img src={iconApp} alt="Drone" className="w-full h-full object-contain" />
                     </div>
-                    <h1 className="text-3xl font-extrabold tracking-widest text-[#ea580c] uppercase mb-1">
-                        UAV Patrol
+                    <h1 className="font-orbitron text-[40px] md:text-[52px] font-extrabold tracking-[0.16em] text-[#FD5757] mb-2 leading-none">
+                        Aero Patrol
                     </h1>
-                    <h2 className="text-xl text-gray-300 font-medium tracking-wide">
+                    <h2 className="font-tomorrow text-[24px] md:text-[28px] text-gray-300 font-medium tracking-[0.12em]">
                         Drone Controller
                     </h2>
                 </div>
 
                 {/* Right Side: Login Form */}
-                <div className="w-full max-w-[400px] bg-[#222934] rounded-lg border border-slate-700/60 p-8 shadow-2xl relative overflow-hidden backdrop-blur-sm bg-opacity-95 text-center">
-                    <h2 className="text-xl font-bold text-white mb-1 font-sans tracking-wide">User Login</h2>
-                    <p className="text-[#8894a4] text-xs mb-8">Please enter your credential</p>
+                <div className="font-orbitron relative w-full max-w-[400px] aspect-[642/705] text-center drop-shadow-[0_24px_40px_rgba(0,0,0,0.45)]">
+                    <img
+                        src={formBorderBackground}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 h-full w-full object-contain pointer-events-none select-none"
+                    />
 
-                    <form onSubmit={handleLogin} className="space-y-5 text-left">
-                        {errorMsg && (
-                            <div className="bg-red-500/10 border border-red-500/50 text-red-400 text-xs px-3 py-2 rounded-sm text-center mb-4">
-                                {errorMsg}
+                    <div className="relative z-10 flex h-full flex-col justify-center px-10 py-12">
+                        <h2 className="text-xl font-bold text-white mb-1 tracking-wide">User Login</h2>
+                        <p className="text-[#8894a4] text-xs mb-8">Please enter your credential</p>
+
+                        <form onSubmit={handleLogin} className="font-tomorrow space-y-5 text-left">
+                            {errorMsg && (
+                                <div className="bg-red-500/10 border border-red-500/50 text-red-400 text-xs px-3 py-2 rounded-sm text-center mb-4">
+                                    {errorMsg}
+                                </div>
+                            )}
+                            <div>
+                                <label className="block text-[#8894a4] text-xs mb-1.5 ml-1">Username</label>
+                                <input
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className="w-full bg-[#1b212b] border border-slate-600/50 rounded-sm px-4 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500/50 transition-colors shadow-inner"
+                                    placeholder="Admin"
+                                />
                             </div>
-                        )}
-                        <div>
-                            <label className="block text-[#8894a4] text-xs mb-1.5 ml-1">Username</label>
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                className="w-full bg-[#1b212b] border border-slate-600/50 rounded-sm px-4 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500/50 transition-colors shadow-inner"
-                                placeholder="Admin"
-                            />
-                        </div>
 
-                        <div>
-                            <label className="block text-[#8894a4] text-xs mb-1.5 ml-1">Password</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-[#1b212b] border border-slate-600/50 rounded-sm px-4 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500/50 transition-colors shadow-inner tracking-widest"
-                                placeholder="•••••"
-                            />
-                        </div>
+                            <div>
+                                <label className="block text-[#8894a4] text-xs mb-1.5 ml-1">Password</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full bg-[#1b212b] border border-slate-600/50 rounded-sm px-4 py-2 text-sm text-gray-200 focus:outline-none focus:border-orange-500/50 transition-colors shadow-inner tracking-widest"
+                                    placeholder="•••••"
+                                />
+                            </div>
 
-                        <div className="">
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className={`w-full hover:from-[#f37b3c] hover:to-[#b35428]  py-2.5 px-4 flex items-center justify-center rounded-[2px] shadow-lg transition-all relative overflow-hidden ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                            >
-                                {isLoading ? (
-                                    <span className="relative z-10 py-[6px]">Logging in...</span>
-                                ) : (
-                                    <img src="/src/assets/btn_login.png" alt="Login" className="w-full h-full" />
-                                )}
-                            </button>
-                        </div>
-                    </form>
+                            <div>
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className={`relative mx-auto flex w-full max-w-[290px] aspect-[534/76] items-center justify-center overflow-hidden rounded-[2px] shadow-lg transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                >
+                                    {isLoading ? (
+                                        <span className="relative z-10 font-orbitron text-sm tracking-wider text-white">Logging in...</span>
+                                    ) : (
+                                        <img src={loginButton} alt="Login" className="block h-full w-full object-contain" />
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
 
             </div>

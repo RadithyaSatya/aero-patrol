@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { missionService } from '../../../services/api';
 
 const StatBox = ({ count, label }) => (
-    <div className="flex flex-col items-center justify-center bg-[#1c222c] rounded-[12px] border border-[#2a3240] w-[186px] h-[62px] shadow-lg">
-        <span className="text-white text-[18px] font-bold tracking-wider leading-none">{count}</span>
-        <span className="text-gray-400 text-[11px] mt-1">{label}</span>
+    <div className="font-tomorrow relative flex h-[72px] w-full flex-col items-center justify-center overflow-hidden">
+        <div className="pointer-events-none absolute bottom-0 left-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#ED0000]/35 to-transparent" />
+        <div className="pointer-events-none absolute bottom-0 right-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#ED0000]/35 to-transparent" />
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#ED0000]" />
+        <div className="pointer-events-none absolute inset-x-3 bottom-0 h-6 bg-gradient-to-t from-[#ED0000]/12 to-transparent" />
+        <span className="text-white text-[28px] font-bold tracking-wider leading-none">{count}</span>
+        <span className="text-white text-[14px] mt-1">{label}</span>
     </div>
 );
 
@@ -42,59 +46,71 @@ export default function MissionListPanel() {
     }, []);
 
     const formatDate = (dateString) => {
-        if (!dateString) return '';
-        const [datePart, timePart] = dateString.split(' ');
-        if (!datePart || !timePart) return dateString;
+        if (!dateString) return { date: '', time: '' };
+
+        const normalized = dateString.trim().replace('T', ' ');
+        const [datePart, rawTimePart = ''] = normalized.split(' ');
+        if (!datePart) return { date: dateString, time: '' };
+
         const [year, month, day] = datePart.split('-');
-        return `${day}/${month}/${year}\n${timePart}`;
+        const time = rawTimePart.replace('Z', '').slice(0, 5);
+
+        if (!year || !month || !day) {
+            return { date: dateString, time: '' };
+        }
+
+        return {
+            date: `${day}/${month}/${year}`,
+            time
+        };
     };
 
     return (
-        <div className="w-full h-full flex flex-row gap-[16px] select-none">
-
-            {/* Left Column - Stats */}
-            <div className="w-[186px] shrink-0 flex flex-col justify-between h-full">
+        <div className="font-tomorrow flex h-full w-full gap-4 border border-[#D53535] bg-[#222222] p-4 shadow-lg select-none">
+            <div className="mt-4 flex  w-[200px] flex-col flex-col justify-start gap-3">
                 <StatBox count={stats.total} label="Total Mission" />
                 <StatBox count={stats.waiting} label="Waiting" />
                 <StatBox count={stats.completed} label="Completed" />
             </div>
 
-            {/* Right Column - Mission Table */}
-            <div className="flex-1 overflow-hidden bg-[#1c222c] rounded-2xl border border-[#2a3240] shadow-lg flex flex-col p-4">
-
-                {/* Table Header */}
-                <div className="grid grid-cols-[1fr_2fr_2fr] text-[11px] font-semibold text-gray-400 border-b border-[#2a3240] pb-2 mb-2 uppercase tracking-wider">
-                    <div>Date</div>
-                    <div>Mission</div>
-                    <div>Status</div>
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden border border-[#5E0A0A]">
+                <div className="grid grid-cols-[1fr_2fr_2fr] border-b border-[#5E0A0A] bg-[#5E0A0A] px-2 py-2 text-[10px] uppercase tracking-[0.12em] text-white">
+                    <div className="font-medium">Date</div>
+                    <div className="font-medium">Mission</div>
+                    <div className="font-medium">Status</div>
                 </div>
 
-                {/* Table Body */}
-                <div className="flex-1 overflow-y-auto pr-2 space-y-[2px] custom-scrollbar">
+                <div className="custom-scrollbar flex-1 overflow-y-auto">
                     {isLoading ? (
-                        <div className="text-gray-400 text-xs py-2 px-1">Loading missions...</div>
+                        <div className="px-1 py-2 text-xs text-gray-400">Loading missions...</div>
                     ) : errorMsg ? (
-                        <div className="text-red-400 text-xs py-2 px-1 flex flex-col items-center justify-center h-full text-center">
+                        <div className="flex h-full flex-col items-center justify-center px-1 py-2 text-center text-xs text-red-400">
                             <span>Oops, error loading missions:</span>
-                            <span className="opacity-80 mt-1">{errorMsg}</span>
+                            <span className="mt-1 opacity-80">{errorMsg}</span>
                         </div>
                     ) : missions.length === 0 ? (
-                        <div className="text-gray-400 text-xs py-2 px-1 flex items-center justify-center h-full italic">No missions found.</div>
+                        <div className="flex h-full items-center justify-center px-1 py-2 text-xs italic text-gray-400">No missions found.</div>
                     ) : (
                         missions.map((mission) => {
                             const active = mission.status === 'In Progress';
+                            const formattedSchedule = formatDate(mission.schedule);
                             return (
                                 <div
                                     key={mission.id}
-                                    className={`grid grid-cols-[1fr_2fr_2fr] items-center text-xs py-2 px-1 rounded transition-colors ${active ? 'bg-[#202834]' : 'hover:bg-[#202834]/50'}`}
+                                    className="grid grid-cols-[1fr_2fr_2fr] items-center border-b border-[#5E0A0A] px-1 py-3 text-xs last:border-b-0"
                                 >
-                                    <div className="text-gray-300 leading-tight whitespace-pre-line text-[10px]">
-                                        {formatDate(mission.schedule)}
+                                    <div className="flex flex-col leading-tight">
+                                        <span className="text-[14px] text-white">
+                                            {formattedSchedule.date}
+                                        </span>
+                                        <span className="mt-1 text-[12px] text-gray-400">
+                                            {formattedSchedule.time}:00
+                                        </span>
                                     </div>
-                                    <div className={`font-medium ${active ? 'text-[#3b82f6] border-b border-[#3b82f6] w-max' : 'text-gray-200'} truncate mr-2`}>
+                                    <div className={`mr-2 truncate text-[14px] ${active ? 'w-max border-b border-[#5E0A0A] text-white' : 'text-gray-200'}`}>
                                         {mission.mission_name}
                                     </div>
-                                    <div className="text-gray-300">
+                                    <div className={`text-[14px] ${active ? 'text-white' : 'text-gray-300'}`}>
                                         {mission.status}
                                     </div>
                                 </div>
@@ -102,9 +118,7 @@ export default function MissionListPanel() {
                         })
                     )}
                 </div>
-
             </div>
-
         </div>
     );
 }

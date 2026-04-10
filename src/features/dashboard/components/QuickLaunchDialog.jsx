@@ -26,11 +26,13 @@ export default function QuickLaunchDialog({ isOpen, onClose, onConfirm }) {
     ];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0a0f18]/80 backdrop-blur-sm">
-            <div className="bg-[#151a25]/95 rounded-[12px] border border-[#2a3240] shadow-[0_0_50px_rgba(0,0,0,0.8)] w-[680px] overflow-hidden flex flex-col p-8 backdrop-blur-md">
+        <div className="font-tomorrow fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#0a0f18]/80 backdrop-blur-sm">
+            <div className="relative flex w-[780px] flex-col overflow-hidden border-l border-[#5E0A0A] bg-[#222222] p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-md">
+                <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
+                <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
 
                 {/* Header */}
-                <h2 className="text-center text-white text-[18px] tracking-widest font-light uppercase mb-8">
+                <h2 className="text-center text-white text-[18px] tracking-widest font-light mb-8">
                     Select Mission Type
                 </h2>
 
@@ -43,13 +45,21 @@ export default function QuickLaunchDialog({ isOpen, onClose, onConfirm }) {
                                 key={type.id}
                                 onClick={() => setSelectedType(type.id)}
                                 className={`
-                                    w-[160px] h-[140px] rounded-[8px] flex flex-col items-center justify-center cursor-pointer transition-all border
+                                    relative flex h-[140px] w-[160px] cursor-pointer flex-col items-center justify-center overflow-hidden transition-all
                                     ${isSelected
-                                        ? 'bg-gradient-to-b from-[#1f2937]/50 to-[#ea580c]/10 border-orange-500 shadow-[0_0_15px_rgba(234,88,12,0.3)] text-white'
+                                        ? 'bg-[#1b2029]/40 text-white'
                                         : 'bg-[#1e2532]/50 border-[#374151] hover:border-gray-400 hover:bg-[#252b36]/80 text-gray-400'
                                     }
                                 `}
                             >
+                                {isSelected && (
+                                    <>
+                                        <div className="pointer-events-none absolute bottom-0 left-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#ED0000]/35 to-transparent" />
+                                        <div className="pointer-events-none absolute bottom-0 right-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#ED0000]/35 to-transparent" />
+                                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#ED0000]" />
+                                        <div className="pointer-events-none absolute inset-x-3 bottom-0 h-6 bg-gradient-to-t from-[#ED0000]/12 to-transparent" />
+                                    </>
+                                )}
                                 <div className={`transition-transform duration-300 ${isSelected ? 'scale-110' : 'scale-100 opacity-70'}`}>
                                     {type.icon}
                                 </div>
@@ -62,18 +72,26 @@ export default function QuickLaunchDialog({ isOpen, onClose, onConfirm }) {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-6 mt-auto">
+                <div className="mt-auto grid grid-cols-2 gap-6">
                     <button
                         onClick={onClose}
-                        className="flex-1 hover:from-red-500 hover:to-red-700"
+                        className="w-full bg-transparent active:scale-[0.98]"
                     >
-                        <img src="/src/assets/btn_cancel_mission_2.png" alt="Cancel" />
+                        <img
+                            src="/src/assets/images/btn_cancel_quicklaunch.png"
+                            alt="Cancel"
+                            className="aspect-[418/76] w-full object-contain transition duration-150 hover:brightness-110 hover:contrast-110"
+                        />
                     </button>
                     <button
                         onClick={() => onConfirm(selectedType)}
-                        className="flex-1 hover:from-orange-400 hover:to-orange-600"
+                        className="w-full bg-transparent active:scale-[0.98]"
                     >
-                        <img src="/src/assets/btn_set_mission.png" alt="Set Mission" />
+                        <img
+                            src="/src/assets/images/btn_launch_quicklaunch.png"
+                            alt="Set Mission"
+                            className="aspect-[418/76] w-full object-contain transition duration-150 hover:brightness-110 hover:contrast-110"
+                        />
                     </button>
                 </div>
 

@@ -22,7 +22,7 @@ const dockIcon = new L.DivIcon({
 const droneIcon = new L.DivIcon({
     className: 'custom-drone-icon',
     html: `
-        <img src="/src/assets/icon_drone.png" alt="Drone" class="w-24 h-24 object-contain" />
+        <img src="/src/assets/images/icon_drone.svg" alt="Drone" class="w-24 h-24 object-contain" />
     `,
     iconSize: [96, 96],
     iconAnchor: [48, 48]
@@ -30,10 +30,17 @@ const droneIcon = new L.DivIcon({
 
 const createWaypointIcon = (number) => new L.DivIcon({
     className: 'custom-waypoint-icon',
-    html: `<div class="w-5 h-5 rounded-full bg-[#3b5374] border border-[#587fae] text-white text-[10px] font-bold flex items-center justify-center shadow-lg">${number}</div>`,
+    html: `<div class="w-5 h-5 rounded-full bg-[#682F2F] border border-[#682F2F] text-white text-[10px] font-bold flex items-center justify-center shadow-lg">${number}</div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10]
 });
+
+const geofencePathOptions = {
+    color: '#E1BA95',
+    fillColor: '#9616161A',
+    fillOpacity: 1,
+    weight: 0.3
+};
 
 // ROI marker icon — a pulsing red target
 const roiIcon = new L.DivIcon({
@@ -65,7 +72,7 @@ const spiralCenterIcon = new L.DivIcon({
 // Spiral waypoint icon
 const createSpiralWaypointIcon = (number) => new L.DivIcon({
     className: 'custom-spiral-wp-icon',
-    html: `<div style="width:22px; height:22px; border-radius:50%; background:linear-gradient(135deg, #a855f7, #7c3aed); border: 2px solid rgba(168,85,247,0.5); color:white; font-size:9px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow: 0 0 8px rgba(168,85,247,0.4);">${number}</div>`,
+    html: `<div style="width:22px; height:22px; border-radius:50%; background:#682F2F; border: 2px solid #682F2F; color:white; font-size:9px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow: 0 0 8px rgba(104,47,47,0.4);">${number}</div>`,
     iconSize: [22, 22],
     iconAnchor: [11, 11]
 });
@@ -222,8 +229,6 @@ export default function QuickLaunchDialogForm({ isOpen, missionType, onClose, on
     const dronePosition = [-6.198, 106.805];
     const fenceRadius = 1800; // meters — will come from drone params in the future
 
-    const titleLabel = missionType === 'Launch' || missionType === 'ROI' ? 'ROI/Launch' : 'Spiral';
-
     // === Fence validation for spiral ===
     // Spiral is out of bounds if: distance(dock, spiralCenter) + spiralRadius > fenceRadius
     const isSpiralOutOfBounds = (() => {
@@ -278,28 +283,33 @@ export default function QuickLaunchDialogForm({ isOpen, missionType, onClose, on
         : [];
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#0a0f18]/80 backdrop-blur-sm select-none">
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#0a0f18]/80 backdrop-blur-sm select-none">
 
             {/* Main Form Container */}
-            <div className="w-[840px] flex flex-col relative">
-
-                {/* Floating Title (Top Left) */}
-                <div className="absolute -top-7 left-0 text-gray-400 text-[13px] font-medium tracking-wide">
-                    {titleLabel}
-                </div>
+            <div className="relative flex w-[840px] flex-col overflow-hidden border-l border-[#ED0000] bg-[#222222] p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-md">
+                <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#ED0000]/45 to-transparent" />
+                <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#ED0000]/45 to-transparent" />
 
                 {/* Dialog Body */}
-                <div className="bg-[#151a25]/95 rounded-[12px] border border-[#2a3240] shadow-[0_0_50px_rgba(0,0,0,0.8)] p-6 backdrop-blur-md flex flex-col gap-6 w-full relative">
+                <div className="relative flex w-full flex-col gap-6">
+                    <h2 className="text-center text-[18px] font-tomorrow tracking-widest text-white">
+                        Choose a location
+                    </h2>
 
                     {/* Map Area */}
-                    <div className={`relative w-full h-[400px] rounded-lg overflow-hidden border border-[#2a3240] pointer-events-auto z-10 ${(isROI || isSpiral) ? 'cursor-crosshair' : ''}`}>
-                        <MapContainer
-                            center={center}
-                            zoom={13}
-                            style={{ height: '100%', width: '100%' }}
-                            zoomControl={false}
-                            scrollWheelZoom={true}
-                        >
+                    <div className={`relative h-[400px] w-full overflow-hidden border-b border-[#ED0000] p-px pointer-events-auto z-10 ${(isROI || isSpiral) ? 'cursor-crosshair' : ''}`}>
+                        <div className="pointer-events-none absolute bottom-0 left-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#ED0000]/35 to-transparent" />
+                        <div className="pointer-events-none absolute bottom-0 right-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#ED0000]/35 to-transparent" />
+                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#ED0000]" />
+                        <div className="relative h-full w-full overflow-hidden">
+                            <MapContainer
+                                center={center}
+                                zoom={13}
+                                style={{ height: '100%', width: '100%' }}
+                                attributionControl={false}
+                                zoomControl={false}
+                                scrollWheelZoom={true}
+                            >
                             {/* Dark CartoDB Matter tile layer */}
                             <TileLayer
                                 url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
@@ -309,7 +319,7 @@ export default function QuickLaunchDialogForm({ isOpen, missionType, onClose, on
                             <MapInteractionHandler onClickRef={mapInteractionRef} />
 
                             {/* Max Radius Circle */}
-                            <Circle center={dockPosition} radius={1800} pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.1, weight: 1, dashArray: '4, 8' }} />
+                            <Circle center={dockPosition} radius={1800} pathOptions={geofencePathOptions} />
 
                             {/* Dock Marker */}
                             <Marker position={dockPosition} icon={dockIcon} />
@@ -362,7 +372,7 @@ export default function QuickLaunchDialogForm({ isOpen, missionType, onClose, on
                                     {/* Polyline connecting all waypoints (closed loop) */}
                                     <Polyline
                                         positions={waypointPositions}
-                                        pathOptions={{ color: '#c084fc', weight: 2, dashArray: '4, 6' }}
+                                        pathOptions={{ color: '#682F2F', weight: 2, dashArray: '4, 6' }}
                                     />
                                     {/* Waypoint markers */}
                                     {spiralWaypoints.map((wp, i) => (
@@ -377,7 +387,8 @@ export default function QuickLaunchDialogForm({ isOpen, missionType, onClose, on
 
                             {/* Zoom Controls (inside MapContainer for map access) */}
                             <ZoomControls />
-                        </MapContainer>
+                            </MapContainer>
+                        </div>
 
                         {/* Top Label over Map */}
                         <div className="absolute top-4 left-0 right-0 text-center text-gray-200 text-[13px] tracking-wide pointer-events-none">
@@ -547,21 +558,29 @@ export default function QuickLaunchDialogForm({ isOpen, missionType, onClose, on
                     </div>
 
                     {/* Action Buttons Row */}
-                    <div className="flex gap-6 mt-1">
+                    <div className="mt-1 grid grid-cols-2 gap-6">
                         {/* Red Cancel Button */}
                         <button
                             onClick={onClose}
-                            className="flex-1 h-[48px] rounded flex items-center justify-center transition-all hover:from-[#dc2626] hover:to-[#991b1b] relative overflow-hidden"
+                            className="w-full bg-transparent active:scale-[0.98]"
                         >
-                            <img src="/src/assets/btn_cancel_mission_2.png" alt="Cancel" />
+                            <img
+                                src="/src/assets/images/btn_cancel_quicklaunch.png"
+                                alt="Cancel"
+                                className="aspect-[418/76] w-full object-contain transition duration-150 hover:brightness-110 hover:contrast-110"
+                            />
                         </button>
 
                         {/* Orange Launch Button */}
                         <button
                             onClick={() => onLaunch(missionType)}
-                            className="flex-1 h-[48px] rounded flex items-center justify-center transition-all hover:from-[#f97316] hover:to-[#c2410c] relative overflow-hidden"
+                            className="w-full bg-transparent active:scale-[0.98]"
                         >
-                            <img src="/src/assets/btn_launch_dg.png" alt="Launch" />
+                            <img
+                                src="/src/assets/images/btn_launch_quicklaunch.png"
+                                alt="Launch"
+                                className="aspect-[418/76] w-full object-contain transition duration-150 hover:brightness-110 hover:contrast-110"
+                            />
                         </button>
                     </div>
 

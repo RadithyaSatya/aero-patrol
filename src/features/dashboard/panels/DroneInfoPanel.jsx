@@ -1,5 +1,12 @@
-import { hide } from '@tauri-apps/api/app';
 import React, { useState } from 'react';
+import batteryBorderImage from '../../../assets/images/image_border_battery_dashboard.png';
+
+const WeatherBadge = ({ label, value }) => (
+    <div className="flex items-center justify-between border border-[#393F44] rounded-[12px] bg-[#222425] px-3 py-2 text-[10px]">
+        <span className="text-gray-400">{label}</span>
+        <span className="font-tomorrow text-gray-100">{value}</span>
+    </div>
+);
 
 export default function DroneInfoPanel({
     drones = [],
@@ -47,7 +54,10 @@ export default function DroneInfoPanel({
     const batteryStatus = getBatteryStatus(battery);
 
     return (
-        <div className="w-full h-full bg-[#1c222c] rounded-2xl border border-[#2a3240] p-5 shadow-lg flex flex-col gap-4 select-none">
+        <div className="font-tomorrow relative flex h-full w-full flex-col gap-4 overflow-hidden border-l border-[#5E0A0A] bg-[#222222] p-5 shadow-lg select-none">
+            <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
+            <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
+
 
             {/* Header Section */}
             <div className="flex justify-between items-start">
@@ -104,14 +114,21 @@ export default function DroneInfoPanel({
                         </div>
                     )}
                 </div>
-                <img src="/src/assets/icon_drone.png" alt="Drone" className="h-10 w-auto object-contain drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)] invert brightness-75 sepia-[0.5] hue-rotate-180 saturate-50" />
+                <img src="/src/assets/images/icon_drone.svg" alt="Drone" className="h-10 w-auto object-contain drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)] invert brightness-75 sepia-[0.5] hue-rotate-180 saturate-50" />
             </div>
 
             {/* Battery Section */}
-            <div className="flex flex-col gap-2 text-left">
+            <div className="flex flex-col gap-2 pt-3 text-left">
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-[#ED0000] to-transparent" />
                 <h3 className="text-gray-200 text-xs font-semibold tracking-wide">Battery</h3>
-                <div className="flex justify-between items-center bg-[#171c24] border border-[#2a3240] rounded-xl p-3">
-                    <div className="flex items-center gap-3">
+                <div className="relative flex min-h-[74px] items-center justify-between px-4 py-3">
+                    <img
+                        src={batteryBorderImage}
+                        alt=""
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill"
+                    />
+                    <div className="relative z-10 flex items-center gap-3">
                         <div className="w-9 h-4 border-[1.5px] border-gray-400 rounded-[2px] p-[1.5px] relative">
                             <div
                                 className="h-full rounded-[1px] transition-all duration-500"
@@ -121,7 +138,7 @@ export default function DroneInfoPanel({
                         </div>
                         <span className="text-white text-sm font-bold tracking-wider font-mono">{batteryStatus.text}</span>
                     </div>
-                    <div className="flex flex-col items-end">
+                    <div className="relative z-10 flex flex-col items-end">
                         <span className={`text-[11px] font-bold tracking-wide ${batteryStatus.color}`}>
                             {battery !== null ? (battery >= 60 ? 'Good' : battery >= 30 ? 'Moderate' : 'Low') : '--'}
                         </span>
@@ -135,9 +152,7 @@ export default function DroneInfoPanel({
             {/* Weather Section */}
             <div className="flex flex-col gap-2 text-left">
                 <h3 className="text-gray-200 text-xs font-semibold tracking-wide">Weather</h3>
-                <div className="flex flex-col bg-[#171c24] border border-[#2a3240] rounded-xl p-4">
-
-                    {/* Weather Header */}
+                <div className="flex flex-col border border-[#393F44] bg-[rgba(50,50,50,0.5)] p-4">
                     <div className="flex justify-between items-start">
                         <div className="flex items-center gap-3">
                             <div className="relative mt-1">
@@ -152,33 +167,23 @@ export default function DroneInfoPanel({
                         </div>
                     </div>
 
-                    {/* Weather Stats Table */}
-                    <div className="flex flex-col text-[10px] text-gray-400 mt-4">
-                        <div className="h-[1px] w-full bg-[#2a3240] my-1.5 opacity-60"></div>
-                        <div className="flex justify-between px-1">
-                            <div className="flex w-1/2 justify-between pr-4"><span>Gust</span><span className="text-gray-200 font-mono">6 m/s</span></div>
-                            <div className="flex w-1/2 justify-between pl-4"><span>Wind</span><span className="text-gray-200 font-mono">4 m/s</span></div>
-                        </div>
-                        <div className="h-[1px] w-full bg-[#2a3240] my-1.5 opacity-60"></div>
-                        <div className="flex justify-between px-1">
-                            <div className="flex w-1/2 justify-between pr-4"><span>Humid</span><span className="text-gray-200 font-mono">72%</span></div>
-                            <div className="flex w-1/2 justify-between pl-4"><span>Visibility</span><span className="text-gray-200 font-mono">10 km</span></div>
-                        </div>
-                        <div className="h-[1px] w-full bg-[#2a3240] my-1.5 opacity-60"></div>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                        <WeatherBadge label="Gust" value="6 m/s" />
+                        <WeatherBadge label="Wind" value="4 m/s" />
+                        <WeatherBadge label="Humid" value="72%" />
+                        <WeatherBadge label="Visibility" value="10 km" />
                     </div>
 
-                    {/* Weather Footer */}
                     <div className="flex justify-center mt-2">
                         <span className="text-[#1ab394] text-[10px] font-medium tracking-wide">Good Condition for flight</span>
                     </div>
-
                 </div>
             </div>
 
             {/* Telemetry Stats Section */}
             <div className="flex flex-col gap-2 flex-1 text-left" style={{ display: 'none' }}>
                 <h3 className="text-gray-200 text-xs font-semibold tracking-wide">Telemetry</h3>
-                <div className="flex flex-col flex-1 justify-between bg-[#171c24] border border-[#2a3240] rounded-xl p-4">
+                <div className="flex flex-1 flex-col justify-between border border-[#5E0A0A] bg-transparent p-4">
 
                     {/* Flight Info Grid */}
                     <div className="flex flex-col text-[10px] text-gray-400">

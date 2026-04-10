@@ -16,10 +16,7 @@ export default function MissionPage() {
     };
 
     return (
-        <div
-            className="p-[28px] flex flex-row gap-[28px] w-full h-[calc(100vh-104px)] overflow-hidden"
-            style={{ backgroundImage: `url('/src/assets/img_background.png')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-        >
+        <div className="p-[28px] flex flex-row gap-[28px] w-full h-[calc(100vh-104px)] overflow-hidden">
             {/* Left Column - Map Area & Mission Detail */}
             <div className="flex-1 flex flex-col gap-[28px] min-w-0">
                 <div className="flex-1 rounded-[24px] border border-[#2a3240] overflow-hidden shadow-lg relative bg-[#181d25]">

@@ -27,10 +27,7 @@ const DownloadIcon = () => (
                                                
 export default function HistoryPage() {
     return (
-        <div
-            className="p-[28px] flex gap-[20px] w-full h-[calc(100vh-104px)] overflow-hidden"
-            style={{ backgroundImage: `url('/src/assets/img_background.png')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-        >
+        <div className="p-[28px] flex gap-[20px] w-full h-[calc(100vh-104px)] overflow-hidden">
             {/* LEFT PANE: Mission List */}
             <div className="w-[60%] flex flex-col gap-5 rounded-[24px] border border-[#2a3240] shadow-[0_10px_30px_rgba(0,0,0,0.5)] bg-[#151a25]/95 backdrop-blur p-6">
 
@@ -119,13 +116,13 @@ export default function HistoryPage() {
                         <div className="relative w-[60%] h-[60%] -translate-y-[10%]">
                             {/* Path Lines */}
                             <svg className="absolute inset-0 w-full h-full overflow-visible">
-                                <line x1="20%" y1="20%" x2="50%" y2="80%" stroke="#ea580c" strokeWidth="1" strokeDasharray="4 4" className="opacity-60" />
-                                <line x1="80%" y1="30%" x2="50%" y2="80%" stroke="#ea580c" strokeWidth="1" strokeDasharray="4 4" className="opacity-60" />
-                                <line x1="20%" y1="20%" x2="80%" y2="30%" stroke="#ea580c" strokeWidth="1" strokeDasharray="4 4" className="opacity-60" />
+                                <line x1="20%" y1="20%" x2="50%" y2="80%" stroke="#682F2F" strokeWidth="1" strokeDasharray="4 4" className="opacity-60" />
+                                <line x1="80%" y1="30%" x2="50%" y2="80%" stroke="#682F2F" strokeWidth="1" strokeDasharray="4 4" className="opacity-60" />
+                                <line x1="20%" y1="20%" x2="80%" y2="30%" stroke="#682F2F" strokeWidth="1" strokeDasharray="4 4" className="opacity-60" />
                             </svg>
                             {/* Points */}
-                            <div className="absolute top-[20%] left-[20%] -translate-x-1/2 -translate-y-1/2 w-5 h-5 bg-[#3b82f6] text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-[0_0_10px_rgba(59,130,246,0.5)] border border-white/20">1</div>
-                            <div className="absolute top-[30%] left-[80%] -translate-x-1/2 -translate-y-1/2 w-5 h-5 bg-[#3b82f6] text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-[0_0_10px_rgba(59,130,246,0.5)] border border-white/20">2</div>
+                            <div className="absolute top-[20%] left-[20%] -translate-x-1/2 -translate-y-1/2 w-5 h-5 bg-[#682F2F] text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-[0_0_10px_rgba(104,47,47,0.5)] border border-white/20">1</div>
+                            <div className="absolute top-[30%] left-[80%] -translate-x-1/2 -translate-y-1/2 w-5 h-5 bg-[#682F2F] text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-[0_0_10px_rgba(104,47,47,0.5)] border border-white/20">2</div>
 
                             {/* Drone Home / Target */}
                             <div className="absolute top-[80%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-orange-500/20 border border-orange-500 flex items-center justify-center shadow-[0_0_15px_rgba(234,88,12,0.6)]">

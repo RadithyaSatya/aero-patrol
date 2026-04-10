@@ -66,7 +66,7 @@ export default function WaypointSelectionPanel({ waypoints }) {
                         const data = pointsData[wp.id] || { altitude: 150, cameraTilt: 20, action: 'Video Record' };
                         return (
                             <div key={wp.id} className="bg-[#171c24] border border-[#2a3240] rounded-lg p-3 relative">
-                                <div className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-red-600"></div>
+                                <div className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-[#682F2F]"></div>
                                 <h3 className="text-white text-xs font-bold mb-3 tracking-wide">Point {i + 1}</h3>
                                 <div className="grid grid-cols-3 gap-3">
                                     <div className="flex flex-col gap-1">

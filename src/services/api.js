@@ -55,6 +55,24 @@ export const uavService = {
         }
 
         return response.json();
+    },
+
+    getUavById: async (uavId) => {
+        const token = localStorage.getItem('authToken');
+        if (!token) throw new Error('No authentication token found');
+
+        const response = await fetch(`${API_BASE_URL}/uavs/${uavId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Failed to fetch UAV detail');
+        }
+
+        return response.json();
     }
 };
 

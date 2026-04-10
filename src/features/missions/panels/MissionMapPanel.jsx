@@ -22,7 +22,7 @@ const dockIcon = new L.DivIcon({
 const droneIcon = new L.DivIcon({
     className: 'custom-drone-icon',
     html: `
-        <img src="/src/assets/icon_drone.png" alt="Drone" class="w-24 h-24" />
+        <img src="/src/assets/images/icon_drone.svg" alt="Drone" class="w-24 h-24" />
     `,
     iconSize: [96, 96],
     iconAnchor: [48, 48]
@@ -30,10 +30,17 @@ const droneIcon = new L.DivIcon({
 
 const createWaypointIcon = (number) => new L.DivIcon({
     className: 'custom-waypoint-icon',
-    html: `<div class="w-5 h-5 rounded-full bg-[#3b5374] border border-[#587fae] text-white text-[10px] font-bold flex items-center justify-center shadow-lg">${number}</div>`,
+    html: `<div class="w-5 h-5 rounded-full bg-[#682F2F] border border-[#682F2F] text-white text-[10px] font-bold flex items-center justify-center shadow-lg">${number}</div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10]
 });
+
+const geofencePathOptions = {
+    color: '#E1BA95',
+    fillColor: '#9616161A',
+    fillOpacity: 1,
+    weight: 0.3
+};
 
 // Component to handle map clicks for adding waypoints
 function MapClickHandler({ onAddWaypoint }) {
@@ -61,6 +68,7 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
             <MapContainer
                 center={center}
                 zoom={14}
+                attributionControl={false}
                 style={{ height: '100%', width: '100%' }}
                 zoomControl={false}
                 scrollWheelZoom={true}
@@ -74,10 +82,10 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                 <MapClickHandler onAddWaypoint={onAddWaypoint} />
 
                 {/* Max Radius Circle */}
-                <Circle center={dockPosition} radius={1800} pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.1, weight: 1, dashArray: '4, 8' }} />
+                <Circle center={dockPosition} radius={1800} pathOptions={geofencePathOptions} />
 
                 {/* Draw lines between points */}
-                <Polyline positions={allLines} color="#ea580c" weight={2} dashArray="4, 6" />
+                <Polyline positions={allLines} color="#682F2F" weight={2} dashArray="4, 6" />
 
                 {/* Dock Marker */}
                 <Marker position={dockPosition} icon={dockIcon} />
@@ -236,7 +244,7 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
 
                         <div className="grid grid-cols-2 gap-y-3">
                             <div className="flex items-center space-x-2">
-                                <div className="w-3 h-3 rounded-full border border-blue-400 bg-blue-400/20"></div>
+                                <div className="w-3 h-3 rounded-full border border-[#E1BA95] bg-[#9616161A]"></div>
                                 <span className="text-gray-300 text-[10px] font-medium">Max Radius</span>
                             </div>
                             <div className="flex items-center space-x-2">
@@ -248,7 +256,7 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                                 <span className="text-gray-300 text-[10px] font-medium">Drone</span>
                             </div>
                             <div className="flex items-center space-x-2">
-                                <div className="flex space-x-[2px] text-[#3b82f6] text-[10px] font-bold font-mono">
+                                <div className="flex space-x-[2px] text-[#682F2F] text-[10px] font-bold font-mono">
                                     <span>1</span><span>/</span><span>2</span><span>/</span><span>3</span>
                                 </div>
                                 <span className="text-gray-300 text-[10px] font-medium ml-1">Waypoint</span>

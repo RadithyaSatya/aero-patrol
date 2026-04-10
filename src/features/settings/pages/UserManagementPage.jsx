@@ -48,10 +48,7 @@ export default function UserManagementPage() {
     };
 
     return (
-        <div
-            className="p-[28px] w-full h-[calc(100vh-104px)] overflow-hidden flex justify-center"
-            style={{ backgroundImage: `url('/src/assets/img_background.png')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-        >
+        <div className="p-[28px] w-full h-[calc(100vh-104px)] overflow-hidden flex justify-center">
             {/* Main Panel */}
             <div className="w-full flex flex-col gap-5 rounded-[24px] border border-[#2a3240] shadow-[0_10px_30px_rgba(0,0,0,0.5)] bg-[#151a25]/95 backdrop-blur p-6 h-full">
 
