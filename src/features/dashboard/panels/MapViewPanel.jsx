@@ -19,15 +19,20 @@ const dockIcon = new L.DivIcon({
     iconAnchor: [12, 12]
 });
 
+const DRONE_ICON_WIDTH = 68;
+const DRONE_ICON_HEIGHT = 96;
+const DRONE_ICON_CENTER_X = 34;
+const DRONE_ICON_CENTER_Y = 74;
+
 const createDroneIcon = (heading) => new L.DivIcon({
     className: 'custom-drone-icon',
     html: `
-        <div style="transform: rotate(${heading || 0}deg); transition: transform 0.3s ease;">
-            <img src="/src/assets/images/icon_drone.svg" alt="Drone" class="w-24 h-24 object-contain" />
+        <div style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:flex; align-items:center; justify-content:center; transform: rotate(${heading || 0}deg); transform-origin: ${DRONE_ICON_CENTER_X}px ${DRONE_ICON_CENTER_Y}px; transition: transform 0.3s ease;">
+            <img src="/src/assets/images/icon_drone.svg" alt="Drone" style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:block;" />
         </div>
     `,
-    iconSize: [96, 96],
-    iconAnchor: [48, 48]
+    iconSize: [DRONE_ICON_WIDTH, DRONE_ICON_HEIGHT],
+    iconAnchor: [DRONE_ICON_CENTER_X, DRONE_ICON_CENTER_Y]
 });
 
 const createWaypointIcon = (number) => new L.DivIcon({
@@ -63,7 +68,14 @@ function MapFollower({ position, shouldFollow }) {
     return null;
 }
 
-export default function MapViewPanel({ telemetry, selectedDrone }) {
+const trailPathOptions = {
+    color: '#F54E4E',
+    weight: 2,
+    dashArray: '6, 8',
+    opacity: 0.9
+};
+
+export default function MapViewPanel({ telemetry, selectedDrone, trailPositions = [] }) {
     const defaultCenter = [-6.200000, 106.816666]; // Jakarta fallback
 
     // Get drone position from telemetry
@@ -134,14 +146,11 @@ export default function MapViewPanel({ telemetry, selectedDrone }) {
                     />
                 )}
 
-                {/* Line from home to drone */}
-                {homePosition && dronePosition && (
+                {/* Live drone trail */}
+                {trailPositions.length > 1 && (
                     <Polyline
-                        positions={[homePosition, dronePosition]}
-                        color="##F54E4E"
-                        weight={2}
-                        dashArray="4, 6"
-                        opacity={0.6}
+                        positions={trailPositions}
+                        pathOptions={trailPathOptions}
                     />
                 )}
             </MapContainer>

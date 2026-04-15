@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Circle, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -41,6 +41,10 @@ const geofencePathOptions = {
     fillOpacity: 1,
     weight: 0.3
 };
+
+const overlayTopStroke = 'linear-gradient(90deg, #E83737 0%, rgba(251,85,85,0.2) 50%, #E83737 100%)';
+const overlayBottomStroke = 'linear-gradient(90deg, rgba(251,85,85,0.2) 0%, #E83737 22%, #E83737 100%)';
+const overlayDividerStroke = 'linear-gradient(90deg, rgba(251,85,85,0.18) 0%, #E83737 50%, rgba(251,85,85,0.18) 100%)';
 
 // Component to handle map clicks for adding waypoints
 function MapClickHandler({ onAddWaypoint }) {
@@ -119,13 +123,28 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
             {isViewMode ? (
                 <>
                     {/* View Mode: Detail Overlay */}
-                    <div className="absolute top-4 right-4 z-[400] bg-[#1c222c]/90 backdrop-blur border border-[#2a3240] rounded-xl p-5 w-[280px] shadow-lg pointer-events-none">
+                    <div className="absolute top-4 right-4 z-[450] w-[280px] overflow-hidden bg-[#222222] p-5 shadow-lg pointer-events-none">
+                        <div
+                            className="pointer-events-none absolute left-0 top-0 h-px w-full"
+                            style={{ backgroundImage: overlayTopStroke }}
+                        />
+                        <div
+                            className="pointer-events-none absolute bottom-0 left-0 h-px w-full"
+                            style={{ backgroundImage: overlayBottomStroke }}
+                        />
+                        <div className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[#E83737]" />
+                        <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#E83737]" />
                         <div className="flex items-center space-x-2 mb-4">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
                                 <path d="M4 6h16M4 12h16M4 18h7" />
                             </svg>
                             <span className="text-white text-[13px] font-bold tracking-wide">Detail</span>
                         </div>
+
+                        <div
+                            className="mb-4 h-px w-full"
+                            style={{ backgroundImage: overlayDividerStroke }}
+                        />
 
                         <div className="grid grid-cols-2 gap-y-5 gap-x-2">
                             <div className="flex flex-col">
@@ -148,7 +167,17 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                     </div>
 
                     {/* View Mode: Mission Waypoints List */}
-                    <div className="absolute bottom-4 right-4 z-[400] bg-[#1c222c]/90 backdrop-blur border border-[#2a3240] rounded-xl p-4 w-[340px] shadow-lg pointer-events-auto">
+                    <div className="font-tomorrow absolute bottom-4 right-4 z-[450] w-[400px] overflow-hidden bg-[#222222] p-4 shadow-lg pointer-events-auto">
+                        <div
+                            className="pointer-events-none absolute left-0 top-0 h-px w-full"
+                            style={{ backgroundImage: overlayTopStroke }}
+                        />
+                        <div
+                            className="pointer-events-none absolute bottom-0 left-0 h-px w-full"
+                            style={{ backgroundImage: overlayBottomStroke }}
+                        />
+                        <div className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[#E83737]" />
+                        <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#E83737]" />
                         <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center space-x-2">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
@@ -156,31 +185,39 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                                     <circle cx="12" cy="10" r="3"></circle>
                                 </svg>
                                 <div>
-                                    <h3 className="text-white text-[13px] font-bold">Patrol On 3 Site</h3>
+                                    <h3 className="text-white text-[13px]">Patrol On 3 Site</h3>
                                     <p className="text-gray-400 text-[10px] mt-0.5">12/12/2025  16:34</p>
                                 </div>
                             </div>
-                            <div className="border border-gray-500 rounded-full px-3 py-1 bg-[#171c24]">
-                                <span className="text-gray-300 text-[10px] font-semibold">{waypoints.length || 3} Waypoint</span>
-                            </div>
                         </div>
+
+                        <div
+                            className="mb-4 h-px w-full"
+                            style={{ backgroundImage: overlayDividerStroke }}
+                        />
 
                         <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                             {(waypoints.length ? waypoints : [{ id: 1 }, { id: 2 }, { id: 3 }]).map((wp, i) => (
-                                <div key={wp.id} className="bg-[#171c24] border border-[#2a3240] rounded-lg p-3 relative">
+                                <div key={wp.id} className="relative overflow-hidden border border-[#393F44] bg-[#222222] p-3">
                                     <h4 className="text-white text-xs font-bold mb-2 tracking-wide">Point {i + 1}</h4>
-                                    <div className="grid grid-cols-3 gap-3">
+                                    <div className="grid grid-cols-[0.9fr_0.9fr_1.2fr] gap-3">
                                         <div className="flex flex-col gap-1">
                                             <span className="text-gray-400 text-[9px] uppercase">Altitude (M)</span>
-                                            <span className="text-white text-[11px] font-mono pl-1">150</span>
+                                            <div className="border border-[#393F44] bg-[#2C2C2C] px-2 py-1">
+                                                <span className="text-white text-[11px] font-mono">150</span>
+                                            </div>
                                         </div>
                                         <div className="flex flex-col gap-1">
                                             <span className="text-gray-400 text-[9px] uppercase">Camera Tilt</span>
-                                            <span className="text-white text-[11px] font-mono pl-1">30</span>
+                                            <div className="border border-[#393F44] bg-[#2C2C2C] px-2 py-1">
+                                                <span className="text-white text-[11px] font-mono">30</span>
+                                            </div>
                                         </div>
                                         <div className="flex flex-col gap-1">
                                             <span className="text-gray-400 text-[9px] uppercase">Action</span>
-                                            <span className="text-white text-[11px] pl-1">Video Record</span>
+                                            <div className="border border-[#393F44] bg-[#2C2C2C] px-2 py-1">
+                                                <span className="whitespace-nowrap text-white text-[11px]">Video Record</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
