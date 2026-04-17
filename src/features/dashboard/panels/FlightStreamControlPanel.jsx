@@ -1,11 +1,4 @@
-import React, { useState } from 'react';
-
-const AI_TOOL_OPTIONS = [
-    { id: 'people_counting', label: 'People Counting' },
-    { id: 'vehicle_detection', label: 'Vehicle Detection' },
-    { id: 'perimeter_alert', label: 'Perimeter Alert' },
-    { id: 'object_tracking', label: 'Object Tracking' }
-];
+import React from 'react';
 
 const SOLID_STROKE_RED = '#FC4747';
 
@@ -64,20 +57,32 @@ const StorageCard = ({ value }) => (
     </EdgeFadePanel>
 );
 
-export default function FlightStreamControlPanel({ secondaryPanel, onSwitchPanel, switchButtonImage }) {
-    const [enabledTools, setEnabledTools] = useState(() => ({
-        people_counting: true,
-        vehicle_detection: false,
-        perimeter_alert: true,
-        object_tracking: false
-    }));
+const TelemetryStat = ({ label, value }) => (
+    <div className="border border-[#393F44] bg-[#1A1A1A] px-2.5 py-1.5">
+        <p className="text-[8px] uppercase tracking-[0.16em] text-gray-500">{label}</p>
+        <p className="mt-0.5 text-[12px] font-medium tracking-wide text-white">{value}</p>
+    </div>
+);
 
-    const toggleTool = (toolId) => {
-        setEnabledTools((current) => ({
-            ...current,
-            [toolId]: !current[toolId]
-        }));
-    };
+export default function FlightStreamControlPanel({
+    secondaryPanel,
+    onSwitchPanel,
+    switchButtonImage,
+    telemetry = null,
+    isTelemetryConnected = false
+}) {
+    const location = telemetry?.location || {};
+    const battery = telemetry?.battery || {};
+    const gps = telemetry?.gps || {};
+    const vehicleState = telemetry?.vehicle_state || {};
+    const link = telemetry?.link || {};
+
+    const telemetryStats = [
+        { label: 'ALT', value: location.altitude != null ? `${Number(location.altitude).toFixed(1)} m` : '-- m' },
+        { label: 'SPD', value: location.ground_speed != null ? `${Number(location.ground_speed).toFixed(1)} m/s` : '-- m/s' },
+        { label: 'BAT', value: battery.percent != null ? `${battery.percent}%` : '--' },
+        { label: 'SAT', value: gps.satellites != null ? `${gps.satellites}` : '--' }
+    ];
 
     return (
         <div className="font-tomorrow h-full w-full overflow-hidden border border-[#D53535] bg-[#222222] p-3 shadow-lg select-none">
@@ -156,27 +161,41 @@ export default function FlightStreamControlPanel({ secondaryPanel, onSwitchPanel
                         </button>
                     </div>
 
-                    <div className="flex min-w-0 flex-col border border-[#D53535] bg-[#222222] px-3 py-3">
-                        <p className="text-center text-[16px] font-medium tracking-wide text-white">AI Tools</p>
+                    <div className="flex min-w-0 flex-col border border-[#D53535] bg-[#222222] px-2.5 py-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                            <div>
+                                <p className="text-[14px] font-medium tracking-wide text-white">Telemetry</p>
+                                <p className="mt-0.5 text-[9px] uppercase tracking-[0.16em] text-gray-500">Quick overview</p>
+                            </div>
+                            <div className={`text-[9px] font-medium uppercase tracking-[0.16em] ${isTelemetryConnected ? 'text-[#1ab394]' : 'text-gray-500'}`}>
+                                {isTelemetryConnected ? 'Live' : 'Offline'}
+                            </div>
+                        </div>
 
-                        <div className="mt-3 flex flex-1 flex-col justify-start gap-2.5">
-                            {AI_TOOL_OPTIONS.map((tool) => {
-                                const checked = enabledTools[tool.id];
-                                return (
-                                    <label
-                                        key={tool.id}
-                                        className="flex cursor-pointer items-center justify-between gap-2 text-[16px] font-medium tracking-wide text-white"
-                                    >
-                                        <span className="min-w-0 whitespace-normal leading-tight text-left">{tool.label}</span>
-                                        <input
-                                            type="checkbox"
-                                            checked={checked}
-                                            onChange={() => toggleTool(tool.id)}
-                                            className="h-3.5 w-3.5 shrink-0 accent-white"
-                                        />
-                                    </label>
-                                );
-                            })}
+                        <div className="mt-2 grid grid-cols-2 gap-1.5">
+                            {telemetryStats.map((stat) => (
+                                <TelemetryStat key={stat.label} label={stat.label} value={stat.value} />
+                            ))}
+                        </div>
+
+                        <div className="mt-2 border border-[#393F44] bg-[#1A1A1A] px-2.5 py-2">
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="text-[8px] uppercase tracking-[0.16em] text-gray-500">Flight Mode</p>
+                                <p className="text-[8px] uppercase tracking-[0.16em] text-gray-500">
+                                    HDG {location.heading != null ? `${Number(location.heading).toFixed(0)}°` : '--°'}
+                                </p>
+                            </div>
+                            <div className="mt-1 flex items-center justify-between gap-2">
+                                <p className="text-[12px] font-medium tracking-wide text-white">
+                                    {vehicleState.mode || (isTelemetryConnected ? 'Awaiting data' : 'Disconnected')}
+                                </p>
+                                <p className={`text-[9px] uppercase tracking-[0.16em] ${vehicleState.armed ? 'text-[#1ab394]' : 'text-gray-500'}`}>
+                                    {vehicleState.armed ? 'Armed' : 'Standby'}
+                                </p>
+                            </div>
+                            <div className="mt-1 text-[9px] text-gray-400">
+                                RSSI {link.rssi != null ? link.rssi : '--'}
+                            </div>
                         </div>
                     </div>
                 </div>

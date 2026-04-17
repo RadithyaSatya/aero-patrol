@@ -93,6 +93,38 @@ export const userService = {
         }
 
         return response.json();
+    },
+
+    createUser: async (payload) => {
+        const token = localStorage.getItem('authToken');
+        const deviceToken = localStorage.getItem('deviceToken');
+
+        if (!token && !deviceToken) {
+            throw new Error('No authentication token found');
+        }
+
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        } else {
+            headers['X-Device-Token'] = deviceToken;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/register-user`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to create user');
+        }
+
+        return data;
     }
 };
 

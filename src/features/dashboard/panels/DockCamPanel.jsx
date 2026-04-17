@@ -1,11 +1,11 @@
 import React from 'react';
 
-export default function DockCamPanel({ variant = 'default' }) {
+export default function DockCamPanel({ variant = 'default', streamBorderClassName = 'border' }) {
     const isStream = variant === 'stream';
 
     if (isStream) {
         return (
-            <div className="font-tomorrow relative flex h-full w-full flex-col overflow-hidden border border-[#D53535] bg-[#222222] p-3 shadow-lg select-none">
+            <div className={`font-tomorrow relative flex h-full w-full flex-col overflow-hidden ${streamBorderClassName} border-[#FC4747] bg-[#222222] p-3 shadow-lg select-none`}>
                 <div className="shrink-0 pb-3">
                     <div className="flex items-center gap-3">
                         <span className="h-[20px] w-[5px] bg-[#FC4747]" />

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Circle, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -19,13 +19,20 @@ const dockIcon = new L.DivIcon({
     iconAnchor: [12, 12]
 });
 
+const DRONE_ICON_WIDTH = 68;
+const DRONE_ICON_HEIGHT = 96;
+const DRONE_ICON_CENTER_X = 34;
+const DRONE_ICON_CENTER_Y = 74;
+
 const droneIcon = new L.DivIcon({
     className: 'custom-drone-icon',
     html: `
-        <img src="/src/assets/images/icon_drone.svg" alt="Drone" class="w-24 h-24" />
+        <div style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:flex; align-items:center; justify-content:center; transform-origin: ${DRONE_ICON_CENTER_X}px ${DRONE_ICON_CENTER_Y}px;">
+            <img src="/src/assets/images/icon_drone.svg" alt="Drone" style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:block;" />
+        </div>
     `,
-    iconSize: [96, 96],
-    iconAnchor: [48, 48]
+    iconSize: [DRONE_ICON_WIDTH, DRONE_ICON_HEIGHT],
+    iconAnchor: [DRONE_ICON_CENTER_X, DRONE_ICON_CENTER_Y]
 });
 
 const createWaypointIcon = (number) => new L.DivIcon({
@@ -56,7 +63,30 @@ function MapClickHandler({ onAddWaypoint }) {
     return null;
 }
 
-export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode = true }) {
+function MissionMapControlButton({ children, className = '', ...props }) {
+    return (
+        <button
+            type="button"
+            className={`relative flex h-[54px] w-[54px] items-center justify-center overflow-hidden bg-[#222222] shadow-lg transition hover:bg-[#262626] ${className}`}
+            {...props}
+        >
+            <div
+                className="pointer-events-none absolute left-0 top-0 h-px w-full"
+                style={{ backgroundImage: overlayTopStroke }}
+            />
+            <div
+                className="pointer-events-none absolute bottom-0 left-0 h-px w-full"
+                style={{ backgroundImage: overlayBottomStroke }}
+            />
+            <div className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[#E83737]" />
+            <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#E83737]" />
+            <span className="relative z-10 flex items-center justify-center">{children}</span>
+        </button>
+    );
+}
+
+export default function MissionMapPanel({ waypoints, onAddWaypoint, onCancelMission, isViewMode = true }) {
+    const mapRef = useRef(null);
     const center = [-6.200000, 106.816666]; // Jakarta coordinates for dummy data
     const dockPosition = [-6.195, 106.81];
     const dronePosition = [-6.198, 106.805];
@@ -67,11 +97,25 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
     // Connect drone to the first waypoint
     const allLines = waypoints.length > 0 ? [dronePosition, ...linePositions] : [];
 
+    const handleCenterDrone = () => {
+        if (!mapRef.current) return;
+        mapRef.current.setView(dronePosition, mapRef.current.getZoom(), { animate: true });
+    };
+
+    const handleZoomIn = () => {
+        mapRef.current?.zoomIn();
+    };
+
+    const handleZoomOut = () => {
+        mapRef.current?.zoomOut();
+    };
+
     return (
         <div className="relative w-full h-full bg-[#181d25]">
             <MapContainer
                 center={center}
                 zoom={14}
+                ref={mapRef}
                 attributionControl={false}
                 style={{ height: '100%', width: '100%' }}
                 zoomControl={false}
@@ -104,26 +148,32 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
             </MapContainer>
 
             {/* Map Custom Controls (Zoom/Location) */}
-            <div className="absolute top-[60vh] left-4 z-[400] flex flex-col bg-[#1c222c]/90 backdrop-blur border border-[#2a3240] rounded-xl overflow-hidden shadow-lg">
-                <button className="p-3 hover:bg-[#202834] transition flex items-center justify-center border-b border-[#2a3240]">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                        <polygon points="12 2 15 13 22 13 16 16 18 22 12 18 6 22 8 16 2 13 9 13 12 2" fill="currentColor"></polygon>
-                    </svg>
-                </button>
-                <button className="p-3 hover:bg-[#202834] transition flex items-center justify-center border-b border-[#2a3240]">
-                    <span className="text-white text-lg font-mono leading-none">+</span>
-                </button>
-                <button className="p-3 hover:bg-[#202834] transition flex items-center justify-center">
-                    <span className="text-white text-lg font-mono leading-none">-</span>
-                </button>
+            <div className="absolute top-[60vh] left-4 z-[450] flex flex-col">
+                <div className="flex flex-col gap-1">
+                    <MissionMapControlButton onClick={handleCenterDrone} aria-label="Center drone on map">
+                        <img
+                            src="/src/assets/images/icon_drone_center_mission.svg"
+                            alt=""
+                            aria-hidden="true"
+                            className="h-5 w-5 object-contain"
+                        />
+                    </MissionMapControlButton>
+                    <MissionMapControlButton onClick={handleZoomIn} aria-label="Zoom in">
+                        <span className="text-[24px] leading-none text-white">+</span>
+                    </MissionMapControlButton>
+                </div>
+                <div className="mt-2">
+                    <MissionMapControlButton onClick={handleZoomOut} aria-label="Zoom out">
+                        <span className="text-[24px] leading-none text-white">−</span>
+                    </MissionMapControlButton>
+                </div>
             </div>
 
             {/* Conditionally Render Overlays */}
             {isViewMode ? (
                 <>
                     {/* View Mode: Detail Overlay */}
-                    <div className="absolute top-4 right-4 z-[450] w-[280px] overflow-hidden bg-[#222222] p-5 shadow-lg pointer-events-none">
+                    <div className="font-tomorrow absolute top-4 right-4 z-[450] w-[280px] overflow-hidden bg-[#222222] p-5 shadow-lg pointer-events-none">
                         <div
                             className="pointer-events-none absolute left-0 top-0 h-px w-full"
                             style={{ backgroundImage: overlayTopStroke }}
@@ -135,9 +185,12 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                         <div className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[#E83737]" />
                         <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#E83737]" />
                         <div className="flex items-center space-x-2 mb-4">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
-                                <path d="M4 6h16M4 12h16M4 18h7" />
-                            </svg>
+                            <img
+                                src="/src/assets/images/icon_detail_information_mission.svg"
+                                alt=""
+                                aria-hidden="true"
+                                className="h-[14px] w-[14px] object-contain"
+                            />
                             <span className="text-white text-[13px] font-bold tracking-wide">Detail</span>
                         </div>
 
@@ -149,19 +202,19 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                         <div className="grid grid-cols-2 gap-y-5 gap-x-2">
                             <div className="flex flex-col">
                                 <span className="text-gray-400 text-[10px] mb-1">Flight Estimation (min)</span>
-                                <span className="text-white text-xs font-mono">00:20:30</span>
+                                <span className="text-white text-xs">00:20:30</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-gray-400 text-[10px] mb-1">Battery Left (min)</span>
-                                <span className="text-white text-xs font-mono">00:20:30</span>
+                                <span className="text-white text-xs">00:20:30</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-gray-400 text-[10px] mb-1">Flight Distance (meter)</span>
-                                <span className="text-white text-xs font-bold">250 Meter</span>
+                                <span className="text-white text-xs">250 Meter</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-gray-400 text-[10px] mb-1">Flight Area</span>
-                                <span className="text-white text-xs font-bold">250 Meter</span>
+                                <span className="text-white text-xs">250 Meter</span>
                             </div>
                         </div>
                     </div>
@@ -180,10 +233,12 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                         <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#E83737]" />
                         <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center space-x-2">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
-                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                                    <circle cx="12" cy="10" r="3"></circle>
-                                </svg>
+                                <img
+                                    src="/src/assets/images/icon_detail_information_mission.svg"
+                                    alt=""
+                                    aria-hidden="true"
+                                    className="h-[14px] w-[14px] object-contain"
+                                />
                                 <div>
                                     <h3 className="text-white text-[13px]">Patrol On 3 Site</h3>
                                     <p className="text-gray-400 text-[10px] mt-0.5">12/12/2025  16:34</p>
@@ -199,23 +254,23 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                         <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                             {(waypoints.length ? waypoints : [{ id: 1 }, { id: 2 }, { id: 3 }]).map((wp, i) => (
                                 <div key={wp.id} className="relative overflow-hidden border border-[#393F44] bg-[#222222] p-3">
-                                    <h4 className="text-white text-xs font-bold mb-2 tracking-wide">Point {i + 1}</h4>
+                                    <h4 className="text-white text-xs mb-2 tracking-wide">Point {i + 1}</h4>
                                     <div className="grid grid-cols-[0.9fr_0.9fr_1.2fr] gap-3">
                                         <div className="flex flex-col gap-1">
                                             <span className="text-gray-400 text-[9px] uppercase">Altitude (M)</span>
-                                            <div className="border border-[#393F44] bg-[#2C2C2C] px-2 py-1">
-                                                <span className="text-white text-[11px] font-mono">150</span>
+                                            <div className="border border-[#393F44] rounded bg-[#2C2C2C] px-2 py-1">
+                                                <span className="text-white text-[11px]">150</span>
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-1">
                                             <span className="text-gray-400 text-[9px] uppercase">Camera Tilt</span>
-                                            <div className="border border-[#393F44] bg-[#2C2C2C] px-2 py-1">
-                                                <span className="text-white text-[11px] font-mono">30</span>
+                                            <div className="border border-[#393F44] rounded bg-[#2C2C2C] px-2 py-1">
+                                                <span className="text-white text-[11px]">30</span>
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-1">
                                             <span className="text-gray-400 text-[9px] uppercase">Action</span>
-                                            <div className="border border-[#393F44] bg-[#2C2C2C] px-2 py-1">
+                                            <div className="border border-[#393F44] rounded bg-[#2C2C2C] px-2 py-1">
                                                 <span className="whitespace-nowrap text-white text-[11px]">Video Record</span>
                                             </div>
                                         </div>
@@ -228,11 +283,31 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
             ) : (
                 <>
                     {/* Add Mode: Drone Condition Overlay */}
-                    <div className="absolute top-4 left-4 z-[400] bg-[#1c222c]/90 backdrop-blur border border-[#2a3240] rounded-xl p-4 w-[280px] shadow-lg pointer-events-none">
+                    <div className="font-tomorrow absolute top-4 left-4 z-[450] w-[280px] overflow-hidden bg-[#222222] p-4 shadow-lg pointer-events-none">
+                        <div
+                            className="pointer-events-none absolute left-0 top-0 h-px w-full"
+                            style={{ backgroundImage: overlayTopStroke }}
+                        />
+                        <div
+                            className="pointer-events-none absolute bottom-0 left-0 h-px w-full"
+                            style={{ backgroundImage: overlayBottomStroke }}
+                        />
+                        <div className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[#E83737]" />
+                        <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#E83737]" />
                         <div className="flex items-center space-x-2 mb-4">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                            <img
+                                src="/src/assets/images/icon_detail_information_mission.svg"
+                                alt=""
+                                aria-hidden="true"
+                                className="h-[14px] w-[14px] object-contain"
+                            />
                             <span className="text-white text-xs font-bold tracking-wide">Drone Condition</span>
                         </div>
+
+                        <div
+                            className="mb-4 h-px w-full"
+                            style={{ backgroundImage: overlayDividerStroke }}
+                        />
 
                         <div className="grid grid-cols-2 gap-y-4 gap-x-2 mb-4">
                             <div className="flex flex-col">
@@ -241,7 +316,7 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-gray-400 text-[10px] mb-1">Flight Estimation (min)</span>
-                                <span className="text-white text-[11px] font-mono">00:30:45</span>
+                                <span className="text-white text-[11px]">00:30:45</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-gray-400 text-[10px] mb-1">Drone Speed Avg</span>
@@ -249,13 +324,13 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-gray-400 text-[10px] mb-1">Flight Estimation (min)</span>
-                                <span className="text-white text-[11px] font-mono">00:30:45</span>
+                                <span className="text-white text-[11px]">00:30:45</span>
                             </div>
                         </div>
 
                         <div className="flex flex-col gap-2">
                             <span className="text-gray-400 text-[10px]">Weather Condition</span>
-                            <div className="bg-[#171c24] border border-[#2a3240] rounded-lg p-3">
+                            <div className="bg-[#222222] border border-[#2a3240] rounded-lg p-3">
                                 <div className="flex items-center space-x-3 mb-3">
                                     <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center text-xl shadow-inner shadow-yellow-500/50 relative">☁️</div>
                                     <div className="flex-1 flex justify-between items-center">
@@ -264,20 +339,40 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                                     </div>
                                 </div>
                                 <div className="flex justify-between text-[10px] text-gray-400">
-                                    <div className="flex space-x-1"><span>Gust</span><span className="text-white font-mono">6 m/s</span></div>
-                                    <div className="flex space-x-1"><span>Wind</span><span className="text-white font-mono">6 m/s</span></div>
-                                    <div className="flex space-x-1"><span>Humid</span><span className="text-white font-mono">6 m/s</span></div>
+                                    <div className="flex space-x-1"><span>Gust</span><span className="text-white">6 m/s</span></div>
+                                    <div className="flex space-x-1"><span>Wind</span><span className="text-white">6 m/s</span></div>
+                                    <div className="flex space-x-1"><span>Humid</span><span className="text-white">6 m/s</span></div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Add Mode: Legend Overlay */}
-                    <div className="absolute top-4 right-4 z-[400] bg-[#1c222c]/90 backdrop-blur border border-[#2a3240] rounded-xl p-4 w-[240px] shadow-lg pointer-events-none">
+                    <div className="font-tomorrow absolute top-4 right-4 z-[450] w-[240px] overflow-hidden bg-[#222222] p-4 shadow-lg pointer-events-none">
+                        <div
+                            className="pointer-events-none absolute left-0 top-0 h-px w-full"
+                            style={{ backgroundImage: overlayTopStroke }}
+                        />
+                        <div
+                            className="pointer-events-none absolute bottom-0 left-0 h-px w-full"
+                            style={{ backgroundImage: overlayBottomStroke }}
+                        />
+                        <div className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[#E83737]" />
+                        <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#E83737]" />
                         <div className="flex items-center space-x-2 mb-3">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                            <img
+                                src="/src/assets/images/icon_detail_information_mission.svg"
+                                alt=""
+                                aria-hidden="true"
+                                className="h-[14px] w-[14px] object-contain"
+                            />
                             <span className="text-white text-xs font-bold tracking-wide">Legend</span>
                         </div>
+
+                        <div
+                            className="mb-3 h-px w-full"
+                            style={{ backgroundImage: overlayDividerStroke }}
+                        />
 
                         <div className="grid grid-cols-2 gap-y-3">
                             <div className="flex items-center space-x-2">
@@ -289,11 +384,11 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                                 <span className="text-gray-300 text-[10px] font-medium">Dock</span>
                             </div>
                             <div className="flex items-center space-x-2">
-                                <div className="w-3.5 h-3.5 rounded-full bg-[#ea580c] flex items-center justify-center"><div className="w-1.5 h-1.5 bg-white rounded-full"></div></div>
+                                <img src="/src/assets/images/icon_drone_single.svg" alt="" aria-hidden="true" className="h-4 w-4 object-contain" />
                                 <span className="text-gray-300 text-[10px] font-medium">Drone</span>
                             </div>
                             <div className="flex items-center space-x-2">
-                                <div className="flex space-x-[2px] text-[#682F2F] text-[10px] font-bold font-mono">
+                                <div className="flex space-x-[2px] text-[#682F2F] text-[10px] font-bold">
                                     <span>1</span><span>/</span><span>2</span><span>/</span><span>3</span>
                                 </div>
                                 <span className="text-gray-300 text-[10px] font-medium ml-1">Waypoint</span>
@@ -304,11 +399,15 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, isViewMode =
                     {/* Add Mode: Bottom Controls Overlay */}
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[400] flex flex-col items-center">
                         <div className="flex space-x-4 mt-2">
-                            <button className="bg-transparent hover:brightness-110 transition flex items-center space-x-2">
-                                <img src="/src/assets/btn_cancel_mission.png" alt="" />
+                            <button
+                                type="button"
+                                onClick={onCancelMission}
+                                className="bg-transparent hover:brightness-110 transition flex items-center space-x-2"
+                            >
+                                <img src="/src/assets/images/btn_cancel_mission.png" alt="Cancel Mission" />
                             </button>
                             <button className="bg-transparent hover:brightness-110 transition">
-                                <img src="/src/assets/btn_set_schedule.png" alt="" />
+                                <img src="/src/assets/images/btn_launch_mission.png" alt="Launch Mission" />
                             </button>
                         </div>
                     </div>

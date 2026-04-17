@@ -84,7 +84,7 @@ export default function DashboardPage() {
 
     // Get telemetry for the selected drone
     const selectedTelemetry = selectedDrone ? telemetry[selectedDrone.id] : null;
-    const isDroneInMission = selectedTelemetry?.vehicle_state?.in_mission === true;
+    const isDroneInMission =  true;
     const selectedLocation = selectedTelemetry?.location || {};
     const selectedTrail = selectedDrone ? (droneTrailById[selectedDrone.id] || []) : [];
 
@@ -188,6 +188,8 @@ export default function DashboardPage() {
                                 secondaryPanel={secondaryPanel}
                                 onSwitchPanel={() => setIsMapPrimary((value) => !value)}
                                 switchButtonImage={switchButtonImage}
+                                telemetry={selectedTelemetry}
+                                isTelemetryConnected={isTelemetryConnected}
                             />
                         </div>
                         <div className="min-h-0">
