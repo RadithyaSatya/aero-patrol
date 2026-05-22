@@ -52,3 +52,19 @@
   --font-orbitron: "Orbitron", sans-serif;
   --font-tomorrow: "Tomorrow", sans-serif;
 }
+
+.mission-time-input {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 0;
+}
+
+.mission-time-input::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
+}
+
+.mission-time-input::-webkit-clear-button,
+.mission-time-input::-webkit-inner-spin-button {
+  display: none;
+}

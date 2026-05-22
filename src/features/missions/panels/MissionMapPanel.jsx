@@ -2,6 +2,20 @@ import React, { useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Circle, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import droneSingleIconImage from '../../../assets/images/icon_drone_single.svg';
+import useWeatherForecast from '../../../shared/hooks/useWeatherForecast';
+import {
+    formatHumidity,
+    formatTemperature,
+    formatWind,
+    getWeatherPresentation,
+} from '../../../shared/utils/weather';
+import {
+    formatFlightDuration,
+    formatMissionDistance,
+    getEstimatedFlightDurationSeconds,
+    getMissionProfileLengthMeters,
+} from '../utils/missionMetrics';
 
 // Fix Leaflet's default icon path issues
 delete L.Icon.Default.prototype._getIconUrl;
@@ -11,7 +25,6 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// Custom Icon for Drone and Dock (Optional visually for now, keeping it basic)
 const dockIcon = new L.DivIcon({
     className: 'custom-dock-icon',
     html: `<div class="w-6 h-6 rounded-full bg-[#d4af37] text-black text-[10px] font-bold flex items-center justify-center shadow-lg border-2 border-[#d4af37]/50">H</div>`,
@@ -19,20 +32,17 @@ const dockIcon = new L.DivIcon({
     iconAnchor: [12, 12]
 });
 
-const DRONE_ICON_WIDTH = 68;
-const DRONE_ICON_HEIGHT = 96;
-const DRONE_ICON_CENTER_X = 34;
-const DRONE_ICON_CENTER_Y = 74;
+const DRONE_ICON_SIZE = 28;
 
 const droneIcon = new L.DivIcon({
     className: 'custom-drone-icon',
     html: `
-        <div style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:flex; align-items:center; justify-content:center; transform-origin: ${DRONE_ICON_CENTER_X}px ${DRONE_ICON_CENTER_Y}px;">
-            <img src="/src/assets/images/icon_drone.svg" alt="Drone" style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:block;" />
+        <div style="width:${DRONE_ICON_SIZE}px; height:${DRONE_ICON_SIZE}px; display:flex; align-items:center; justify-content:center;">
+            <img src="${droneSingleIconImage}" alt="Drone" style="width:${DRONE_ICON_SIZE}px; height:${DRONE_ICON_SIZE}px; display:block;" />
         </div>
     `,
-    iconSize: [DRONE_ICON_WIDTH, DRONE_ICON_HEIGHT],
-    iconAnchor: [DRONE_ICON_CENTER_X, DRONE_ICON_CENTER_Y]
+    iconSize: [DRONE_ICON_SIZE, DRONE_ICON_SIZE],
+    iconAnchor: [DRONE_ICON_SIZE / 2, DRONE_ICON_SIZE / 2]
 });
 
 const createWaypointIcon = (number) => new L.DivIcon({
@@ -85,21 +95,134 @@ function MissionMapControlButton({ children, className = '', ...props }) {
     );
 }
 
-export default function MissionMapPanel({ waypoints, onAddWaypoint, onCancelMission, isViewMode = true }) {
+const toLatLng = (latitude, longitude) => {
+    if (latitude == null || longitude == null) {
+        return null;
+    }
+
+    const parsedLatitude = Number(latitude);
+    const parsedLongitude = Number(longitude);
+
+    if (Number.isNaN(parsedLatitude) || Number.isNaN(parsedLongitude)) {
+        return null;
+    }
+
+    return [parsedLatitude, parsedLongitude];
+};
+
+const formatDateTime = (value, timeZone) => {
+    if (!value) return '-';
+
+    const parsedDate = new Date(value);
+    if (Number.isNaN(parsedDate.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: timeZone || undefined,
+    }).format(parsedDate);
+};
+
+const toTitleCase = (value = '') => value
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+const formatScheduleType = (value) => (
+    !value ? '-' : value === 'one_time' ? 'One Time' : `Recurring - ${toTitleCase(value)}`
+);
+
+const formatWaypointAction = (value) => {
+    if (!value) return '-';
+    return toTitleCase(value);
+};
+
+const formatCoordinate = (value) => {
+    const parsedValue = Number(value);
+    return Number.isNaN(parsedValue) ? '-' : parsedValue.toFixed(6);
+};
+
+export default function MissionMapPanel({
+    waypoints,
+    onAddWaypoint,
+    onCancelMission,
+    onLaunchMission,
+    isViewMode = true,
+    selectedDrone,
+    telemetry = null,
+    missionRun,
+    missionDetail,
+    isMissionDetailLoading = false,
+    missionDetailError = '',
+    isLaunchingMission = false,
+}) {
     const mapRef = useRef(null);
-    const center = [-6.200000, 106.816666]; // Jakarta coordinates for dummy data
-    const dockPosition = [-6.195, 106.81];
-    const dronePosition = [-6.198, 106.805];
+    const defaultCenter = [-6.200000, 106.816666];
+    const dockPosition = toLatLng(selectedDrone?.home_latitude, selectedDrone?.home_longitude);
+    const homePosition = selectedDrone?.home_latitude != null && selectedDrone?.home_longitude != null
+        ? { lat: Number(selectedDrone.home_latitude), lng: Number(selectedDrone.home_longitude) }
+        : null;
+    const dronePosition = dockPosition;
+    const center = dronePosition || dockPosition || defaultCenter;
+    const initialZoom = dronePosition ? 16 : 13;
+    const parsedMaxRange = Number(selectedDrone?.max_range_meter);
+    const maxRange = Number.isFinite(parsedMaxRange) && parsedMaxRange > 0 ? parsedMaxRange : null;
+    const activeWaypoints = isViewMode
+        ? (Array.isArray(missionDetail?.waypoints) ? missionDetail.waypoints : [])
+        : waypoints;
+    const missionTitle = missionDetail?.mission_name || missionRun?.mission_name || 'Mission Detail';
+    const missionDateTime = formatDateTime(
+        missionRun?.run_at || missionDetail?.schedule,
+        missionRun?.schedule_timezone || missionDetail?.schedule_timezone
+    );
+    const topDetailItems = [
+        { label: 'Status', value: missionRun?.status || missionDetail?.status || '-' },
+        { label: 'Schedule', value: formatScheduleType(missionRun?.schedule_type || missionDetail?.schedule_type || '') },
+        { label: 'Run At', value: missionDateTime },
+        { label: 'Waypoints', value: `${activeWaypoints.length}` },
+    ];
 
-    // Extract lat/lng pairs for the polyline connection
-    const linePositions = waypoints.map(wp => [wp.lat, wp.lng]);
-
-    // Connect drone to the first waypoint
-    const allLines = waypoints.length > 0 ? [dronePosition, ...linePositions] : [];
+    const rtlAnchorPosition = dronePosition || dockPosition;
+    const linePositions = activeWaypoints
+        .map((wp) => toLatLng(wp.latitude ?? wp.lat, wp.longitude ?? wp.lng))
+        .filter(Boolean);
+    const missionLengthMeters = getMissionProfileLengthMeters({
+        waypoints: activeWaypoints,
+        homePosition,
+    });
+    const estimatedFlightDurationSeconds = getEstimatedFlightDurationSeconds(missionLengthMeters, selectedDrone?.flight_speed);
+    const batteryPercent = selectedDrone?.status?.battery_percent;
+    const batteryLabel = batteryPercent != null
+        ? `${batteryPercent}% (${batteryPercent >= 60 ? 'Good' : batteryPercent >= 30 ? 'Moderate' : 'Low'})`
+        : '--';
+    const flightSpeedLabel = Number.isFinite(Number(selectedDrone?.flight_speed))
+        ? `${Number(selectedDrone.flight_speed).toFixed(1)} m/s`
+        : '--';
+    const { weatherData, weatherError, isLoading: isWeatherLoading } = useWeatherForecast({
+        selectedDrone,
+        telemetry,
+        forecastHours: 6,
+    });
+    const currentWeather = weatherData?.current || {};
+    const currentWeatherPresentation = getWeatherPresentation(currentWeather.weather_code, currentWeather.is_day);
+    const allLines = rtlAnchorPosition && linePositions.length > 0
+        ? [rtlAnchorPosition, ...linePositions, rtlAnchorPosition]
+        : [];
 
     const handleCenterDrone = () => {
         if (!mapRef.current) return;
-        mapRef.current.setView(dronePosition, mapRef.current.getZoom(), { animate: true });
+
+        const targetPosition = dronePosition || dockPosition;
+        if (!targetPosition) return;
+
+        mapRef.current.setView(targetPosition, mapRef.current.getZoom(), { animate: true });
     };
 
     const handleZoomIn = () => {
@@ -114,7 +237,7 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, onCancelMiss
         <div className="relative w-full h-full bg-[#181d25]">
             <MapContainer
                 center={center}
-                zoom={14}
+                zoom={initialZoom}
                 ref={mapRef}
                 attributionControl={false}
                 style={{ height: '100%', width: '100%' }}
@@ -129,21 +252,28 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, onCancelMiss
 
                 <MapClickHandler onAddWaypoint={onAddWaypoint} />
 
-                {/* Max Radius Circle */}
-                <Circle center={dockPosition} radius={1800} pathOptions={geofencePathOptions} />
+                {dronePosition && maxRange != null ? (
+                    <Circle center={dronePosition} radius={maxRange} pathOptions={geofencePathOptions} />
+                ) : null}
 
-                {/* Draw lines between points */}
-                <Polyline positions={allLines} color="#682F2F" weight={2} dashArray="4, 6" />
+                {allLines.length > 1 ? (
+                    <Polyline positions={allLines} color="#682F2F" weight={2} dashArray="4, 6" />
+                ) : null}
 
-                {/* Dock Marker */}
-                <Marker position={dockPosition} icon={dockIcon} />
+                {dockPosition && (
+                    <Marker position={dockPosition} icon={dockIcon} />
+                )}
 
-                {/* Drone Marker */}
-                <Marker position={dronePosition} icon={droneIcon} />
+                {dronePosition && (
+                    <Marker position={dronePosition} icon={droneIcon} zIndexOffset={1000} />
+                )}
 
-                {/* Waypoints */}
-                {waypoints.map((wp, index) => (
-                    <Marker key={wp.id} position={[wp.lat, wp.lng]} icon={createWaypointIcon(index + 1)} />
+                {activeWaypoints.map((wp, index) => (
+                    <Marker
+                        key={wp.id}
+                        position={[wp.latitude ?? wp.lat, wp.longitude ?? wp.lng]}
+                        icon={createWaypointIcon(index + 1)}
+                    />
                 ))}
             </MapContainer>
 
@@ -199,24 +329,22 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, onCancelMiss
                             style={{ backgroundImage: overlayDividerStroke }}
                         />
 
-                        <div className="grid grid-cols-2 gap-y-5 gap-x-2">
-                            <div className="flex flex-col">
-                                <span className="text-gray-400 text-[10px] mb-1">Flight Estimation (min)</span>
-                                <span className="text-white text-xs">00:20:30</span>
+                        {isMissionDetailLoading ? (
+                            <div className="text-xs text-gray-400">Loading mission detail...</div>
+                        ) : missionDetailError ? (
+                            <div className="text-xs text-red-400">{missionDetailError}</div>
+                        ) : !missionRun ? (
+                            <div className="text-xs text-gray-400">Select a mission from the list to inspect its detail.</div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-x-2 gap-y-5">
+                                {topDetailItems.map((item) => (
+                                    <div key={item.label} className="flex flex-col">
+                                        <span className="mb-1 text-[10px] text-gray-400">{item.label}</span>
+                                        <span className="text-xs text-white">{item.value || '-'}</span>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="flex flex-col">
-                                <span className="text-gray-400 text-[10px] mb-1">Battery Left (min)</span>
-                                <span className="text-white text-xs">00:20:30</span>
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-gray-400 text-[10px] mb-1">Flight Distance (meter)</span>
-                                <span className="text-white text-xs">250 Meter</span>
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-gray-400 text-[10px] mb-1">Flight Area</span>
-                                <span className="text-white text-xs">250 Meter</span>
-                            </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* View Mode: Mission Waypoints List */}
@@ -240,8 +368,8 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, onCancelMiss
                                     className="h-[14px] w-[14px] object-contain"
                                 />
                                 <div>
-                                    <h3 className="text-white text-[13px]">Patrol On 3 Site</h3>
-                                    <p className="text-gray-400 text-[10px] mt-0.5">12/12/2025  16:34</p>
+                                    <h3 className="text-white text-[13px]">{missionTitle}</h3>
+                                    <p className="mt-0.5 text-[10px] text-gray-400">{missionDateTime}</p>
                                 </div>
                             </div>
                         </div>
@@ -252,31 +380,44 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, onCancelMiss
                         />
 
                         <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                            {(waypoints.length ? waypoints : [{ id: 1 }, { id: 2 }, { id: 3 }]).map((wp, i) => (
-                                <div key={wp.id} className="relative overflow-hidden border border-[#393F44] bg-[#222222] p-3">
-                                    <h4 className="text-white text-xs mb-2 tracking-wide">Point {i + 1}</h4>
-                                    <div className="grid grid-cols-[0.9fr_0.9fr_1.2fr] gap-3">
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-gray-400 text-[9px] uppercase">Altitude (M)</span>
-                                            <div className="border border-[#393F44] rounded bg-[#2C2C2C] px-2 py-1">
-                                                <span className="text-white text-[11px]">150</span>
+                            {isMissionDetailLoading ? (
+                                <div className="px-2 py-3 text-xs text-gray-400">Loading waypoints...</div>
+                            ) : missionDetailError ? (
+                                <div className="px-2 py-3 text-xs text-red-400">{missionDetailError}</div>
+                            ) : activeWaypoints.length === 0 ? (
+                                <div className="px-2 py-3 text-xs text-gray-400">
+                                    {missionRun ? 'This mission has no waypoints.' : 'No mission selected.'}
+                                </div>
+                            ) : (
+                                activeWaypoints.map((wp, i) => (
+                                    <div key={wp.id} className="relative overflow-hidden border border-[#393F44] bg-[#222222] p-3">
+                                        <h4 className="mb-2 text-xs tracking-wide text-white">Point {i + 1}</h4>
+                                        <div className="grid grid-cols-[0.9fr_0.9fr_1.2fr] gap-3">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-[9px] uppercase text-gray-400">Altitude (M)</span>
+                                                <div className="rounded border border-[#393F44] bg-[#2C2C2C] px-2 py-1">
+                                                    <span className="text-[11px] text-white">{wp.altitude ?? '-'}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-[9px] uppercase text-gray-400">Duration (S)</span>
+                                                <div className="rounded border border-[#393F44] bg-[#2C2C2C] px-2 py-1">
+                                                    <span className="text-[11px] text-white">{wp.action_duration ?? '-'}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-[9px] uppercase text-gray-400">Action</span>
+                                                <div className="rounded border border-[#393F44] bg-[#2C2C2C] px-2 py-1">
+                                                    <span className="whitespace-nowrap text-[11px] text-white">{formatWaypointAction(wp.action)}</span>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-gray-400 text-[9px] uppercase">Camera Tilt</span>
-                                            <div className="border border-[#393F44] rounded bg-[#2C2C2C] px-2 py-1">
-                                                <span className="text-white text-[11px]">30</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-gray-400 text-[9px] uppercase">Action</span>
-                                            <div className="border border-[#393F44] rounded bg-[#2C2C2C] px-2 py-1">
-                                                <span className="whitespace-nowrap text-white text-[11px]">Video Record</span>
-                                            </div>
+                                        <div className="mt-2 text-[10px] text-gray-500">
+                                            {formatCoordinate(wp.latitude ?? wp.lat)}, {formatCoordinate(wp.longitude ?? wp.lng)}
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                     </div>
                 </>
@@ -312,19 +453,19 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, onCancelMiss
                         <div className="grid grid-cols-2 gap-y-4 gap-x-2 mb-4">
                             <div className="flex flex-col">
                                 <span className="text-gray-400 text-[10px] mb-1">Battery Level</span>
-                                <span className="text-white text-[11px] font-semibold">82% (Good)</span>
+                                <span className="text-white text-[11px] font-semibold">{batteryLabel}</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-gray-400 text-[10px] mb-1">Flight Estimation (min)</span>
-                                <span className="text-white text-[11px]">00:30:45</span>
+                                <span className="text-gray-400 text-[10px] mb-1">Flight Estimation</span>
+                                <span className="text-white text-[11px]">{formatFlightDuration(estimatedFlightDurationSeconds)}</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-gray-400 text-[10px] mb-1">Drone Speed Avg</span>
-                                <span className="text-white text-[11px] font-semibold">10 km/h</span>
+                                <span className="text-gray-400 text-[10px] mb-1">Flight Speed</span>
+                                <span className="text-white text-[11px] font-semibold">{flightSpeedLabel}</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-gray-400 text-[10px] mb-1">Flight Estimation (min)</span>
-                                <span className="text-white text-[11px]">00:30:45</span>
+                                <span className="text-gray-400 text-[10px] mb-1">Mission Length</span>
+                                <span className="text-white text-[11px]">{formatMissionDistance(missionLengthMeters)}</span>
                             </div>
                         </div>
 
@@ -332,17 +473,24 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, onCancelMiss
                             <span className="text-gray-400 text-[10px]">Weather Condition</span>
                             <div className="bg-[#222222] border border-[#2a3240] rounded-lg p-3">
                                 <div className="flex items-center space-x-3 mb-3">
-                                    <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center text-xl shadow-inner shadow-yellow-500/50 relative">☁️</div>
+                                    <div className="w-8 h-8 rounded-full bg-[#2A2A2A] flex items-center justify-center text-xl relative text-white">
+                                        {currentWeatherPresentation.icon}
+                                    </div>
                                     <div className="flex-1 flex justify-between items-center">
-                                        <span className="text-white text-sm font-bold">Cloudy</span>
-                                        <span className="text-white text-lg font-bold">31°C</span>
+                                        <span className="text-white text-sm font-bold">
+                                            {isWeatherLoading ? 'Loading...' : weatherError ? 'Weather Error' : currentWeatherPresentation.label}
+                                        </span>
+                                        <span className="text-white text-lg font-bold">
+                                            {isWeatherLoading ? '--' : formatTemperature(currentWeather.temperature_2m)}
+                                        </span>
                                     </div>
                                 </div>
                                 <div className="flex justify-between text-[10px] text-gray-400">
-                                    <div className="flex space-x-1"><span>Gust</span><span className="text-white">6 m/s</span></div>
-                                    <div className="flex space-x-1"><span>Wind</span><span className="text-white">6 m/s</span></div>
-                                    <div className="flex space-x-1"><span>Humid</span><span className="text-white">6 m/s</span></div>
+                                    <div className="flex space-x-1"><span>Gust</span><span className="text-white">{isWeatherLoading ? '--' : formatWind(currentWeather.wind_gusts_10m)}</span></div>
+                                    <div className="flex space-x-1"><span>Wind</span><span className="text-white">{isWeatherLoading ? '--' : formatWind(currentWeather.wind_speed_10m)}</span></div>
+                                    <div className="flex space-x-1"><span>Humid</span><span className="text-white">{isWeatherLoading ? '--' : formatHumidity(currentWeather.relative_humidity_2m)}</span></div>
                                 </div>
+                                {weatherError ? <div className="mt-2 text-[10px] text-red-300">{weatherError}</div> : null}
                             </div>
                         </div>
                     </div>
@@ -402,11 +550,17 @@ export default function MissionMapPanel({ waypoints, onAddWaypoint, onCancelMiss
                             <button
                                 type="button"
                                 onClick={onCancelMission}
+                                disabled={isLaunchingMission}
                                 className="bg-transparent hover:brightness-110 transition flex items-center space-x-2"
                             >
                                 <img src="/src/assets/images/btn_cancel_mission.png" alt="Cancel Mission" />
                             </button>
-                            <button className="bg-transparent hover:brightness-110 transition">
+                            <button
+                                type="button"
+                                onClick={onLaunchMission}
+                                disabled={isLaunchingMission}
+                                className={`bg-transparent transition ${isLaunchingMission ? 'cursor-not-allowed opacity-60' : 'hover:brightness-110'}`}
+                            >
                                 <img src="/src/assets/images/btn_launch_mission.png" alt="Launch Mission" />
                             </button>
                         </div>

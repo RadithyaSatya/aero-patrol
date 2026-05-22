@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import AppHeader from '../shared/components/AppHeader'
 import DashboardPage from '../features/dashboard/pages/DashboardPage'
 import MissionPage from '../features/missions/pages/MissionPage'
@@ -8,6 +8,17 @@ import AboutPage from '../features/settings/pages/AboutPage'
 import UserManagementPage from '../features/settings/pages/UserManagementPage'
 import LoginPage from '../features/auth/pages/LoginPage'
 import appBackground from '../assets/images/image_background_about.png'
+
+function AdminRoute({ children }) {
+  const authRole = (localStorage.getItem('authRole') || '').toLowerCase();
+  const isAdmin = authRole === 'admin';
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+}
 
 function App() {
   const location = useLocation();
@@ -27,7 +38,14 @@ function App() {
         <Route path="/missions/active" element={<ActiveMissionPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/about" element={<AboutPage />} />
-        <Route path="/user-management" element={<UserManagementPage />} />
+        <Route
+          path="/user-management"
+          element={
+            <AdminRoute>
+              <UserManagementPage />
+            </AdminRoute>
+          }
+        />
       </Routes>
     </div>
   )

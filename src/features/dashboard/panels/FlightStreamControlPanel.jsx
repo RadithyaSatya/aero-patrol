@@ -69,6 +69,7 @@ export default function FlightStreamControlPanel({
     onSwitchPanel,
     switchButtonImage,
     telemetry = null,
+    telemetryStatus = null,
     isTelemetryConnected = false
 }) {
     const location = telemetry?.location || {};
@@ -76,12 +77,24 @@ export default function FlightStreamControlPanel({
     const gps = telemetry?.gps || {};
     const vehicleState = telemetry?.vehicle_state || {};
     const link = telemetry?.link || {};
+    const isLocationFresh = Boolean(telemetryStatus?.metrics?.location?.isFresh);
+    const isBatteryFresh = Boolean(telemetryStatus?.metrics?.battery?.isFresh);
+    const isGpsFresh = Boolean(telemetryStatus?.metrics?.gps?.isFresh);
+    const isVehicleStateFresh = Boolean(telemetryStatus?.metrics?.vehicle_state?.isFresh);
+    const isLinkFresh = Boolean(telemetryStatus?.metrics?.link?.isFresh);
+    const hasVehicleConnectedState = typeof vehicleState.connected === 'boolean';
+    const hasFreshTelemetry = Boolean(
+        isLocationFresh || isBatteryFresh || isGpsFresh || isVehicleStateFresh || isLinkFresh
+    );
+    const isRealtimeOnline = hasVehicleConnectedState
+        ? (isVehicleStateFresh && vehicleState.connected)
+        : hasFreshTelemetry;
 
     const telemetryStats = [
-        { label: 'ALT', value: location.altitude != null ? `${Number(location.altitude).toFixed(1)} m` : '-- m' },
-        { label: 'SPD', value: location.ground_speed != null ? `${Number(location.ground_speed).toFixed(1)} m/s` : '-- m/s' },
-        { label: 'BAT', value: battery.percent != null ? `${battery.percent}%` : '--' },
-        { label: 'SAT', value: gps.satellites != null ? `${gps.satellites}` : '--' }
+        { label: 'ALT', value: isLocationFresh && location.altitude != null ? `${Number(location.altitude).toFixed(1)} m` : '-- m' },
+        { label: 'SPD', value: isLocationFresh && location.ground_speed != null ? `${Number(location.ground_speed).toFixed(1)} m/s` : '-- m/s' },
+        { label: 'BAT', value: isBatteryFresh && battery.percent != null ? `${battery.percent}%` : '--' },
+        { label: 'SAT', value: isGpsFresh && gps.satellites != null ? `${gps.satellites}` : '--' }
     ];
 
     return (
@@ -167,8 +180,8 @@ export default function FlightStreamControlPanel({
                                 <p className="text-[14px] font-medium tracking-wide text-white">Telemetry</p>
                                 <p className="mt-0.5 text-[9px] uppercase tracking-[0.16em] text-gray-500">Quick overview</p>
                             </div>
-                            <div className={`text-[9px] font-medium uppercase tracking-[0.16em] ${isTelemetryConnected ? 'text-[#1ab394]' : 'text-gray-500'}`}>
-                                {isTelemetryConnected ? 'Live' : 'Offline'}
+                            <div className={`text-[9px] font-medium uppercase tracking-[0.16em] ${isRealtimeOnline ? 'text-[#1ab394]' : 'text-gray-500'}`}>
+                                {isRealtimeOnline ? 'Live' : 'Disconnected'}
                             </div>
                         </div>
 
@@ -182,19 +195,19 @@ export default function FlightStreamControlPanel({
                             <div className="flex items-center justify-between gap-2">
                                 <p className="text-[8px] uppercase tracking-[0.16em] text-gray-500">Flight Mode</p>
                                 <p className="text-[8px] uppercase tracking-[0.16em] text-gray-500">
-                                    HDG {location.heading != null ? `${Number(location.heading).toFixed(0)}°` : '--°'}
+                                    HDG {isLocationFresh && location.heading != null ? `${Number(location.heading).toFixed(0)}°` : '--°'}
                                 </p>
                             </div>
                             <div className="mt-1 flex items-center justify-between gap-2">
                                 <p className="text-[12px] font-medium tracking-wide text-white">
-                                    {vehicleState.mode || (isTelemetryConnected ? 'Awaiting data' : 'Disconnected')}
+                                    {isVehicleStateFresh ? (vehicleState.mode || 'Awaiting data') : 'Disconnected'}
                                 </p>
-                                <p className={`text-[9px] uppercase tracking-[0.16em] ${vehicleState.armed ? 'text-[#1ab394]' : 'text-gray-500'}`}>
-                                    {vehicleState.armed ? 'Armed' : 'Standby'}
+                                <p className={`text-[9px] uppercase tracking-[0.16em] ${isVehicleStateFresh && vehicleState.armed ? 'text-[#1ab394]' : 'text-gray-500'}`}>
+                                    {isVehicleStateFresh ? (vehicleState.armed ? 'Armed' : 'Standby') : '--'}
                                 </p>
                             </div>
                             <div className="mt-1 text-[9px] text-gray-400">
-                                RSSI {link.rssi != null ? link.rssi : '--'}
+                                RSSI {isLinkFresh && link.rssi != null ? link.rssi : '--'}
                             </div>
                         </div>
                     </div>

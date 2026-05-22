@@ -1,65 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Circle, MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import filterHistoryIcon from '../../../assets/images/icon_filter_history.svg';
 import downloadHistoryIcon from '../../../assets/images/icon_white_download_history.svg';
 import mediaPreviewImage from '../../../assets/img_dummy_active.png';
+import { historyService, uavService } from '../../../services/api';
 
-const trajectoryPresets = [
-    {
-        center: [-6.1985, 106.8115],
-        dockPosition: [-6.195, 106.81],
-        dronePosition: [-6.2018, 106.8154],
-        waypoints: [
-            { id: 1, lat: -6.1967, lng: 106.8078 },
-            { id: 2, lat: -6.1994, lng: 106.8119 },
-            { id: 3, lat: -6.1978, lng: 106.8161 }
-        ]
-    },
-    {
-        center: [-6.2062, 106.8237],
-        dockPosition: [-6.2033, 106.8204],
-        dronePosition: [-6.2091, 106.8268],
-        waypoints: [
-            { id: 1, lat: -6.2048, lng: 106.8182 },
-            { id: 2, lat: -6.2075, lng: 106.8226 },
-            { id: 3, lat: -6.2059, lng: 106.8277 }
-        ]
-    },
-    {
-        center: [-6.1894, 106.8042],
-        dockPosition: [-6.1865, 106.8016],
-        dronePosition: [-6.1923, 106.8085],
-        waypoints: [
-            { id: 1, lat: -6.1882, lng: 106.7994 },
-            { id: 2, lat: -6.1907, lng: 106.8048 },
-            { id: 3, lat: -6.1874, lng: 106.8091 }
-        ]
-    }
-];
-
-const baseHistoryData = [
-    { id: 1, mission: 'Mission 1', schedule: '12/12/2025\n16:34:00', pinPoint: '5 Pin point', task: 'Video Record', duration: '00:15:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' },
-    { id: 2, mission: 'Mission 10', schedule: '12/12/2025\n16:34:00', pinPoint: '7 Pin point', task: 'Field Research', duration: '02:00:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' },
-    { id: 3, mission: 'Mission 2', schedule: '12/12/2025\n16:34:00', pinPoint: '10 Pin point', task: 'Image Capture', duration: '00:20:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' },
-    { id: 4, mission: 'Mission 3', schedule: '12/12/2025\n16:34:00', pinPoint: '8 Pin point', task: 'Audio Record', duration: '00:30:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' },
-    { id: 5, mission: 'Mission 6', schedule: '12/12/2025\n16:34:00', pinPoint: '6 Pin point', task: 'Data Analysis', duration: '00:45:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' },
-    { id: 6, mission: 'Mission 7', schedule: '12/12/2025\n16:34:00', pinPoint: '15 Pin point', task: 'Survey Results', duration: '00:25:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' },
-    { id: 7, mission: 'Mission 11', schedule: '12/12/2025\n16:34:00', pinPoint: '3 Pin point', task: 'Final Review', duration: '01:30:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' },
-    { id: 8, mission: 'Mission 9', schedule: '12/12/2025\n16:34:00', pinPoint: '4 Pin point', task: 'Presentation Prep', duration: '01:15:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' },
-    { id: 9, mission: 'Mission 5', schedule: '12/12/2025\n16:34:00', pinPoint: '9 Pin point', task: 'Photo Gallery', duration: '00:10:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' },
-    { id: 10, mission: 'Mission 4', schedule: '12/12/2025\n16:34:00', pinPoint: '12 Pin point', task: 'Video Live Stream', duration: '01:00:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' },
-    { id: 11, mission: 'Mission 8', schedule: '12/12/2025\n16:34:00', pinPoint: '11 Pin point', task: 'Document Compilation', duration: '00:50:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' },
-    { id: 12, mission: 'Mission 12', schedule: '12/12/2025\n16:34:00', pinPoint: '5 Pin point', task: 'Closure Meeting', duration: '00:40:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' },
-    { id: 13, mission: 'Mission 1', schedule: '12/12/2025\n16:34:00', pinPoint: '5 Pin point', task: 'Video Record', duration: '00:15:00', mediaSize: '2.4 MB', captureInfo: '10+ Media' }
-];
-
-const historyData = baseHistoryData.map((item, index) => ({
-    ...item,
-    trajectory: trajectoryPresets[index % trajectoryPresets.length]
-}));
-
+const PAGE_LIMIT = 20;
 const panelStroke = '#FC4747';
 const tableStroke = '#5E0A0A';
 const overlayDividerStroke = 'linear-gradient(90deg, rgba(252,71,71,0.12) 0%, #FC4747 50%, rgba(252,71,71,0.12) 100%)';
@@ -111,14 +59,8 @@ const PanelShell = ({ children, className = '' }) => (
         className={`font-tomorrow relative min-h-0 overflow-hidden border bg-[#222222] p-4 shadow-lg select-none ${className}`}
         style={{ borderColor: panelStroke }}
     >
-        <div
-            className="pointer-events-none absolute left-0 top-0 h-px w-full"
-            style={{ backgroundImage: overlayDividerStroke }}
-        />
-        <div
-            className="pointer-events-none absolute bottom-0 left-0 h-px w-full"
-            style={{ backgroundImage: overlayDividerStroke }}
-        />
+        <div className="pointer-events-none absolute left-0 top-0 h-px w-full" style={{ backgroundImage: overlayDividerStroke }} />
+        <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full" style={{ backgroundImage: overlayDividerStroke }} />
         {children}
     </div>
 );
@@ -128,12 +70,34 @@ const PanelTitleBlock = ({ title, subtitle }) => (
         <span className="w-[5px] shrink-0 self-stretch bg-[#FC4747]" />
         <div className="min-w-0">
             <p className="text-left text-[16px] font-medium tracking-wide text-white">{title}</p>
-            {subtitle ? (
-                <p className="mt-1 text-[11px] tracking-[0.08em] text-gray-400">{subtitle}</p>
-            ) : null}
+            {subtitle ? <p className="mt-1 text-[11px] tracking-[0.08em] text-gray-400">{subtitle}</p> : null}
         </div>
     </div>
 );
+
+function HistoryTableState({ children, tone = 'default' }) {
+    if (tone === 'error') {
+        return (
+            <div className="flex h-full flex-col items-center justify-center px-3 py-4 text-center text-xs text-red-400">
+                <div className="max-w-[340px] leading-6">{children}</div>
+            </div>
+        );
+    }
+
+    if (tone === 'empty') {
+        return (
+            <div className="flex h-full items-center justify-center px-3 py-4 text-xs italic text-gray-400">
+                {children}
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex h-full items-center justify-center px-3 py-4 text-center text-xs text-gray-400">
+            {children}
+        </div>
+    );
+}
 
 const DownloadCell = ({ title, subtitle }) => (
     <button
@@ -153,16 +117,125 @@ const DownloadCell = ({ title, subtitle }) => (
     </button>
 );
 
-const HistoryTrajectoryMap = ({ trajectory }) => {
-    const pathPositions = useMemo(
-        () => [trajectory.dockPosition, ...trajectory.waypoints.map((point) => [point.lat, point.lng]), trajectory.dronePosition],
-        [trajectory]
-    );
+const toLatLng = (latitude, longitude) => {
+    if (latitude == null || longitude == null) return null;
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+
+    return [lat, lng];
+};
+
+const formatDateTime = (value) => {
+    if (!value) return '-';
+
+    const parsedDate = new Date(value);
+    if (Number.isNaN(parsedDate.getTime())) return value;
+
+    return new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).format(parsedDate);
+};
+
+const formatDuration = (startedAt, completedAt) => {
+    if (!startedAt || !completedAt) return '-';
+
+    const startMs = new Date(startedAt).getTime();
+    const endMs = new Date(completedAt).getTime();
+    if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs < startMs) return '-';
+
+    const totalSeconds = Math.floor((endMs - startMs) / 1000);
+    const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+    const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+    const seconds = String(totalSeconds % 60).padStart(2, '0');
+
+    return `${hours}:${minutes}:${seconds}`;
+};
+
+const shouldHideDuration = (status) => String(status || '').toLowerCase() === 'failed';
+
+const getHistoryDuration = (historyItem) => {
+    if (!historyItem || shouldHideDuration(historyItem.status)) {
+        return '-';
+    }
+
+    return formatDuration(historyItem.started_at, historyItem.completed_at);
+};
+
+const formatScheduleCell = (value) => {
+    if (!value) return '-';
+
+    const parsedDate = new Date(value);
+    if (Number.isNaN(parsedDate.getTime())) return value;
+
+    const date = new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    }).format(parsedDate);
+    const time = new Intl.DateTimeFormat('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    }).format(parsedDate);
+
+    return `${date}\n${time}`;
+};
+
+const buildPaginationItems = (currentPage, totalPages) => {
+    if (totalPages <= 1) return [1];
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, index) => index + 1);
+
+    if (currentPage <= 3) return [1, 2, 3, 'ellipsis', totalPages];
+    if (currentPage >= totalPages - 2) return [1, 'ellipsis', totalPages - 2, totalPages - 1, totalPages];
+
+    return [1, 'ellipsis', currentPage, currentPage + 1, totalPages];
+};
+
+const PaginationBox = ({ active = false, disabled = false, children, onClick }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={`flex h-9 min-w-9 items-center justify-center border px-3 text-[12px] font-medium transition-colors ${
+            active ? 'text-[#FC4747]' : 'text-white'
+        } ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-[#383838]'}`}
+        style={{
+            backgroundColor: '#2F2F2F',
+            borderColor: active ? '#FC4747' : '#484848',
+        }}
+    >
+        {children}
+    </button>
+);
+
+const PAGE_LIMIT_OPTIONS = [10, 20, 50, 100];
+
+const HistoryTrajectoryMap = ({ historyItem, homePosition, maxRange }) => {
+    const snapshot = historyItem?.mission_snapshot || {};
+    const frozenHomePosition = toLatLng(historyItem?.uav_home_latitude, historyItem?.uav_home_longitude);
+    const effectiveHomePosition = frozenHomePosition || homePosition;
+    const waypointPositions = (snapshot.waypoints || [])
+        .map((waypoint) => toLatLng(waypoint.latitude, waypoint.longitude))
+        .filter(Boolean);
+    const dronePosition = waypointPositions[waypointPositions.length - 1] || effectiveHomePosition;
+    const rtlAnchorPosition = effectiveHomePosition || dronePosition;
+    const pathPositions = rtlAnchorPosition && waypointPositions.length > 0
+        ? [rtlAnchorPosition, ...waypointPositions, rtlAnchorPosition]
+        : waypointPositions;
+    const center = dronePosition || effectiveHomePosition || [-6.200000, 106.816666];
 
     return (
         <MapContainer
-            key={`${trajectory.center[0]}-${trajectory.center[1]}`}
-            center={trajectory.center}
+            key={`${historyItem?.id || 'empty'}-${center[0]}-${center[1]}`}
+            center={center}
             zoom={15}
             attributionControl={false}
             zoomControl={false}
@@ -171,22 +244,165 @@ const HistoryTrajectoryMap = ({ trajectory }) => {
         >
             <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
 
-            <Circle center={trajectory.dockPosition} radius={1800} pathOptions={geofencePathOptions} />
-            <Polyline positions={pathPositions} pathOptions={trajectoryPathOptions} />
-            <Marker position={trajectory.dockPosition} icon={dockIcon} />
-            <Marker position={trajectory.dronePosition} icon={droneIcon} />
-            {trajectory.waypoints.map((point, index) => (
-                <Marker key={point.id} position={[point.lat, point.lng]} icon={createWaypointIcon(index + 1)} />
+            {effectiveHomePosition ? (
+                <Circle center={effectiveHomePosition} radius={maxRange} pathOptions={geofencePathOptions} />
+            ) : null}
+
+            {effectiveHomePosition ? <Marker position={effectiveHomePosition} icon={dockIcon} /> : null}
+            {pathPositions.length > 1 ? <Polyline positions={pathPositions} pathOptions={trajectoryPathOptions} /> : null}
+
+            {waypointPositions.map((position, index) => (
+                <Marker key={`${historyItem?.id || 'history'}-${index}`} position={position} icon={createWaypointIcon(index + 1)} />
             ))}
         </MapContainer>
     );
 };
 
 export default function HistoryPage() {
-    const [selectedHistoryId, setSelectedHistoryId] = useState(historyData[0].id);
-    const highlightedHistory = historyData.find((item) => item.id === selectedHistoryId) ?? historyData[0];
-    const [highlightedDate = '', highlightedTime = ''] = highlightedHistory.schedule.split('\n');
-    const highlightedScheduleLabel = [highlightedDate, highlightedTime].filter(Boolean).join(' • ');
+    const [missionNameInput, setMissionNameInput] = useState('');
+    const [appliedMissionName, setAppliedMissionName] = useState('');
+    const [isLimitMenuOpen, setIsLimitMenuOpen] = useState(false);
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: PAGE_LIMIT,
+        total: 0,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+    });
+    const [historyItems, setHistoryItems] = useState([]);
+    const [selectedHistoryId, setSelectedHistoryId] = useState(null);
+    const [selectedDrone, setSelectedDrone] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [errorMsg, setErrorMsg] = useState('');
+    const requestVersionRef = useRef(0);
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        const fetchDrone = async () => {
+            try {
+                const data = await uavService.getUav();
+                if (!isCancelled) {
+                    setSelectedDrone(data);
+                }
+            } catch (error) {
+                console.error('Error fetching drone info for history page:', error);
+            }
+        };
+
+        fetchDrone();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        let isCancelled = false;
+        const requestVersion = requestVersionRef.current + 1;
+        requestVersionRef.current = requestVersion;
+
+        const fetchHistory = async () => {
+            setIsLoading(true);
+            setErrorMsg('');
+
+            try {
+                const data = await historyService.getMissionHistory({
+                    page: pagination.page,
+                    limit: pagination.limit,
+                    missionName: appliedMissionName,
+                });
+
+                if (isCancelled || requestVersionRef.current !== requestVersion) {
+                    return;
+                }
+
+                const items = Array.isArray(data?.items) ? data.items : [];
+                setHistoryItems(items);
+                setPagination((current) => ({
+                    ...current,
+                    total: data?.total ?? 0,
+                    totalPages: data?.total_pages ?? 1,
+                    hasNext: Boolean(data?.has_next),
+                    hasPrev: Boolean(data?.has_prev),
+                }));
+
+                setSelectedHistoryId((currentSelectedId) => {
+                    if (items.length === 0) return null;
+                    if (currentSelectedId && items.some((item) => item.id === currentSelectedId)) {
+                        return currentSelectedId;
+                    }
+                    return items[0].id;
+                });
+            } catch (error) {
+                if (isCancelled || requestVersionRef.current !== requestVersion) {
+                    return;
+                }
+
+                console.error('Error fetching mission history:', error);
+                setHistoryItems([]);
+                setSelectedHistoryId(null);
+                setErrorMsg(error.message);
+            } finally {
+                if (!isCancelled && requestVersionRef.current === requestVersion) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        fetchHistory();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [appliedMissionName, pagination.page, pagination.limit]);
+
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            const normalizedQuery = missionNameInput.trim();
+
+            setAppliedMissionName((current) => {
+                if (current === normalizedQuery) {
+                    return current;
+                }
+
+                return normalizedQuery;
+            });
+
+            setPagination((current) => (
+                current.page === 1
+                    ? current
+                    : { ...current, page: 1 }
+            ));
+        }, 300);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [missionNameInput]);
+
+    const highlightedHistory = useMemo(
+        () => historyItems.find((item) => item.id === selectedHistoryId) ?? historyItems[0] ?? null,
+        [historyItems, selectedHistoryId]
+    );
+
+    const highlightedMissionName = highlightedHistory?.mission_name || highlightedHistory?.mission_snapshot?.mission_name || 'No History Selected';
+    const highlightedScheduleLabel = highlightedHistory
+        ? formatDateTime(highlightedHistory.mission_snapshot?.schedule || highlightedHistory.started_at || highlightedHistory.created_at)
+        : 'Waiting for history data';
+    const homePosition = toLatLng(selectedDrone?.home_latitude, selectedDrone?.home_longitude);
+    const maxRange = selectedDrone?.max_range_meter || 1800;
+    const paginationItems = buildPaginationItems(pagination.page, pagination.totalPages);
+
+    const handleSelectPageLimit = (nextLimit) => {
+        setPagination((current) => ({
+            ...current,
+            page: 1,
+            limit: nextLimit,
+        }));
+        setIsLimitMenuOpen(false);
+    };
 
     return (
         <div className="grid h-[calc(100vh-104px)] w-full grid-cols-[minmax(0,1.65fr)_minmax(360px,1fr)] gap-[28px] p-[28px]">
@@ -208,18 +424,45 @@ export default function HistoryPage() {
                             </svg>
                             <input
                                 type="text"
-                                placeholder="Search"
+                                value={missionNameInput}
+                                onChange={(event) => setMissionNameInput(event.target.value)}
+                                placeholder="Search mission name"
                                 className="h-[42px] w-[300px] border border-[#FC4747] bg-[#1C1C1C] pl-10 pr-4 text-[12px] text-white outline-none transition-colors placeholder:text-gray-500 focus:border-[#FC4747]"
                             />
                         </div>
 
-                        <button
-                            type="button"
-                            className="flex h-[42px] w-[42px] items-center justify-center border border-[#FC4747] bg-[#1C1C1C] transition-colors hover:border-[#FC4747] hover:bg-[#262626]"
-                            aria-label="Filter history"
-                        >
-                            <img src={filterHistoryIcon} alt="" aria-hidden="true" className="h-5 w-5 object-contain" />
-                        </button>
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setIsLimitMenuOpen((current) => !current)}
+                                className="flex h-[42px] w-[42px] items-center justify-center border border-[#FC4747] bg-[#1C1C1C] transition-colors hover:border-[#FC4747] hover:bg-[#262626]"
+                                aria-label="Open page limit filter"
+                                aria-expanded={isLimitMenuOpen}
+                            >
+                                <img src={filterHistoryIcon} alt="" aria-hidden="true" className="h-5 w-5 object-contain" />
+                            </button>
+
+                            {isLimitMenuOpen ? (
+                                <div className="absolute left-0 top-[calc(100%+8px)] z-20 w-[180px] overflow-hidden border border-[#FC4747] bg-[#1C1C1C] shadow-lg">
+                                    <div className="border-b border-[#5E0A0A] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-gray-400">
+                                        Limit per page
+                                    </div>
+                                    {PAGE_LIMIT_OPTIONS.map((option) => (
+                                        <button
+                                            key={option}
+                                            type="button"
+                                            onClick={() => handleSelectPageLimit(option)}
+                                            className={`flex w-full items-center justify-between px-3 py-2 text-left text-[12px] transition-colors ${
+                                                pagination.limit === option ? 'bg-[#311818] text-white' : 'text-gray-300 hover:bg-[#262626]'
+                                            }`}
+                                        >
+                                            <span>{option} items</span>
+                                            {pagination.limit === option ? <span className="text-[#FC4747]">●</span> : null}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
 
                     <button
@@ -233,74 +476,141 @@ export default function HistoryPage() {
 
                 <div className="h-px w-full" style={{ backgroundImage: overlayDividerStroke }} />
 
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden border border-[#5E0A0A]">
-                    <div className="grid grid-cols-[1.2fr_1fr_1fr_1.2fr_0.9fr_1.2fr_1.2fr] bg-[#5E0A0A] px-4 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-[#ffffff]">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                    <div className="grid grid-cols-[1.2fr_1fr_0.8fr_1.2fr_0.9fr_1.1fr_1.1fr] bg-[#5E0A0A] px-4 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-[#ffffff]">
                         <div>Mission</div>
                         <div>Schedule</div>
                         <div>Pin Point</div>
-                        <div>Task</div>
+                        <div>Action</div>
                         <div>Duration</div>
+                        <div>Video</div>
                         <div>Media</div>
-                        <div>Capture</div>
                     </div>
 
                     <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto">
-                        {historyData.map((row, index) => (
-                            <div
-                                key={row.id}
-                                role="button"
-                                tabIndex={0}
-                                aria-pressed={row.id === selectedHistoryId}
-                                onClick={() => setSelectedHistoryId(row.id)}
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter' || event.key === ' ') {
-                                        event.preventDefault();
-                                        setSelectedHistoryId(row.id);
-                                    }
-                                }}
-                                className={`relative grid grid-cols-[1.2fr_1fr_1fr_1.2fr_0.9fr_1.2fr_1.2fr] items-center gap-4 px-4 py-3 text-[11px] transition-colors ${
-                                    row.id === selectedHistoryId ? 'bg-[#311818]' : 'hover:bg-[#292929]'
-                                } cursor-pointer focus:outline-none focus-visible:bg-[#311818]`}
-                            >
-                                {index === 0 && (
-                                    <div
-                                        className="pointer-events-none absolute left-0 right-0 top-0 h-px"
-                                        style={{ backgroundColor: tableStroke }}
-                                    />
-                                )}
+                        {isLoading ? (
+                            <HistoryTableState>Loading mission history...</HistoryTableState>
+                        ) : errorMsg ? (
+                            <HistoryTableState tone="error">
+                                <>
+                                    <span>Oops, error loading mission history:</span>
+                                    <span className="mt-1 opacity-80">{errorMsg}</span>
+                                </>
+                            </HistoryTableState>
+                        ) : historyItems.length === 0 ? (
+                            <HistoryTableState tone="empty">
+                                No mission history found for this filter.
+                            </HistoryTableState>
+                        ) : (
+                            historyItems.map((row, index) => (
                                 <div
-                                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-px"
-                                    style={{ backgroundColor: tableStroke }}
-                                />
-                                {row.id === selectedHistoryId && (
-                                    <div className="pointer-events-none absolute bottom-0 left-0 top-0 w-[3px] bg-[#FC4747]" />
-                                )}
-                                <div className="font-medium text-white">{row.mission}</div>
-                                <div className="whitespace-pre-line leading-tight text-gray-300">{row.schedule}</div>
-                                <div className="text-gray-300">{row.pinPoint}</div>
-                                <div className="text-gray-300">{row.task}</div>
-                                <div className="text-gray-300">{row.duration}</div>
-                                <DownloadCell title="Mission1.mp4" subtitle={row.mediaSize} />
-                                <DownloadCell title="Download" subtitle={row.captureInfo} />
-                            </div>
-                        ))}
+                                    key={row.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-pressed={row.id === selectedHistoryId}
+                                    onClick={() => setSelectedHistoryId(row.id)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                            event.preventDefault();
+                                            setSelectedHistoryId(row.id);
+                                        }
+                                    }}
+                                    className={`relative grid grid-cols-[1.2fr_1fr_0.8fr_1.2fr_0.9fr_1.1fr_1.1fr] items-center gap-4 px-4 py-3 text-[11px] transition-colors ${
+                                        row.id === selectedHistoryId ? 'bg-[#311818]' : 'hover:bg-[#292929]'
+                                    } cursor-pointer focus:outline-none focus-visible:bg-[#311818]`}
+                                >
+                                    {index === 0 ? (
+                                        <div className="pointer-events-none absolute left-0 right-0 top-0 h-px" style={{ backgroundColor: tableStroke }} />
+                                    ) : null}
+                                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px" style={{ backgroundColor: tableStroke }} />
+                                    {row.id === selectedHistoryId ? <div className="pointer-events-none absolute bottom-0 left-0 top-0 w-[3px] bg-[#FC4747]" /> : null}
+                                    <div className="font-medium text-white">{row.mission_name || row.mission_snapshot?.mission_name || `Mission ${row.mission_id}`}</div>
+                                    <div className="whitespace-pre-line leading-tight text-gray-300">
+                                        {formatScheduleCell(row.mission_snapshot?.schedule || row.started_at || row.created_at)}
+                                    </div>
+                                    <div className="text-gray-300">{row.waypoint_count} Pin point</div>
+                                    <div className="text-gray-300">{row.task_summary || '-'}</div>
+                                    <div className="text-gray-300">{getHistoryDuration(row)}</div>
+                                    <DownloadCell
+                                        title={`${row.mission_name || row.mission_snapshot?.mission_name || `Mission ${row.mission_id}`}.mp4`}
+                                        subtitle="Full Video"
+                                    />
+                                    <DownloadCell
+                                        title="Download"
+                                        subtitle={`${row.media_count ?? 0} Media ZIP`}
+                                    />
+                                </div>
+                            ))
+                        )}
                     </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                    <PaginationBox
+                        disabled={pagination.page <= 1}
+                        onClick={() => {
+                            if (pagination.page > 1) {
+                                setPagination((current) => ({ ...current, page: current.page - 1 }));
+                            }
+                        }}
+                    >
+                        {'<'}
+                    </PaginationBox>
+
+                    {paginationItems.map((item, index) => (
+                        item === 'ellipsis' ? (
+                            <PaginationBox key={`ellipsis-${index}`} disabled>...</PaginationBox>
+                        ) : (
+                            <PaginationBox
+                                key={item}
+                                active={pagination.page === item}
+                                onClick={() => setPagination((current) => ({ ...current, page: item }))}
+                            >
+                                {item}
+                            </PaginationBox>
+                        )
+                    ))}
+
+                    <PaginationBox
+                        disabled={pagination.page >= pagination.totalPages}
+                        onClick={() => {
+                            if (pagination.page < pagination.totalPages) {
+                                setPagination((current) => ({ ...current, page: current.page + 1 }));
+                            }
+                        }}
+                    >
+                        {'>'}
+                    </PaginationBox>
                 </div>
             </PanelShell>
 
             <div className="flex min-h-0 flex-col gap-[20px]">
                 <PanelShell className="flex flex-1 flex-col gap-4">
-                    <PanelTitleBlock title="Trajectory" subtitle="Drone Trajectory in one event" />
+                    <PanelTitleBlock title="Trajectory" subtitle="Drone trajectory in one event" />
 
                     <div className="relative min-h-0 flex-1 overflow-hidden border border-[#5E0A0A] bg-[#181d25]">
-                        <HistoryTrajectoryMap trajectory={highlightedHistory.trajectory} />
+                        {highlightedHistory ? (
+                            <HistoryTrajectoryMap
+                                historyItem={highlightedHistory}
+                                homePosition={homePosition}
+                                maxRange={maxRange}
+                            />
+                        ) : (
+                            <div className="flex h-full items-center justify-center text-[12px] text-gray-400">
+                                No trajectory selected
+                            </div>
+                        )}
                         <div className="pointer-events-none absolute inset-x-0 top-0 z-[350] h-16 bg-gradient-to-b from-black/55 to-transparent" />
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[350] h-24 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-                        <div className="absolute bottom-4 left-4 right-4 z-[400] border border-[#5E0A0A] bg-[#221111]/90 px-4 py-3 backdrop-blur-sm">
-                            <div className="text-[14px] font-medium text-white">{highlightedHistory.mission}</div>
-                            <div className="mt-1 text-[11px] text-gray-400">Schedule {highlightedHistory.schedule.replace('\n', ' ')}</div>
-                        </div>
+                        {highlightedHistory ? (
+                            <div className="absolute bottom-4 left-4 right-4 z-[400] border border-[#5E0A0A] bg-[#221111]/90 px-4 py-3 backdrop-blur-sm">
+                                <div className="text-[14px] font-medium text-white">{highlightedMissionName}</div>
+                                <div className="mt-1 text-[11px] text-gray-400">
+                                    Schedule {formatDateTime(highlightedHistory.mission_snapshot?.schedule || highlightedHistory.started_at || highlightedHistory.created_at)}
+                                </div>
+                            </div>
+                        ) : null}
                     </div>
                 </PanelShell>
 
@@ -329,8 +639,8 @@ export default function HistoryPage() {
 
                         <div className="absolute bottom-5 left-5 right-5">
                             <div className="mb-2 flex items-center justify-between text-[11px] text-white">
-                                <span>Mission1.mp4</span>
-                                <span>{highlightedHistory.duration}</span>
+                                <span>{highlightedMissionName}.mp4</span>
+                                <span>{getHistoryDuration(highlightedHistory)}</span>
                             </div>
                             <div className="h-[3px] bg-white/20">
                                 <div className="h-full w-[46%] bg-[#FC4747]" />

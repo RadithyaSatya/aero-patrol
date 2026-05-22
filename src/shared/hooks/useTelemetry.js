@@ -3,6 +3,7 @@ import { authService, WS_BASE_URL } from '../../services/api';
 
 const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
+export const TELEMETRY_STALE_MS = 10000;
 
 /**
  * Custom hook to manage a telemetry WebSocket connection.
@@ -37,12 +38,22 @@ export default function useTelemetry(uavIds = []) {
     const [telemetry, setTelemetry] = useState({});
     const [isConnected, setIsConnected] = useState(false);
     const [error, setError] = useState(null);
+    const [metricUpdatedAtByUav, setMetricUpdatedAtByUav] = useState({});
+    const [clock, setClock] = useState(Date.now());
 
     const wsRef = useRef(null);
     const reconnectAttempts = useRef(0);
     const reconnectTimeout = useRef(null);
     const uavIdsRef = useRef(uavIds);
     const isMounted = useRef(true);
+
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            setClock(Date.now());
+        }, 1000);
+
+        return () => clearInterval(intervalId);
+    }, []);
 
     // Keep uavIdsRef in sync
     useEffect(() => {
@@ -134,6 +145,13 @@ export default function useTelemetry(uavIds = []) {
                             [metric]: payload
                         }
                     }));
+                    setMetricUpdatedAtByUav((prev) => ({
+                        ...prev,
+                        [uav_id]: {
+                            ...(prev[uav_id] || {}),
+                            [metric]: Date.now(),
+                        },
+                    }));
                 } catch (parseErr) {
                     console.warn('[Telemetry] Failed to parse message:', event.data, parseErr);
                 }
@@ -198,5 +216,32 @@ export default function useTelemetry(uavIds = []) {
         };
     }, [connect, JSON.stringify(uavIds)]);
 
-    return { telemetry, isConnected, error };
+    const telemetryStatus = Object.entries(metricUpdatedAtByUav).reduce((accumulator, [uavId, metrics]) => {
+        const metricStatus = Object.entries(metrics || {}).reduce((metricAccumulator, [metric, updatedAt]) => {
+            const isFresh = isConnected && (clock - updatedAt) < TELEMETRY_STALE_MS;
+
+            metricAccumulator[metric] = {
+                updatedAt,
+                isFresh,
+                isStale: !isFresh,
+            };
+
+            return metricAccumulator;
+        }, {});
+
+        const updatedTimestamps = Object.values(metrics || {}).filter((value) => Number.isFinite(value));
+        const lastUpdatedAt = updatedTimestamps.length > 0 ? Math.max(...updatedTimestamps) : null;
+        const isFresh = isConnected && lastUpdatedAt != null && (clock - lastUpdatedAt) < TELEMETRY_STALE_MS;
+
+        accumulator[uavId] = {
+            updatedAt: lastUpdatedAt,
+            isFresh,
+            isStale: !isFresh,
+            metrics: metricStatus,
+        };
+
+        return accumulator;
+    }, {});
+
+    return { telemetry, telemetryStatus, isConnected, error };
 }

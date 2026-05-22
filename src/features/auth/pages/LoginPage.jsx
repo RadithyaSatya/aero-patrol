@@ -7,7 +7,7 @@ import loginButton from '../../../assets/images/btn_login.png';
 import iconApp from '../../../assets/images/icon_app.svg';
 
 export default function LoginPage() {
-    const [username, setUsername] = useState('Admin');
+    const [username, setUsername] = useState('user');
     const [password, setPassword] = useState('password');
     const [errorMsg, setErrorMsg] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -21,9 +21,11 @@ export default function LoginPage() {
         try {
             const data = await authService.login(username, password);
 
-            // Save the token on success
             if (data.token) {
                 localStorage.setItem('authToken', data.token);
+                if (data.username) localStorage.setItem('authUsername', data.username);
+                if (data.user_id != null) localStorage.setItem('authUserId', String(data.user_id));
+                if (data.role) localStorage.setItem('authRole', data.role);
                 navigate('/dashboard');
             } else {
                 throw new Error('Token not received from server');

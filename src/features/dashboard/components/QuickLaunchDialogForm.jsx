@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Circle, useMapEvents, useMap } from 'react-leaflet';
+import React, { useEffect, useRef, useState } from 'react';
+import { Circle, MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import droneSingleIconImage from '../../../assets/images/icon_drone_single.svg';
 
-// Fix Leaflet's default icon path issues
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -11,38 +11,29 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// Custom Icons
+const DEFAULT_TAKEOFF_ALTITUDE = 25;
+const DEFAULT_FLIGHT_ALTITUDE = 25;
+
 const dockIcon = new L.DivIcon({
     className: 'custom-dock-icon',
     html: `<div class="w-6 h-6 rounded-full bg-[#d4af37] text-black text-[10px] font-bold flex items-center justify-center shadow-lg border-2 border-[#d4af37]/50">H</div>`,
     iconSize: [24, 24],
-    iconAnchor: [12, 12]
+    iconAnchor: [12, 12],
 });
+
+const DRONE_ICON_SIZE = 28;
 
 const droneIcon = new L.DivIcon({
     className: 'custom-drone-icon',
     html: `
-        <img src="/src/assets/images/icon_drone.svg" alt="Drone" class="w-24 h-24 object-contain" />
+        <div style="width:${DRONE_ICON_SIZE}px; height:${DRONE_ICON_SIZE}px; display:flex; align-items:center; justify-content:center;">
+            <img src="${droneSingleIconImage}" alt="Drone" style="width:${DRONE_ICON_SIZE}px; height:${DRONE_ICON_SIZE}px; display:block;" />
+        </div>
     `,
-    iconSize: [96, 96],
-    iconAnchor: [48, 48]
+    iconSize: [DRONE_ICON_SIZE, DRONE_ICON_SIZE],
+    iconAnchor: [DRONE_ICON_SIZE / 2, DRONE_ICON_SIZE / 2],
 });
 
-const createWaypointIcon = (number) => new L.DivIcon({
-    className: 'custom-waypoint-icon',
-    html: `<div class="w-5 h-5 rounded-full bg-[#682F2F] border border-[#682F2F] text-white text-[10px] font-bold flex items-center justify-center shadow-lg">${number}</div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10]
-});
-
-const geofencePathOptions = {
-    color: '#E1BA95',
-    fillColor: '#9616161A',
-    fillOpacity: 1,
-    weight: 0.3
-};
-
-// ROI marker icon — a pulsing red target
 const roiIcon = new L.DivIcon({
     className: 'custom-roi-icon',
     html: `
@@ -53,10 +44,9 @@ const roiIcon = new L.DivIcon({
         </div>
     `,
     iconSize: [32, 32],
-    iconAnchor: [16, 16]
+    iconAnchor: [16, 16],
 });
 
-// Spiral center marker icon
 const spiralCenterIcon = new L.DivIcon({
     className: 'custom-spiral-center-icon',
     html: `
@@ -66,18 +56,23 @@ const spiralCenterIcon = new L.DivIcon({
         </div>
     `,
     iconSize: [24, 24],
-    iconAnchor: [12, 12]
+    iconAnchor: [12, 12],
 });
 
-// Spiral waypoint icon
 const createSpiralWaypointIcon = (number) => new L.DivIcon({
     className: 'custom-spiral-wp-icon',
     html: `<div style="width:22px; height:22px; border-radius:50%; background:#682F2F; border: 2px solid #682F2F; color:white; font-size:9px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow: 0 0 8px rgba(104,47,47,0.4);">${number}</div>`,
     iconSize: [22, 22],
-    iconAnchor: [11, 11]
+    iconAnchor: [11, 11],
 });
 
-// Helper: calculate distance between two latlng points in meters (Haversine)
+const geofencePathOptions = {
+    color: '#E1BA95',
+    fillColor: '#9616161A',
+    fillOpacity: 1,
+    weight: 0.3,
+};
+
 function getDistanceMeters(latlng1, latlng2) {
     const R = 6371000;
     const dLat = ((latlng2.lat - latlng1.lat) * Math.PI) / 180;
@@ -91,7 +86,6 @@ function getDistanceMeters(latlng1, latlng2) {
     return R * c;
 }
 
-// Helper: generate points around a circle
 function generateCircleWaypoints(center, radiusMeters, count = 12) {
     const points = [];
     const R = 6371000;
@@ -99,8 +93,8 @@ function generateCircleWaypoints(center, radiusMeters, count = 12) {
     const lng1 = (center.lng * Math.PI) / 180;
     const d = radiusMeters / R;
 
-    for (let i = 0; i < count; i++) {
-        const bearing = ((2 * Math.PI) / count) * i;
+    for (let index = 0; index < count; index += 1) {
+        const bearing = ((2 * Math.PI) / count) * index;
         const lat2 = Math.asin(
             Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(bearing)
         );
@@ -110,41 +104,64 @@ function generateCircleWaypoints(center, radiusMeters, count = 12) {
                 Math.sin(bearing) * Math.sin(d) * Math.cos(lat1),
                 Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
             );
+
         points.push({
             lat: (lat2 * 180) / Math.PI,
             lng: (lng2 * 180) / Math.PI,
         });
     }
+
     return points;
 }
 
-// Single unified map interaction handler — always mounted, uses refs for fresh state
+function toLatLng(latitude, longitude) {
+    if (latitude == null || longitude == null) {
+        return null;
+    }
+
+    const parsedLatitude = Number(latitude);
+    const parsedLongitude = Number(longitude);
+
+    if (Number.isNaN(parsedLatitude) || Number.isNaN(parsedLongitude)) {
+        return null;
+    }
+
+    return [parsedLatitude, parsedLongitude];
+}
+
 function MapInteractionHandler({ onClickRef }) {
     useMapEvents({
-        click(e) {
-            if (onClickRef.current?.__click__) onClickRef.current.__click__(e);
+        click(event) {
+            if (onClickRef.current?.onClick) {
+                onClickRef.current.onClick(event);
+            }
         },
-        mousemove(e) {
-            if (onClickRef.current?.onMouseMove) onClickRef.current.onMouseMove(e);
+        mousemove(event) {
+            if (onClickRef.current?.onMouseMove) {
+                onClickRef.current.onMouseMove(event);
+            }
         },
     });
+
     return null;
 }
 
-// Component to handle zoom controls
 function ZoomControls() {
     const map = useMap();
+
     return (
-        <div className="absolute right-6 top-1/2 transform -translate-y-1/2 flex flex-col gap-2 z-30">
+        <div className="absolute right-6 top-1/2 z-30 flex -translate-y-1/2 transform flex-col gap-2">
             <button
+                type="button"
                 onClick={() => map.zoomIn()}
-                className="w-10 h-10 bg-[#1a202c]/90 text-white rounded-md flex items-center justify-center hover:bg-[#2d3748] border border-[#2d3748] text-xl font-bold transition-colors"
+                className="h-10 w-10 rounded-md border border-[#2d3748] bg-[#1a202c]/90 text-xl font-bold text-white transition-colors hover:bg-[#2d3748]"
             >
                 +
             </button>
             <button
+                type="button"
                 onClick={() => map.zoomOut()}
-                className="w-10 h-10 bg-[#1a202c]/90 text-white rounded-md flex items-center justify-center hover:bg-[#2d3748] border border-[#2d3748] text-xl font-bold transition-colors"
+                className="h-10 w-10 rounded-md border border-[#2d3748] bg-[#1a202c]/90 text-xl font-bold text-white transition-colors hover:bg-[#2d3748]"
             >
                 -
             </button>
@@ -152,290 +169,431 @@ function ZoomControls() {
     );
 }
 
-export default function QuickLaunchDialogForm({ isOpen, missionType, onClose, onLaunch }) {
-    // ROI state
-    const [roiPosition, setRoiPosition] = useState(null);
+function CoordinateField({ label, position, accentClass, onClear, emptyLabel }) {
+    return (
+        <div className="flex flex-col">
+            <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">{label}</label>
+            <div className="flex h-[32px] min-w-[240px] items-center gap-3 rounded border border-[#2d3748] bg-[#1a202c]/90 px-3">
+                {position ? (
+                    <>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-medium text-gray-500">LAT</span>
+                            <span className={`font-mono text-[12px] ${accentClass}`}>{position.lat.toFixed(6)}</span>
+                        </div>
+                        <div className="h-4 w-px bg-[#2d3748]" />
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-medium text-gray-500">LNG</span>
+                            <span className={`font-mono text-[12px] ${accentClass}`}>{position.lng.toFixed(6)}</span>
+                        </div>
+                        <div className="h-4 w-px bg-[#2d3748]" />
+                        <button
+                            type="button"
+                            onClick={onClear}
+                            className="flex h-5 w-5 items-center justify-center rounded-full border-none bg-red-500/20 p-0 text-red-400 transition-colors hover:bg-red-500/40 hover:text-red-300"
+                        >
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                                <path d="M2 2L8 8M8 2L2 8" />
+                            </svg>
+                        </button>
+                    </>
+                ) : (
+                    <span className="text-[11px] italic text-gray-500">{emptyLabel}</span>
+                )}
+            </div>
+        </div>
+    );
+}
 
-    // Spiral state
-    const [spiralPhase, setSpiralPhase] = useState('settingCenter'); // 'settingCenter' | 'settingRadius' | 'complete'
+export default function QuickLaunchDialogForm({
+    isOpen,
+    missionType,
+    selectedDrone,
+    onClose,
+    onLaunch,
+    isLaunching = false,
+    submitError = '',
+}) {
+    const [roiPosition, setRoiPosition] = useState(null);
+    const [takeoffAltitude, setTakeoffAltitude] = useState(String(DEFAULT_TAKEOFF_ALTITUDE));
+    const [flightAltitude, setFlightAltitude] = useState(String(DEFAULT_FLIGHT_ALTITUDE));
+    const [localError, setLocalError] = useState('');
+
+    const [spiralPhase, setSpiralPhase] = useState('settingCenter');
     const [spiralCenter, setSpiralCenter] = useState(null);
     const [spiralRadiusMeters, setSpiralRadiusMeters] = useState(0);
     const [previewRadius, setPreviewRadius] = useState(0);
-    const [mousePos, setMousePos] = useState(null);
     const [spiralWaypoints, setSpiralWaypoints] = useState([]);
 
-    // Ref for the spiral center so the click handler can access latest value
     const spiralCenterRef = useRef(null);
     const spiralPhaseRef = useRef(spiralPhase);
-
-    // Keep refs in sync with state
-    useEffect(() => { spiralCenterRef.current = spiralCenter; }, [spiralCenter]);
-    useEffect(() => { spiralPhaseRef.current = spiralPhase; }, [spiralPhase]);
-
-    // Unified map interaction ref — always up-to-date
     const mapInteractionRef = useRef(null);
 
-    const isSpiral = missionType === 'Spiral';
+    const isLaunch = missionType === 'Launch';
     const isROI = missionType === 'ROI';
+    const isSpiral = missionType === 'Spiral';
 
-    // Update interaction ref whenever dependencies change
+    useEffect(() => {
+        spiralCenterRef.current = spiralCenter;
+    }, [spiralCenter]);
+
+    useEffect(() => {
+        spiralPhaseRef.current = spiralPhase;
+    }, [spiralPhase]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+
+        setRoiPosition(null);
+        setTakeoffAltitude(String(DEFAULT_TAKEOFF_ALTITUDE));
+        setFlightAltitude(String(DEFAULT_FLIGHT_ALTITUDE));
+        setLocalError('');
+        setSpiralPhase('settingCenter');
+        setSpiralCenter(null);
+        setSpiralRadiusMeters(0);
+        setPreviewRadius(0);
+        setSpiralWaypoints([]);
+    }, [isOpen, missionType]);
+
     useEffect(() => {
         mapInteractionRef.current = {
-            // click handler
-            __call__: true,
-            onMouseMove: (e) => {
+            onMouseMove: (event) => {
                 if (isSpiral && spiralPhaseRef.current === 'settingRadius' && spiralCenterRef.current) {
-                    const pos = { lat: e.latlng.lat, lng: e.latlng.lng };
-                    setMousePos(pos);
-                    const dist = getDistanceMeters(spiralCenterRef.current, pos);
-                    setPreviewRadius(Math.round(dist));
+                    const position = { lat: event.latlng.lat, lng: event.latlng.lng };
+                    const distance = getDistanceMeters(spiralCenterRef.current, position);
+                    setPreviewRadius(Math.round(distance));
                 }
             },
-        };
-        // Assign click handler
-        const ref = mapInteractionRef.current;
-        ref.__click__ = (e) => {
-            if (isROI) {
-                setRoiPosition({ lat: e.latlng.lat, lng: e.latlng.lng });
-            } else if (isSpiral) {
+            onClick: (event) => {
+                const position = { lat: event.latlng.lat, lng: event.latlng.lng };
+                setLocalError('');
+
+                if (isROI) {
+                    setRoiPosition(position);
+                    return;
+                }
+
+                if (!isSpiral) {
+                    return;
+                }
+
                 const phase = spiralPhaseRef.current;
+
                 if (phase === 'settingCenter') {
-                    const pos = { lat: e.latlng.lat, lng: e.latlng.lng };
-                    setSpiralCenter(pos);
-                    spiralCenterRef.current = pos;
+                    setSpiralCenter(position);
+                    spiralCenterRef.current = position;
                     setSpiralPhase('settingRadius');
                     spiralPhaseRef.current = 'settingRadius';
                     setPreviewRadius(0);
                     setSpiralWaypoints([]);
-                } else if (phase === 'settingRadius') {
+                    return;
+                }
+
+                if (phase === 'settingRadius') {
                     const center = spiralCenterRef.current;
-                    if (!center) return;
-                    const pos = { lat: e.latlng.lat, lng: e.latlng.lng };
-                    const dist = getDistanceMeters(center, pos);
-                    setSpiralRadiusMeters(Math.round(dist));
+                    if (!center) {
+                        return;
+                    }
+
+                    const distance = getDistanceMeters(center, position);
+                    setSpiralRadiusMeters(Math.round(distance));
                     setSpiralPhase('complete');
                     spiralPhaseRef.current = 'complete';
                     setPreviewRadius(0);
-                    setMousePos(null);
                 }
-            }
+            },
         };
-    }, [isROI, isSpiral]);
+    }, [isLaunch, isROI, isSpiral]);
 
-    if (!isOpen) return null;
+    if (!isOpen) {
+        return null;
+    }
 
-    const center = [-6.200000, 106.816666]; // Jakarta coordinates
-    const dockPosition = [-6.195, 106.81];
-    const dronePosition = [-6.198, 106.805];
-    const fenceRadius = 1800; // meters — will come from drone params in the future
+    const defaultCenter = [-6.2, 106.816666];
+    const dockPosition = toLatLng(selectedDrone?.home_latitude, selectedDrone?.home_longitude);
+    const dronePosition = dockPosition;
+    const center = dronePosition || dockPosition || defaultCenter;
+    const initialZoom = dronePosition ? 16 : 13;
+    const parsedFenceRadius = Number(selectedDrone?.max_range_meter);
+    const fenceRadius = Number.isFinite(parsedFenceRadius) && parsedFenceRadius > 0 ? parsedFenceRadius : null;
+    const launchWaypoint = dockPosition
+        ? { lat: dockPosition[0], lng: dockPosition[1] }
+        : null;
 
-    // === Fence validation for spiral ===
-    // Spiral is out of bounds if: distance(dock, spiralCenter) + spiralRadius > fenceRadius
     const isSpiralOutOfBounds = (() => {
-        if (!spiralCenter) return false;
+        if (!spiralCenter || !dockPosition || fenceRadius == null) {
+            return false;
+        }
+
         const dockLatLng = { lat: dockPosition[0], lng: dockPosition[1] };
-        const distFromDock = getDistanceMeters(dockLatLng, spiralCenter);
+        const distanceFromDock = getDistanceMeters(dockLatLng, spiralCenter);
         const currentRadius = spiralPhase === 'settingRadius' ? previewRadius : spiralRadiusMeters;
-        return (distFromDock + currentRadius) > fenceRadius;
+
+        return (distanceFromDock + currentRadius) > fenceRadius;
     })();
 
-    // Auto-calculate waypoint count based on radius (~1 waypoint per 50m of circumference, clamped 8–24)
     const waypointCount = (() => {
         const radius = spiralRadiusMeters || previewRadius;
-        if (radius <= 0) return 12;
+        if (radius <= 0) {
+            return 12;
+        }
+
         const circumference = 2 * Math.PI * radius;
         return Math.max(8, Math.min(24, Math.round(circumference / 50)));
     })();
 
+    const displayRadius = spiralPhase === 'settingRadius' ? previewRadius : spiralRadiusMeters;
+    const waypointPositions = spiralWaypoints.length > 0
+        ? [...spiralWaypoints.map((waypoint) => [waypoint.lat, waypoint.lng]), [spiralWaypoints[0].lat, spiralWaypoints[0].lng]]
+        : [];
+    const dialogTitle = isLaunch ? 'Configure Takeoff' : 'Choose a location';
+
+    const getMapInstruction = () => {
+        if (isLaunch) {
+            return launchWaypoint
+                ? 'Quick launch will take off from the home position'
+                : 'Home position is unavailable';
+        }
+
+        if (isROI) {
+            return 'Click on the map to set ROI point';
+        }
+
+        if (isSpiral) {
+            if (spiralPhase === 'settingCenter') {
+                return 'Click on the map to set spiral center';
+            }
+
+            if (spiralPhase === 'settingRadius') {
+                return 'Move mouse and click to set radius';
+            }
+
+            if (spiralWaypoints.length === 0) {
+                return 'Circle set. Click "Generate Waypoints" to create flight path';
+            }
+
+            return `${spiralWaypoints.length} waypoints generated`;
+        }
+
+        return 'Choose a location';
+    };
+
     const handleGenerateWaypoints = () => {
-        if (!spiralCenter || spiralRadiusMeters <= 0 || isSpiralOutOfBounds) return;
-        const wps = generateCircleWaypoints(spiralCenter, spiralRadiusMeters, waypointCount);
-        setSpiralWaypoints(wps);
+        if (!spiralCenter || spiralRadiusMeters <= 0 || isSpiralOutOfBounds) {
+            return;
+        }
+
+        setLocalError('');
+        setSpiralWaypoints(generateCircleWaypoints(spiralCenter, spiralRadiusMeters, waypointCount));
     };
 
     const handleClearSpiral = () => {
+        setLocalError('');
         setSpiralCenter(null);
         setSpiralRadiusMeters(0);
         setPreviewRadius(0);
-        setMousePos(null);
         setSpiralWaypoints([]);
         setSpiralPhase('settingCenter');
     };
 
-    // Determine the current displayed radius (preview while drawing, final when complete)
-    const displayRadius = spiralPhase === 'settingRadius' ? previewRadius : spiralRadiusMeters;
+    const handleSubmit = () => {
+        const normalizedTakeoffAltitude = Number(takeoffAltitude);
+        const normalizedFlightAltitude = Number(flightAltitude);
+        const waypointAltitude = isLaunch ? normalizedTakeoffAltitude : normalizedFlightAltitude;
 
-    // Map instruction text
-    const getMapInstruction = () => {
-        if (isROI) return 'Click on the map to set ROI point';
-        if (isSpiral) {
-            if (spiralPhase === 'settingCenter') return 'Click on the map to set spiral center';
-            if (spiralPhase === 'settingRadius') return 'Move mouse and click to set radius';
-            if (spiralPhase === 'complete' && spiralWaypoints.length === 0) return 'Circle set! Click "Generate Waypoints" to create flight path';
-            if (spiralWaypoints.length > 0) return `${spiralWaypoints.length} waypoints generated`;
+        if (!Number.isFinite(normalizedTakeoffAltitude) || normalizedTakeoffAltitude <= 0) {
+            setLocalError('Takeoff altitude must be greater than 0.');
+            return;
         }
-        return 'Choose a location';
+
+        if (isSpiral && (!Number.isFinite(normalizedFlightAltitude) || normalizedFlightAltitude <= 0)) {
+            setLocalError('Flight altitude must be greater than 0.');
+            return;
+        }
+
+        let rawWaypoints = [];
+        let roi = undefined;
+
+        if (isLaunch) {
+            if (!launchWaypoint) {
+                setLocalError('Home position is unavailable for quick launch.');
+                return;
+            }
+
+            rawWaypoints = [launchWaypoint];
+        } else if (isROI) {
+            if (!roiPosition) {
+                setLocalError('Select an ROI point on the map first.');
+                return;
+            }
+
+            roi = roiPosition;
+        } else if (isSpiral) {
+            if (isSpiralOutOfBounds) {
+                setLocalError('Spiral exceeds geofence limit.');
+                return;
+            }
+
+            if (spiralWaypoints.length === 0) {
+                setLocalError('Generate spiral waypoints first.');
+                return;
+            }
+
+            rawWaypoints = spiralWaypoints;
+        }
+
+        setLocalError('');
+
+        onLaunch?.({
+            missionType,
+            takeoffAltitude: normalizedTakeoffAltitude,
+            roi,
+            waypoints: rawWaypoints.map((waypoint, index) => ({
+                id: index + 1,
+                lat: waypoint.lat,
+                lng: waypoint.lng,
+                altitude: waypointAltitude,
+                cameraTilt: 20,
+                action: 'take_picture',
+                action_duration: null,
+            })),
+        });
     };
 
-    // Waypoint polyline (close the loop)
-    const waypointPositions = spiralWaypoints.length > 0
-        ? [...spiralWaypoints.map(wp => [wp.lat, wp.lng]), [spiralWaypoints[0].lat, spiralWaypoints[0].lng]]
-        : [];
+    const effectiveError = localError || submitError;
 
     return (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#0a0f18]/80 backdrop-blur-sm select-none">
-
-            {/* Main Form Container */}
+        <div className="fixed inset-0 z-[2000] flex select-none items-center justify-center bg-[#0a0f18]/80 p-4 backdrop-blur-sm">
             <div className="relative flex w-[840px] flex-col overflow-hidden border-l border-[#ED0000] bg-[#222222] p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-md">
                 <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#ED0000]/45 to-transparent" />
                 <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#ED0000]/45 to-transparent" />
 
-                {/* Dialog Body */}
                 <div className="relative flex w-full flex-col gap-6">
-                    <h2 className="text-center text-[18px] font-tomorrow tracking-widest text-white">
-                        Choose a location
+                    <h2 className="text-center font-tomorrow text-[18px] tracking-widest text-white">
+                        {dialogTitle}
                     </h2>
 
-                    {/* Map Area */}
-                    <div className={`relative h-[400px] w-full overflow-hidden border-b border-[#ED0000] p-px pointer-events-auto z-10 ${(isROI || isSpiral) ? 'cursor-crosshair' : ''}`}>
+                    <div className={`relative z-10 h-[400px] w-full overflow-hidden border-b border-[#ED0000] p-px ${isROI || isSpiral ? 'cursor-crosshair' : ''}`}>
                         <div className="pointer-events-none absolute bottom-0 left-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#ED0000]/35 to-transparent" />
                         <div className="pointer-events-none absolute bottom-0 right-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#ED0000]/35 to-transparent" />
                         <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#ED0000]" />
+
                         <div className="relative h-full w-full overflow-hidden">
                             <MapContainer
                                 center={center}
-                                zoom={13}
+                                zoom={initialZoom}
                                 style={{ height: '100%', width: '100%' }}
                                 attributionControl={false}
                                 zoomControl={false}
-                                scrollWheelZoom={true}
+                                scrollWheelZoom
                             >
-                            {/* Dark CartoDB Matter tile layer */}
-                            <TileLayer
-                                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                            />
+                                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                                <MapInteractionHandler onClickRef={mapInteractionRef} />
+                                {dockPosition && fenceRadius != null ? (
+                                    <Circle center={dockPosition} radius={fenceRadius} pathOptions={geofencePathOptions} />
+                                ) : null}
+                                {dockPosition ? (
+                                    <Marker position={dockPosition} icon={dockIcon} />
+                                ) : null}
+                                {dronePosition ? (
+                                    <Marker position={dronePosition} icon={droneIcon} />
+                                ) : null}
 
-                            {/* Unified Map Interaction Handler */}
-                            <MapInteractionHandler onClickRef={mapInteractionRef} />
+                                {isROI && roiPosition ? (
+                                    <Marker position={[roiPosition.lat, roiPosition.lng]} icon={roiIcon} />
+                                ) : null}
 
-                            {/* Max Radius Circle */}
-                            <Circle center={dockPosition} radius={1800} pathOptions={geofencePathOptions} />
+                                {isSpiral && spiralCenter ? (
+                                    <Marker position={[spiralCenter.lat, spiralCenter.lng]} icon={spiralCenterIcon} />
+                                ) : null}
 
-                            {/* Dock Marker */}
-                            <Marker position={dockPosition} icon={dockIcon} />
-
-                            {/* Drone Marker */}
-                            <Marker position={dronePosition} icon={droneIcon} />
-
-                            {/* === ROI Marker === */}
-                            {isROI && roiPosition && (
-                                <Marker position={[roiPosition.lat, roiPosition.lng]} icon={roiIcon} />
-                            )}
-
-                            {/* === Spiral: Center marker === */}
-                            {isSpiral && spiralCenter && (
-                                <Marker position={[spiralCenter.lat, spiralCenter.lng]} icon={spiralCenterIcon} />
-                            )}
-
-                            {/* === Spiral: Preview circle while drawing === */}
-                            {isSpiral && spiralCenter && spiralPhase === 'settingRadius' && previewRadius > 0 && (
-                                <Circle
-                                    center={[spiralCenter.lat, spiralCenter.lng]}
-                                    radius={previewRadius}
-                                    pathOptions={{
-                                        color: isSpiralOutOfBounds ? '#ef4444' : '#a855f7',
-                                        fillColor: isSpiralOutOfBounds ? '#ef4444' : '#a855f7',
-                                        fillOpacity: isSpiralOutOfBounds ? 0.15 : 0.08,
-                                        weight: 2,
-                                        dashArray: '6, 6',
-                                    }}
-                                />
-                            )}
-
-                            {/* === Spiral: Final circle === */}
-                            {isSpiral && spiralCenter && spiralPhase === 'complete' && spiralRadiusMeters > 0 && (
-                                <Circle
-                                    center={[spiralCenter.lat, spiralCenter.lng]}
-                                    radius={spiralRadiusMeters}
-                                    pathOptions={{
-                                        color: isSpiralOutOfBounds ? '#ef4444' : '#a855f7',
-                                        fillColor: isSpiralOutOfBounds ? '#ef4444' : '#a855f7',
-                                        fillOpacity: isSpiralOutOfBounds ? 0.15 : 0.1,
-                                        weight: 2,
-                                    }}
-                                />
-                            )}
-
-                            {/* === Spiral: Generated waypoints === */}
-                            {isSpiral && spiralWaypoints.length > 0 && (
-                                <>
-                                    {/* Polyline connecting all waypoints (closed loop) */}
-                                    <Polyline
-                                        positions={waypointPositions}
-                                        pathOptions={{ color: '#682F2F', weight: 2, dashArray: '4, 6' }}
+                                {isSpiral && spiralCenter && spiralPhase === 'settingRadius' && previewRadius > 0 ? (
+                                    <Circle
+                                        center={[spiralCenter.lat, spiralCenter.lng]}
+                                        radius={previewRadius}
+                                        pathOptions={{
+                                            color: isSpiralOutOfBounds ? '#ef4444' : '#a855f7',
+                                            fillColor: isSpiralOutOfBounds ? '#ef4444' : '#a855f7',
+                                            fillOpacity: isSpiralOutOfBounds ? 0.15 : 0.08,
+                                            weight: 2,
+                                            dashArray: '6, 6',
+                                        }}
                                     />
-                                    {/* Waypoint markers */}
-                                    {spiralWaypoints.map((wp, i) => (
-                                        <Marker
-                                            key={i}
-                                            position={[wp.lat, wp.lng]}
-                                            icon={createSpiralWaypointIcon(i + 1)}
-                                        />
-                                    ))}
-                                </>
-                            )}
+                                ) : null}
 
-                            {/* Zoom Controls (inside MapContainer for map access) */}
-                            <ZoomControls />
+                                {isSpiral && spiralCenter && spiralPhase === 'complete' && spiralRadiusMeters > 0 ? (
+                                    <Circle
+                                        center={[spiralCenter.lat, spiralCenter.lng]}
+                                        radius={spiralRadiusMeters}
+                                        pathOptions={{
+                                            color: isSpiralOutOfBounds ? '#ef4444' : '#a855f7',
+                                            fillColor: isSpiralOutOfBounds ? '#ef4444' : '#a855f7',
+                                            fillOpacity: isSpiralOutOfBounds ? 0.15 : 0.1,
+                                            weight: 2,
+                                        }}
+                                    />
+                                ) : null}
+
+                                {isSpiral && spiralWaypoints.length > 0 ? (
+                                    <>
+                                        <Polyline
+                                            positions={waypointPositions}
+                                            pathOptions={{ color: '#682F2F', weight: 2, dashArray: '4, 6' }}
+                                        />
+                                        {spiralWaypoints.map((waypoint, index) => (
+                                            <Marker
+                                                key={`${waypoint.lat}-${waypoint.lng}`}
+                                                position={[waypoint.lat, waypoint.lng]}
+                                                icon={createSpiralWaypointIcon(index + 1)}
+                                            />
+                                        ))}
+                                    </>
+                                ) : null}
+
+                                <ZoomControls />
                             </MapContainer>
                         </div>
 
-                        {/* Top Label over Map */}
-                        <div className="absolute top-4 left-0 right-0 text-center text-gray-200 text-[13px] tracking-wide pointer-events-none">
+                        <div className="pointer-events-none absolute left-0 right-0 top-4 text-center text-[13px] tracking-wide text-gray-200">
                             {getMapInstruction()}
                         </div>
 
-                        {/* Spiral: live radius indicator badge */}
-                        {isSpiral && spiralPhase === 'settingRadius' && previewRadius > 0 && (
-                            <div className="absolute top-10 left-1/2 transform -translate-x-1/2 pointer-events-none z-[500]">
-                                <div className={`bg-[#1a202c]/90 border rounded-full px-3 py-1 text-[11px] font-mono flex items-center gap-1.5 ${isSpiralOutOfBounds ? 'border-red-500/60 text-red-400' : 'border-purple-500/40 text-purple-300'}`}>
-                                    {isSpiralOutOfBounds && (
+                        {isSpiral && spiralPhase === 'settingRadius' && previewRadius > 0 ? (
+                            <div className="pointer-events-none absolute left-1/2 top-10 z-[500] -translate-x-1/2 transform">
+                                <div className={`flex items-center gap-1.5 rounded-full border bg-[#1a202c]/90 px-3 py-1 font-mono text-[11px] ${isSpiralOutOfBounds ? 'border-red-500/60 text-red-400' : 'border-purple-500/40 text-purple-300'}`}>
+                                    {isSpiralOutOfBounds ? (
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                                             <line x1="12" y1="9" x2="12" y2="13" />
                                             <line x1="12" y1="17" x2="12.01" y2="17" />
                                         </svg>
-                                    )}
+                                    ) : null}
                                     {previewRadius} m
-                                    {isSpiralOutOfBounds && <span className="text-[9px] opacity-80">OUT OF FENCE</span>}
+                                    {isSpiralOutOfBounds ? <span className="text-[9px] opacity-80">OUT OF FENCE</span> : null}
                                 </div>
                             </div>
-                        )}
+                        ) : null}
 
-                        {/* Spiral: Generate Waypoints + Clear buttons (top-right of map) */}
-                        {isSpiral && spiralPhase === 'complete' && (
-                            <div className="absolute top-4 right-16 flex flex-col gap-2 z-[500]">
-                                {/* Out of fence warning */}
-                                {isSpiralOutOfBounds && (
-                                    <div className="flex items-center gap-2 px-3 py-2 bg-red-900/80 text-red-200 text-[11px] font-medium rounded border border-red-500/50 shadow-lg backdrop-blur-sm">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400 shrink-0">
+                        {isSpiral && spiralPhase === 'complete' ? (
+                            <div className="absolute right-16 top-4 z-[500] flex flex-col gap-2">
+                                {isSpiralOutOfBounds ? (
+                                    <div className="flex items-center gap-2 rounded border border-red-500/50 bg-red-900/80 px-3 py-2 text-[11px] font-medium text-red-200 shadow-lg backdrop-blur-sm">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-red-400">
                                             <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                                             <line x1="12" y1="9" x2="12" y2="13" />
                                             <line x1="12" y1="17" x2="12.01" y2="17" />
                                         </svg>
                                         <span>Circle exceeds geofence limit</span>
                                     </div>
-                                )}
+                                ) : null}
 
                                 {spiralWaypoints.length === 0 ? (
                                     <button
+                                        type="button"
                                         onClick={handleGenerateWaypoints}
                                         disabled={isSpiralOutOfBounds}
-                                        className={`flex items-center gap-2 px-3 py-1.5 text-white text-[11px] font-medium rounded border shadow-lg transition-all ${
-                                            isSpiralOutOfBounds
-                                                ? 'bg-gray-700/80 border-gray-600/30 cursor-not-allowed opacity-50'
-                                                : 'bg-purple-600/90 hover:bg-purple-500 border-purple-400/30 hover:shadow-purple-500/30 hover:shadow-xl'
-                                        }`}
+                                        className={`flex items-center gap-2 rounded border px-3 py-1.5 text-[11px] font-medium text-white shadow-lg transition-all ${isSpiralOutOfBounds ? 'cursor-not-allowed border-gray-600/30 bg-gray-700/80 opacity-50' : 'border-purple-400/30 bg-purple-600/90 hover:bg-purple-500 hover:shadow-xl hover:shadow-purple-500/30'}`}
                                     >
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -443,16 +601,18 @@ export default function QuickLaunchDialogForm({ isOpen, missionType, onClose, on
                                         Generate Waypoints
                                     </button>
                                 ) : (
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/80 text-white text-[11px] font-medium rounded border border-emerald-400/30 shadow-lg">
+                                    <div className="flex items-center gap-1.5 rounded border border-emerald-400/30 bg-emerald-600/80 px-3 py-1.5 text-[11px] font-medium text-white shadow-lg">
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                             <polyline points="20 6 9 17 4 12" />
                                         </svg>
                                         {spiralWaypoints.length} waypoints
                                     </div>
                                 )}
+
                                 <button
+                                    type="button"
                                     onClick={handleClearSpiral}
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-red-600/70 hover:bg-red-500 text-white text-[11px] font-medium rounded border border-red-400/30 shadow-lg transition-all"
+                                    className="flex items-center gap-2 rounded border border-red-400/30 bg-red-600/70 px-3 py-1.5 text-[11px] font-medium text-white shadow-lg transition-all hover:bg-red-500"
                                 >
                                     <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                                         <path d="M2 2L8 8M8 2L2 8" />
@@ -460,107 +620,83 @@ export default function QuickLaunchDialogForm({ isOpen, missionType, onClose, on
                                     Clear Circle
                                 </button>
                             </div>
-                        )}
+                        ) : null}
 
-                        {/* White Brackets (SVG) */}
-                        <svg className="absolute inset-4 pointer-events-none w-[calc(100%-32px)] h-[calc(100%-32px)] z-10">
-                            {/* Top Left */}
+                        <svg className="pointer-events-none absolute inset-4 z-10 h-[calc(100%-32px)] w-[calc(100%-32px)]">
                             <path d="M 12 0 L 6 0 Q 0 0 0 6 L 0 12" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                            {/* Top Right */}
                             <path d="M calc(100% - 12px) 0 L calc(100% - 6px) 0 Q 100% 0 100% 6 L 100% 12" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                            {/* Bottom Left */}
                             <path d="M 0 calc(100% - 12px) L 0 calc(100% - 6px) Q 0 100% 6 100% L 12 100%" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                            {/* Bottom Right */}
                             <path d="M 100% calc(100% - 12px) L 100% calc(100% - 6px) Q 100% 100% calc(100% - 6px) 100% L calc(100% - 12px) 100%" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
                         </svg>
 
-                        {/* Conditionally Rendered Parameters Overlay */}
-                        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-[400] pointer-events-auto">
-                            <div className="flex gap-4 items-end justify-center">
-                                {/* Base Takeoff Altitude -> Present in all modes */}
+                        <div className="pointer-events-auto absolute bottom-8 left-1/2 z-[400] -translate-x-1/2 transform">
+                            <div className="flex items-end justify-center gap-4">
                                 <div className="flex flex-col">
-                                    <label className="text-gray-400 text-[10px] text-center mb-2 px-2 shadow-black drop-shadow-md">Takeoff Altitude (M)</label>
+                                    <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">Takeoff Altitude (M)</label>
                                     <input
                                         type="number"
-                                        className="w-[180px] h-[32px] bg-[#1a202c]/90 border border-[#2d3748] rounded px-3 text-white text-[12px] outline-none text-left focus:border-gray-400 transition-colors placeholder-gray-500"
-                                        placeholder="150"
-                                        defaultValue="150"
+                                        className="h-[32px] w-[160px] rounded border border-[#2d3748] bg-[#1a202c]/90 px-3 text-left text-[12px] text-white outline-none transition-colors placeholder-gray-500 focus:border-gray-400"
+                                        value={takeoffAltitude}
+                                        onChange={(event) => setTakeoffAltitude(event.target.value)}
                                     />
                                 </div>
 
-                                {/* ROI Lat/Lng display */}
-                                {isROI && (
+                                {isSpiral ? (
                                     <div className="flex flex-col">
-                                        <label className="text-gray-400 text-[10px] text-center mb-2 px-2 shadow-black drop-shadow-md">ROI Coordinates</label>
-                                        <div className="h-[32px] bg-[#1a202c]/90 border border-[#2d3748] rounded px-3 flex items-center gap-3 min-w-[240px]">
-                                            {roiPosition ? (
-                                                <>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] text-gray-500 font-medium">LAT</span>
-                                                        <span className="text-[12px] text-emerald-400 font-mono">{roiPosition.lat.toFixed(6)}</span>
-                                                    </div>
-                                                    <div className="w-px h-4 bg-[#2d3748]"></div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] text-gray-500 font-medium">LNG</span>
-                                                        <span className="text-[12px] text-emerald-400 font-mono">{roiPosition.lng.toFixed(6)}</span>
-                                                    </div>
-                                                    <div className="w-px h-4 bg-[#2d3748]"></div>
-                                                    <button
-                                                        onClick={() => setRoiPosition(null)}
-                                                        className="w-5 h-5 flex items-center justify-center rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-colors border-none shadow-none p-0"
-                                                        title="Clear ROI"
-                                                    >
-                                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                                                            <path d="M2 2L8 8M8 2L2 8" />
-                                                        </svg>
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <span className="text-[11px] text-gray-500 italic">Click map to set point</span>
-                                            )}
-                                        </div>
+                                        <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">Flight Altitude (M)</label>
+                                        <input
+                                            type="number"
+                                            className="h-[32px] w-[160px] rounded border border-[#2d3748] bg-[#1a202c]/90 px-3 text-left text-[12px] text-white outline-none transition-colors placeholder-gray-500 focus:border-gray-400"
+                                            value={flightAltitude}
+                                            onChange={(event) => setFlightAltitude(event.target.value)}
+                                        />
                                     </div>
-                                )}
+                                ) : null}
 
-                                {/* Extra Fields for Spiral Mode */}
-                                {isSpiral && (
+                                {isROI ? (
+                                    <CoordinateField
+                                        label="ROI Coordinates"
+                                        position={roiPosition}
+                                        accentClass="text-emerald-400"
+                                        onClear={() => setRoiPosition(null)}
+                                        emptyLabel="Click map to set point"
+                                    />
+                                ) : null}
+
+                                {isSpiral ? (
                                     <>
                                         <div className="flex flex-col">
-                                            <label className="text-gray-400 text-[10px] text-center mb-2 px-2 shadow-black drop-shadow-md">Flight Altitude (M)</label>
-                                            <input
-                                                type="number"
-                                                className="w-[140px] h-[32px] bg-[#1a202c]/90 border border-[#2d3748] rounded px-3 text-white text-[12px] outline-none text-left focus:border-gray-400 transition-colors placeholder-gray-500"
-                                                placeholder="150"
-                                                defaultValue="150"
-                                            />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <label className="text-gray-400 text-[10px] text-center mb-2 px-2 shadow-black drop-shadow-md">Radius (M)</label>
-                                            <div className="h-[32px] bg-[#1a202c]/90 border border-[#2d3748] rounded px-3 flex items-center min-w-[100px]">
-                                                <span className={`text-[12px] font-mono ${displayRadius > 0 ? 'text-purple-400' : 'text-gray-500 italic text-[11px]'}`}>
+                                            <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">Radius (M)</label>
+                                            <div className="flex h-[32px] min-w-[100px] items-center rounded border border-[#2d3748] bg-[#1a202c]/90 px-3">
+                                                <span className={`font-mono text-[12px] ${displayRadius > 0 ? 'text-purple-400' : 'text-[11px] italic text-gray-500'}`}>
                                                     {displayRadius > 0 ? `${displayRadius}` : 'Draw...'}
                                                 </span>
                                             </div>
                                         </div>
                                         <div className="flex flex-col">
-                                            <label className="text-gray-400 text-[10px] text-center mb-2 px-2 shadow-black drop-shadow-md">Waypoints</label>
+                                            <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">Waypoints</label>
                                             <input
                                                 type="number"
-                                                className="w-[80px] h-[32px] bg-[#1a202c]/90 border border-[#2d3748] rounded px-3 text-gray-400 text-[12px] outline-none text-center cursor-not-allowed opacity-60"
+                                                className="h-[32px] w-[80px] cursor-not-allowed rounded border border-[#2d3748] bg-[#1a202c]/90 px-3 text-center text-[12px] text-gray-400 opacity-60 outline-none"
                                                 value={waypointCount}
                                                 disabled
                                             />
                                         </div>
                                     </>
-                                )}
+                                ) : null}
                             </div>
                         </div>
                     </div>
 
-                    {/* Action Buttons Row */}
+                    {effectiveError ? (
+                        <div className="rounded border border-red-500/40 bg-red-950/40 px-4 py-3 text-[12px] text-red-300">
+                            {effectiveError}
+                        </div>
+                    ) : null}
+
                     <div className="mt-1 grid grid-cols-2 gap-6">
-                        {/* Red Cancel Button */}
                         <button
+                            type="button"
                             onClick={onClose}
                             className="w-full bg-transparent active:scale-[0.98]"
                         >
@@ -571,10 +707,11 @@ export default function QuickLaunchDialogForm({ isOpen, missionType, onClose, on
                             />
                         </button>
 
-                        {/* Orange Launch Button */}
                         <button
-                            onClick={() => onLaunch(missionType)}
-                            className="w-full bg-transparent active:scale-[0.98]"
+                            type="button"
+                            onClick={handleSubmit}
+                            disabled={isLaunching}
+                            className={`w-full bg-transparent active:scale-[0.98] ${isLaunching ? 'cursor-not-allowed opacity-70' : ''}`}
                         >
                             <img
                                 src="/src/assets/images/btn_launch_quicklaunch.png"
@@ -583,7 +720,6 @@ export default function QuickLaunchDialogForm({ isOpen, missionType, onClose, on
                             />
                         </button>
                     </div>
-
                 </div>
             </div>
         </div>

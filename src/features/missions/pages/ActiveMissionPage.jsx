@@ -1,12 +1,13 @@
 import React from 'react';
 import MainVideoFeedPanel from '../../dashboard/panels/MainVideoFeedPanel';
 import MapViewPanel from '../../dashboard/panels/MapViewPanel';
+import dummyDockingCamImage from '../../../assets/images/image_dummy_docking_cam.png';
 
 // Mock components for the right sidebar and controls
 const DockCamPanel = () => (
     <div className="relative w-full h-full bg-black">
         {/* Placeholder image/bg for Dock Cam */}
-        <div className="absolute inset-0 bg-cover bg-center opacity-70" style={{ backgroundImage: `url('/src/assets/dock_cam_placeholder.png')`, backgroundColor: '#111' }} />
+        <div className="absolute inset-0 bg-cover bg-center opacity-70" style={{ backgroundImage: `url(${dummyDockingCamImage})`, backgroundColor: '#111' }} />
         <div className="absolute top-3 left-3 px-2 py-0.5 bg-black/50 border border-orange-500/30 rounded text-[10px] uppercase font-bold text-orange-500 tracking-wider">
             Dock Cam
         </div>

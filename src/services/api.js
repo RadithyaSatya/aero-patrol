@@ -39,11 +39,11 @@ export const authService = {
 };
 
 export const uavService = {
-    getMyUavsDropdown: async () => {
+    getUav: async () => {
         const token = localStorage.getItem('authToken');
         if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_BASE_URL}/uavs/me/dropdown`, {
+        const response = await fetch(`${API_BASE_URL}/uav`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -51,17 +51,19 @@ export const uavService = {
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Failed to fetch UAVs');
+            throw new Error(errorData.error || 'Failed to fetch UAV');
         }
 
         return response.json();
-    },
+    }
+};
 
-    getUavById: async (uavId) => {
+export const dockingService = {
+    getDocking: async () => {
         const token = localStorage.getItem('authToken');
         if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_BASE_URL}/uavs/${uavId}`, {
+        const response = await fetch(`${API_BASE_URL}/docking`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -69,7 +71,7 @@ export const uavService = {
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Failed to fetch UAV detail');
+            throw new Error(errorData.error || 'Failed to fetch docking');
         }
 
         return response.json();
@@ -77,11 +79,20 @@ export const uavService = {
 };
 
 export const userService = {
-    getUsers: async (page = 1, limit = 50) => {
+    getUsers: async ({ page = 1, limit = 50, username = '' } = {}) => {
         const token = localStorage.getItem('authToken');
         if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_BASE_URL}/users?page=${page}&limit=${limit}`, {
+        const params = new URLSearchParams({
+            page: String(page),
+            limit: String(limit),
+        });
+
+        if (username) {
+            params.set('username', username);
+        }
+
+        const response = await fetch(`${API_BASE_URL}/users?${params.toString()}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -113,7 +124,7 @@ export const userService = {
             headers['X-Device-Token'] = deviceToken;
         }
 
-        const response = await fetch(`${API_BASE_URL}/register-user`, {
+        const response = await fetch(`${API_BASE_URL}/users`, {
             method: 'POST',
             headers,
             body: JSON.stringify(payload),
@@ -122,6 +133,27 @@ export const userService = {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
             throw new Error(data.error || 'Failed to create user');
+        }
+
+        return data;
+    },
+
+    deleteUser: async (userId) => {
+        const token = localStorage.getItem('authToken');
+        if (!token) throw new Error('No authentication token found');
+
+        const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const error = new Error(data.error || 'Failed to delete user');
+            error.status = response.status;
+            throw error;
         }
 
         return data;
@@ -143,6 +175,228 @@ export const missionService = {
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.error || 'Failed to fetch missions');
+        }
+
+        return response.json();
+    },
+
+    getMissionRuns: async ({ page = 1, limit = 20, uavId = '', upcoming = 'today', days } = {}) => {
+        const token = localStorage.getItem('authToken');
+        if (!token) throw new Error('No authentication token found');
+
+        const params = new URLSearchParams({
+            page: String(page),
+            limit: String(limit),
+            upcoming,
+        });
+
+        if (uavId) {
+            params.set('uav_id', String(uavId));
+        }
+
+        if (upcoming === 'later' && Number.isInteger(days) && days > 0) {
+            params.set('days', String(days));
+        }
+
+        const response = await fetch(`${API_BASE_URL}/mission-runs?${params.toString()}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Failed to fetch mission runs');
+        }
+
+        return response.json();
+    },
+
+    getMissionById: async (missionId) => {
+        const token = localStorage.getItem('authToken');
+        if (!token) throw new Error('No authentication token found');
+
+        const response = await fetch(`${API_BASE_URL}/missions/${missionId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || errorData.message || 'Failed to fetch mission detail');
+        }
+
+        return response.json();
+    },
+
+    createMission: async (payload) => {
+        const token = localStorage.getItem('authToken');
+        if (!token) throw new Error('No authentication token found');
+
+        const response = await fetch(`${API_BASE_URL}/missions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const error = new Error(data.error || data.message || 'Failed to create mission');
+            error.code = data.code;
+            error.details = data;
+            throw error;
+        }
+
+        return data;
+    },
+
+    previewMissionConflicts: async (payload) => {
+        const token = localStorage.getItem('authToken');
+        if (!token) throw new Error('No authentication token found');
+
+        const response = await fetch(`${API_BASE_URL}/mission-conflicts/preview`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const error = new Error(data.error || data.message || 'Failed to preview mission conflicts');
+            error.code = data.code;
+            error.details = data;
+            throw error;
+        }
+
+        return data;
+    },
+
+    deleteMission: async (missionId) => {
+        const token = localStorage.getItem('authToken');
+        if (!token) throw new Error('No authentication token found');
+
+        const response = await fetch(`${API_BASE_URL}/missions/${missionId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.error || data.message || 'Failed to delete mission');
+        }
+
+        return data;
+    }
+};
+
+export const historyService = {
+    getMissionHistory: async ({ page = 1, limit = 20, missionId = '', missionName = '' } = {}) => {
+        const token = localStorage.getItem('authToken');
+        if (!token) throw new Error('No authentication token found');
+
+        const params = new URLSearchParams({
+            page: String(page),
+            limit: String(limit),
+        });
+
+        if (missionId) {
+            params.set('mission_id', String(missionId));
+        }
+
+        if (missionName) {
+            params.set('mission_name', missionName);
+        }
+
+        const response = await fetch(`${API_BASE_URL}/mission-history?${params.toString()}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || errorData.message || 'Failed to fetch mission history');
+        }
+
+        return response.json();
+    }
+};
+
+export const telemetryService = {
+    getTrack: async () => {
+        const token = localStorage.getItem('authToken');
+        const deviceToken = localStorage.getItem('deviceToken');
+
+        if (!token && !deviceToken) {
+            throw new Error('No authentication token found');
+        }
+
+        const headers = {};
+
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        } else {
+            headers['X-Device-Token'] = deviceToken;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/telemetry/track`, {
+            headers,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || errorData.message || 'Failed to fetch telemetry track');
+        }
+
+        return response.json();
+    }
+};
+
+export const weatherService = {
+    getForecast: async ({ latitude, longitude, forecastHours = 6 } = {}) => {
+        const normalizedLatitude = Number(latitude);
+        const normalizedLongitude = Number(longitude);
+
+        if (!Number.isFinite(normalizedLatitude) || !Number.isFinite(normalizedLongitude)) {
+            throw new Error('Invalid coordinates for weather forecast');
+        }
+
+        const params = new URLSearchParams({
+            latitude: String(normalizedLatitude),
+            longitude: String(normalizedLongitude),
+            current: [
+                'temperature_2m',
+                'relative_humidity_2m',
+                'weather_code',
+                'wind_speed_10m',
+                'wind_gusts_10m',
+                'visibility',
+                'is_day',
+            ].join(','),
+            hourly: [
+                'temperature_2m',
+                'weather_code',
+                'is_day',
+            ].join(','),
+            forecast_hours: String(forecastHours),
+            timezone: 'auto',
+            wind_speed_unit: 'ms',
+        });
+
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.reason || errorData.error || 'Failed to fetch weather forecast');
         }
 
         return response.json();

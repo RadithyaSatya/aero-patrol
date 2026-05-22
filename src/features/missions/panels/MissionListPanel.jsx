@@ -1,112 +1,422 @@
-import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { missionService } from '../../../services/api';
+import DeleteMissionModal from '../components/DeleteMissionModal';
+import addMissionButton from '../../../assets/images/btn_add_mission.png';
+import deleteMissionIcon from '../../../assets/images/icon_trash_mission.svg';
 
-const missions = [
-    { id: 1, date: '12/12/2025\n16:34:00', name: 'Patrol on 3 Site', action: 'Video Record', status: 'Waiting', schedule: 'today' },
-    { id: 2, date: '12/12/2025\n16:34:00', name: 'Inspection on 5 Site', action: 'Audio Record', status: 'Completed', schedule: 'today' },
-    { id: 3, date: '12/12/2025\n16:34:00', name: 'Follow-up on 2 Site', action: 'Video Record', status: 'In Progress', active: true, schedule: 'today' },
-    { id: 4, date: '12/12/2025\n16:34:00', name: 'Maintenance on 1 Site', action: 'No Record', status: 'Scheduled', schedule: 'later' },
-    { id: 5, date: '12/12/2025\n16:34:00', name: 'Emergency Response', action: 'Video Record', status: 'Resolved', schedule: 'later' },
-    { id: 6, date: '12/12/2025\n16:34:00', name: 'Debriefing on 6 Site', action: 'Audio Record', status: 'Pending', schedule: 'later' }
-];
-
+const PAGE_LIMIT = 20;
+const DEFAULT_LATER_DAYS = 21;
 const overlayDividerStroke = 'linear-gradient(90deg, rgba(213,53,53,0.18) 0%, #D53535 50%, rgba(213,53,53,0.18) 100%)';
+const tableLayoutClass = 'grid min-w-[640px] grid-cols-[120px_minmax(220px,1fr)_120px_160px_64px]';
 
-export default function MissionListPanel({ onAddMission }) {
-    const navigate = useNavigate();
+const formatRunAt = (runAt, timeZone) => {
+    if (!runAt) return { date: '-', time: '-' };
+
+    const parsedDate = new Date(runAt);
+    if (Number.isNaN(parsedDate.getTime())) {
+        return { date: runAt, time: '-' };
+    }
+
+    return {
+        date: new Intl.DateTimeFormat('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            timeZone: timeZone || undefined,
+        }).format(parsedDate),
+        time: new Intl.DateTimeFormat('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            timeZone: timeZone || undefined,
+        }).format(parsedDate),
+    };
+};
+
+const toTitleCase = (value = '') => value
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+const getScheduleLabel = (scheduleType) => (
+    !scheduleType
+        ? '-'
+        : scheduleType === 'one_time'
+        ? 'One Time'
+        : `Recurring - ${toTitleCase(scheduleType)}`
+);
+
+const getMissionRunKey = (missionRun) => `${missionRun.mission_id}-${missionRun.run_at}`;
+
+export default function MissionListPanel({
+    onAddMission,
+    uavId,
+    selectedMissionKey,
+    onSelectMission,
+    onMissionDeleted,
+}) {
     const [activeFilter, setActiveFilter] = useState('today');
+    const [missionRuns, setMissionRuns] = useState([]);
+    const [pagination, setPagination] = useState({
+        page: 1,
+        total: 0,
+        hasNext: false,
+    });
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
+    const [reloadToken, setReloadToken] = useState(0);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteErrorMsg, setDeleteErrorMsg] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
+    const containerRef = useRef(null);
+    const isMountedRef = useRef(true);
+    const isLoadingMoreRef = useRef(false);
+    const paginationRef = useRef({ page: 1, total: 0, hasNext: false });
+    const requestVersionRef = useRef(0);
 
-    const filteredMissions = useMemo(
-        () => missions.filter((mission) => mission.schedule === activeFilter),
-        [activeFilter]
-    );
+    useEffect(() => {
+        isMountedRef.current = true;
 
-    const handleRowClick = (mission) => {
-        if (mission.status === 'In Progress') {
-            navigate('/missions/active');
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        isLoadingMoreRef.current = isLoadingMore;
+    }, [isLoadingMore]);
+
+    useEffect(() => {
+        paginationRef.current = pagination;
+    }, [pagination]);
+
+    useEffect(() => {
+        let isCancelled = false;
+        const requestVersion = requestVersionRef.current + 1;
+        requestVersionRef.current = requestVersion;
+
+        const fetchMissionRuns = async () => {
+            setMissionRuns([]);
+            setPagination({
+                page: 1,
+                total: 0,
+                hasNext: false,
+            });
+            setIsInitialLoading(true);
+            setIsLoadingMore(false);
+            setErrorMsg('');
+
+            try {
+                const data = await missionService.getMissionRuns({
+                    page: 1,
+                    limit: PAGE_LIMIT,
+                    uavId,
+                    upcoming: activeFilter,
+                    days: activeFilter === 'later' ? DEFAULT_LATER_DAYS : undefined,
+                });
+
+                if (isCancelled || !isMountedRef.current || requestVersionRef.current !== requestVersion) {
+                    return;
+                }
+
+                const items = Array.isArray(data?.items) ? data.items : [];
+                setMissionRuns(items);
+                setPagination({
+                    page: data?.page ?? 1,
+                    total: data?.total ?? 0,
+                    hasNext: Boolean(data?.has_next),
+                });
+
+                if (items.length === 0) {
+                    onSelectMission?.(null);
+                    return;
+                }
+
+                const hasSelectedItem = selectedMissionKey
+                    ? items.some((item) => getMissionRunKey(item) === selectedMissionKey)
+                    : false;
+
+                if (!hasSelectedItem) {
+                    onSelectMission?.(items[0]);
+                }
+            } catch (error) {
+                if (isCancelled || !isMountedRef.current || requestVersionRef.current !== requestVersion) {
+                    return;
+                }
+
+                console.error('Error fetching mission runs:', error);
+                setMissionRuns([]);
+                setPagination({
+                    page: 1,
+                    total: 0,
+                    hasNext: false,
+                });
+                setErrorMsg(error.message);
+                onSelectMission?.(null);
+            } finally {
+                if (!isCancelled && isMountedRef.current && requestVersionRef.current === requestVersion) {
+                    setIsInitialLoading(false);
+                }
+            }
+        };
+
+        fetchMissionRuns();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [activeFilter, reloadToken, onSelectMission, uavId]);
+
+    const loadMoreMissionRuns = async () => {
+        if (isInitialLoading || isLoadingMoreRef.current || !paginationRef.current.hasNext) {
+            return;
+        }
+
+        const requestVersion = requestVersionRef.current;
+        setErrorMsg('');
+        setIsLoadingMore(true);
+
+        try {
+            const nextPage = paginationRef.current.page + 1;
+            const data = await missionService.getMissionRuns({
+                page: nextPage,
+                limit: PAGE_LIMIT,
+                uavId,
+                upcoming: activeFilter,
+                days: activeFilter === 'later' ? DEFAULT_LATER_DAYS : undefined,
+            });
+
+            if (!isMountedRef.current || requestVersionRef.current !== requestVersion) {
+                return;
+            }
+
+            setMissionRuns((currentItems) => [
+                ...currentItems,
+                ...(Array.isArray(data?.items) ? data.items : []),
+            ]);
+            setPagination({
+                page: data?.page ?? nextPage,
+                total: data?.total ?? paginationRef.current.total,
+                hasNext: Boolean(data?.has_next),
+            });
+        } catch (error) {
+            if (!isMountedRef.current || requestVersionRef.current !== requestVersion) {
+                return;
+            }
+
+            console.error('Error loading more mission runs:', error);
+            setErrorMsg(error.message);
+        } finally {
+            if (isMountedRef.current) {
+                setIsLoadingMore(false);
+            }
         }
     };
 
+    const handleScroll = (event) => {
+        const element = event.currentTarget;
+        const distanceToBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+
+        if (distanceToBottom <= 120) {
+            loadMoreMissionRuns();
+        }
+    };
+
+    useEffect(() => {
+        const element = containerRef.current;
+        if (!element || isInitialLoading || isLoadingMore || !pagination.hasNext) {
+            return;
+        }
+
+        if (element.scrollHeight <= element.clientHeight + 16) {
+            loadMoreMissionRuns();
+        }
+    }, [isInitialLoading, isLoadingMore, pagination.hasNext, pagination.page]);
+
+    const handleDeleteMission = async () => {
+        if (!deleteTarget) return;
+
+        setDeleteErrorMsg('');
+        setIsDeleting(true);
+
+        try {
+            await missionService.deleteMission(deleteTarget.mission_id);
+            onMissionDeleted?.(deleteTarget.mission_id);
+            setDeleteTarget(null);
+            setReloadToken((current) => current + 1);
+        } catch (error) {
+            console.error('Error deleting mission:', error);
+            setDeleteErrorMsg(error.message);
+        } finally {
+            if (isMountedRef.current) {
+                setIsDeleting(false);
+            }
+        }
+    };
+
+    const listSubtitle = useMemo(() => {
+        if (isInitialLoading) return 'Loading...';
+        return `${pagination.total} Mission`;
+    }, [isInitialLoading, pagination.total]);
+
     return (
-        <div className="font-tomorrow relative flex h-full w-full flex-col overflow-hidden border-[0.5px] border-[#FC4747] bg-[#222222] p-4 shadow-lg select-none">
-
-            {/* Header */}
-            <div className="flex justify-between items-center mb-2">
-                <div className="flex items-center space-x-3">
-                    <h2 className="text-white text-[18px] tracking-wide">Mission List</h2>
-                    <span className="text-gray-400 text-[11px] font-medium mt-1">34 Mission</span>
-                </div>
-                <button
-                    onClick={onAddMission}
-                    className="transition hover:brightness-110"
-                >
-                    <img src="/src/assets/images/btn_add_mission.png" alt="Add Mission" className="h-auto w-[132px] object-contain" />
-                </button>
-            </div>
-
-            <div
-                className="h-px w-full"
-                style={{ backgroundImage: overlayDividerStroke }}
-            />
-
-            <div className="mb-1 mt-6 flex items-center gap-1">
-                <button
-                    type="button"
-                    onClick={() => setActiveFilter('today')}
-                    className={`min-w-[74px] border px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] transition-colors ${
-                        activeFilter === 'today'
-                            ? 'border-[#951616] bg-[#951616] text-white'
-                            : 'border-[#3B3B3B] bg-[#222222] text-gray-300 hover:bg-[#272727]'
-                    }`}
-                >
-                    Today
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setActiveFilter('later')}
-                    className={`min-w-[74px] border px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] transition-colors ${
-                        activeFilter === 'later'
-                            ? 'border-[#951616] bg-[#951616] text-white'
-                            : 'border-[#3B3B3B] bg-[#222222] text-gray-300 hover:bg-[#272727]'
-                    }`}
-                >
-                    Later
-                </button>
-            </div>
-
-            {/* Table Header */}
-            <div className="grid grid-cols-[1fr_2fr_1.5fr_1fr] bg-[#5E0A0A] px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[#D6D6D6]">
-                <div>Date</div>
-                <div>Mission</div>
-                <div>Action</div>
-                <div>Status</div>
-            </div>
-
-            {/* Table Body */}
-            <div className="mt-[2px] flex-1 overflow-y-auto pr-1 space-y-[2px] custom-scrollbar">
-                {filteredMissions.map((mission) => (
-                    <div
-                        key={mission.id}
-                        className={`grid grid-cols-[1fr_2fr_1.5fr_1fr] items-center bg-[#282828] px-3 py-[7px] text-xs transition-colors ${
-                            mission.active ? 'border border-[#393F44]' : 'hover:bg-[#303030]'
-                        } ${mission.status === 'In Progress' ? 'cursor-pointer' : ''}`}
-                        onClick={() => handleRowClick(mission)}
-                    >
-                        <div className="text-gray-300 leading-tight whitespace-pre-line text-[10px]">
-                            {mission.date}
-                        </div>
-                        <div className={`text-[11px] font-medium ${mission.active ? 'text-white' : 'text-gray-200'}`}>
-                            {mission.name}
-                        </div>
-                        <div className="text-gray-300 text-[11px]">
-                            {mission.action}
-                        </div>
-                        <div className="text-gray-300 text-[11px]">
-                            {mission.status}
-                        </div>
+        <>
+            <div className="font-tomorrow relative flex h-full w-full flex-col overflow-hidden border-[0.5px] border-[#FC4747] bg-[#222222] p-4 shadow-lg select-none">
+                <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                        <h2 className="text-[18px] tracking-wide text-white">Mission List</h2>
+                        <span className="mt-1 text-[11px] font-medium text-gray-400">{listSubtitle}</span>
                     </div>
-                ))}
+                    <button
+                        type="button"
+                        onClick={onAddMission}
+                        className="transition hover:brightness-110"
+                    >
+                        <img src={addMissionButton} alt="Add Mission" className="h-auto w-[132px] object-contain" />
+                    </button>
+                </div>
+
+                <div className="h-px w-full" style={{ backgroundImage: overlayDividerStroke }} />
+
+                <div className="mt-6 flex items-center gap-1">
+                    <button
+                        type="button"
+                        onClick={() => setActiveFilter('today')}
+                        className={`min-w-[74px] border px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] transition-colors ${
+                            activeFilter === 'today'
+                                ? 'border-[#951616] bg-[#951616] text-white'
+                                : 'border-[#3B3B3B] bg-[#222222] text-gray-300 hover:bg-[#272727]'
+                        }`}
+                    >
+                        Today
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveFilter('later')}
+                        className={`min-w-[74px] border px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] transition-colors ${
+                            activeFilter === 'later'
+                                ? 'border-[#951616] bg-[#951616] text-white'
+                                : 'border-[#3B3B3B] bg-[#222222] text-gray-300 hover:bg-[#272727]'
+                        }`}
+                    >
+                        Later
+                    </button>
+                </div>
+
+                <div
+                    ref={containerRef}
+                    onScroll={handleScroll}
+                    className="custom-scrollbar mt-2 flex-1 min-h-0 overflow-auto"
+                >
+                    <div className="inline-block min-w-full align-top">
+                        <div className={`${tableLayoutClass} w-full items-center border-b border-[#7A1A1A] bg-[#5E0A0A] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#FFFFFF]`}>
+                            <div className="whitespace-nowrap">Date</div>
+                            <div className="min-w-0">Mission Name</div>
+                            <div className="whitespace-nowrap">Status</div>
+                            <div className="whitespace-nowrap">Schedule</div>
+                            <div className="whitespace-nowrap text-center">Act</div>
+                        </div>
+
+                        {isInitialLoading ? (
+                            <div className="px-2 py-3 text-xs text-gray-400">Loading missions...</div>
+                        ) : errorMsg && missionRuns.length === 0 ? (
+                            <div className="flex h-full flex-col items-center justify-center px-3 py-4 text-center text-xs text-red-400">
+                                <span>Oops, error loading missions:</span>
+                                <span className="mt-1 opacity-80">{errorMsg}</span>
+                            </div>
+                        ) : missionRuns.length === 0 ? (
+                            <div className="flex h-full items-center justify-center px-3 py-4 text-xs italic text-gray-400">
+                                No missions found for this filter.
+                            </div>
+                        ) : (
+                            <>
+                                {missionRuns.map((missionRun) => {
+                                    const formattedRunAt = formatRunAt(missionRun.run_at, missionRun.schedule_timezone);
+                                    const missionKey = getMissionRunKey(missionRun);
+                                    const isSelected = selectedMissionKey === missionKey;
+
+                                    return (
+                                        <div
+                                            key={missionKey}
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => onSelectMission?.(missionRun)}
+                                            onKeyDown={(event) => {
+                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                    event.preventDefault();
+                                                    onSelectMission?.(missionRun);
+                                                }
+                                            }}
+                                            className={`${tableLayoutClass} w-full items-center border-b border-[#323232] px-3 py-[10px] text-xs transition-colors ${
+                                                isSelected
+                                                    ? 'bg-[#2D1C1C] shadow-[inset_0_0_0_1px_rgba(253,87,87,0.55)]'
+                                                    : 'bg-[#282828] hover:bg-[#303030]'
+                                            }`}
+                                        >
+                                            <div className="min-w-0 whitespace-nowrap leading-tight text-[10px] text-gray-300">
+                                                <div>{formattedRunAt.date}</div>
+                                                <div className="mt-1">{formattedRunAt.time}</div>
+                                            </div>
+                                            <div className={`min-w-0 pr-3 text-[11px] font-medium ${isSelected ? 'text-white' : 'text-gray-200'}`}>
+                                                <div className="truncate">{missionRun.mission_name}</div>
+                                                <div className="mt-1 truncate text-[10px] text-gray-500">Mission ID {missionRun.mission_id}</div>
+                                            </div>
+                                            <div className="min-w-0 pr-2 text-[11px] text-gray-300">
+                                                <div className="truncate">{missionRun.status}</div>
+                                            </div>
+                                            <div className="min-w-0 pr-2 text-[10px] text-gray-300">
+                                                <div className="truncate">{getScheduleLabel(missionRun.schedule_type)}</div>
+                                                <div className="mt-1 whitespace-nowrap text-gray-500">{formattedRunAt.time}</div>
+                                            </div>
+                                            <div className="flex w-full justify-center">
+                                                <button
+                                                    type="button"
+                                                    aria-label={`Delete mission ${missionRun.mission_name}`}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        setDeleteErrorMsg('');
+                                                        setDeleteTarget(missionRun);
+                                                    }}
+                                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-transparent transition hover:border-[#FD5757]/40 hover:bg-[#351d1d]"
+                                                >
+                                                    <img src={deleteMissionIcon} alt="" aria-hidden="true" className="h-4 w-4 object-contain" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+
+                                {isLoadingMore ? (
+                                    <div className="px-2 py-3 text-center text-xs text-gray-400">Loading more missions...</div>
+                                ) : null}
+
+                                {!pagination.hasNext ? (
+                                    <div className="px-2 py-3 text-center text-[11px] text-gray-500">End of missions</div>
+                                ) : null}
+
+                                {errorMsg && missionRuns.length > 0 ? (
+                                    <div className="px-2 py-3 text-center text-xs text-red-400">{errorMsg}</div>
+                                ) : null}
+                            </>
+                        )}
+                    </div>
+                </div>
             </div>
-        </div>
+
+            <DeleteMissionModal
+                isOpen={Boolean(deleteTarget)}
+                missionName={deleteTarget?.mission_name}
+                errorMsg={deleteErrorMsg}
+                isSubmitting={isDeleting}
+                onClose={() => {
+                    if (isDeleting) return;
+                    setDeleteTarget(null);
+                    setDeleteErrorMsg('');
+                }}
+                onConfirm={handleDeleteMission}
+            />
+        </>
     );
 }

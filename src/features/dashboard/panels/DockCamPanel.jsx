@@ -1,4 +1,5 @@
 import React from 'react';
+import dummyDockingCamImage from '../../../assets/images/image_dummy_docking_cam.png';
 
 export default function DockCamPanel({ variant = 'default', streamBorderClassName = 'border' }) {
     const isStream = variant === 'stream';
@@ -20,7 +21,7 @@ export default function DockCamPanel({ variant = 'default', streamBorderClassNam
 
                     <div
                         className="absolute inset-x-0 bottom-0 top-[1px] bg-cover bg-center opacity-80"
-                        style={{ backgroundImage: "url('/src/assets/dock_cam_placeholder.png')" }}
+                        style={{ backgroundImage: `url(${dummyDockingCamImage})` }}
                     />
                     <div className="absolute inset-x-0 bottom-0 top-[1px] bg-gradient-to-t from-black/70 via-black/20 to-black/45" />
 
@@ -47,7 +48,7 @@ export default function DockCamPanel({ variant = 'default', streamBorderClassNam
 
             <div
                 className="absolute inset-0 bg-cover bg-center opacity-80"
-                style={{ backgroundImage: "url('/src/assets/dock_cam_placeholder.png')" }}
+                style={{ backgroundImage: `url(${dummyDockingCamImage})` }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/45" />
 

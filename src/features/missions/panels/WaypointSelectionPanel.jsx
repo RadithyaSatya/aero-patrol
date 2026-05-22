@@ -1,42 +1,55 @@
-import React, { useState } from 'react';
+import React from 'react';
+import {
+    formatFlightDuration,
+    formatMissionDistance,
+    getEstimatedFlightDurationSeconds,
+    getMissionProfileLengthMeters,
+} from '../utils/missionMetrics';
 
 const panelStroke = '#D53535';
 const dividerStroke = 'linear-gradient(90deg, rgba(163,88,88,0.12) 0%, #A35858 50%, rgba(163,88,88,0.12) 100%)';
 
-export default function WaypointSelectionPanel({ waypoints, onDeleteWaypoint }) {
-    // Local state for the editable fields
-    const [takeoffAltitude, setTakeoffAltitude] = useState(15);
-    // This state maps point id -> { altitude, cameraTilt, action }
-    const [pointsData, setPointsData] = useState({});
+const defaultWaypointValues = {
+    altitude: 25,
+    cameraTilt: 20,
+    action: 'video_record',
+    action_duration: 10,
+};
 
-    // Initialize new waypoints with defaults when they appear
-    React.useEffect(() => {
-        waypoints.forEach(wp => {
-            if (!pointsData[wp.id]) {
-                setPointsData(prev => ({
-                    ...prev,
-                    [wp.id]: { altitude: 150, cameraTilt: 20, action: 'Video Record' }
-                }));
-            }
-        });
-    }, [waypoints]); // intentionally omitting pointsData from deps to avoid infinite loop
+const actionOptions = [
+    { value: 'take_picture', label: 'Take Picture' },
+    { value: 'video_record', label: 'Record Video' },
+];
 
-    React.useEffect(() => {
-        setPointsData((prev) => {
-            const activeIds = new Set(waypoints.map((waypoint) => waypoint.id));
-            const next = Object.fromEntries(
-                Object.entries(prev).filter(([id]) => activeIds.has(Number(id)))
-            );
+const parseNumericInput = (value) => (value === '' ? '' : Number(value));
 
-            return Object.keys(next).length === Object.keys(prev).length ? prev : next;
-        });
-    }, [waypoints]);
+export default function WaypointSelectionPanel({
+    waypoints,
+    takeoffAltitude,
+    selectedDrone,
+    onTakeoffAltitudeChange,
+    onUpdateWaypoint,
+    onDeleteWaypoint,
+}) {
+    const batteryPercent = selectedDrone?.status?.battery_percent;
+    const homePosition = selectedDrone?.home_latitude != null && selectedDrone?.home_longitude != null
+        ? { lat: Number(selectedDrone.home_latitude), lng: Number(selectedDrone.home_longitude) }
+        : null;
+    const missionLengthMeters = getMissionProfileLengthMeters({
+        waypoints,
+        homePosition,
+    });
+    const estimatedFlightDurationSeconds = getEstimatedFlightDurationSeconds(missionLengthMeters, selectedDrone?.flight_speed);
 
     const handlePointChange = (id, field, value) => {
-        setPointsData(prev => ({
-            ...prev,
-            [id]: { ...prev[id], [field]: value }
-        }));
+        onUpdateWaypoint?.(id, { [field]: value });
+    };
+
+    const handleActionChange = (id, value) => {
+        onUpdateWaypoint?.(id, {
+            action: value,
+            action_duration: value === 'video_record' ? 10 : null,
+        });
     };
 
     return (
@@ -45,16 +58,22 @@ export default function WaypointSelectionPanel({ waypoints, onDeleteWaypoint }) 
             <div className="mb-6 flex shrink-0 items-start justify-between">
                 <div>
                     <h2 className="text-white text-[18px] font-medium tracking-wide">Waypoint Selection</h2>
-                    <p className="text-gray-400 text-[11px] mt-1">100 meters left</p>
+                    <p className="text-gray-400 text-[11px] mt-1">Mission length: {formatMissionDistance(missionLengthMeters)}</p>
                 </div>
                 <div className="flex flex-col items-end">
                     <div className="flex items-center gap-2">
                         <div className="w-7 h-3.5 border-[1.5px] border-gray-400 rounded-[2px] p-[1.5px] relative flex">
-                            <div className="h-full bg-[#ea580c] w-[82%] rounded-[1px]"></div>
+                            <div
+                                className="h-full rounded-[1px]"
+                                style={{
+                                    width: batteryPercent != null ? `${Math.max(0, Math.min(100, batteryPercent))}%` : '0%',
+                                    backgroundColor: batteryPercent >= 60 ? '#1ab394' : batteryPercent >= 30 ? '#f0ad4e' : '#ea580c',
+                                }}
+                            ></div>
                         </div>
-                        <span className="text-white text-sm font-medium tracking-wider">82%</span>
+                        <span className="text-white text-sm font-medium tracking-wider">{batteryPercent != null ? `${batteryPercent}%` : '--'}</span>
                     </div>
-                    <span className="text-gray-400 text-[10px] mt-1">Estimated Time Flight : 00:30:45</span>
+                    <span className="text-gray-400 text-[10px] mt-1">Estimated Flight Time: {formatFlightDuration(estimatedFlightDurationSeconds)}</span>
                 </div>
             </div>
 
@@ -68,7 +87,7 @@ export default function WaypointSelectionPanel({ waypoints, onDeleteWaypoint }) 
                         type="number"
                         className="bg-transparent text-white text-xs outline-none w-full"
                         value={takeoffAltitude}
-                        onChange={(e) => setTakeoffAltitude(e.target.value)}
+                        onChange={(e) => onTakeoffAltitudeChange?.(e.target.value)}
                     />
                 </div>
             </div>
@@ -79,7 +98,12 @@ export default function WaypointSelectionPanel({ waypoints, onDeleteWaypoint }) 
                     <p className="text-gray-500 text-xs italic text-center mt-10">Click on the map to add waypoints</p>
                 ) : (
                     waypoints.map((wp, i) => {
-                        const data = pointsData[wp.id] || { altitude: 150, cameraTilt: 20, action: 'Video Record' };
+                        const data = {
+                            ...defaultWaypointValues,
+                            ...wp,
+                        };
+                        const isVideoRecord = data.action === 'video_record';
+
                         return (
                             <div key={wp.id} className="bg-[#222222] border p-3 relative" style={{ borderColor: panelStroke }}>
                                 <button
@@ -104,7 +128,7 @@ export default function WaypointSelectionPanel({ waypoints, onDeleteWaypoint }) 
                                                 type="number"
                                                 className="bg-transparent text-white text-[11px] outline-none w-full"
                                                 value={data.altitude}
-                                                onChange={(e) => handlePointChange(wp.id, 'altitude', e.target.value)}
+                                                onChange={(e) => handlePointChange(wp.id, 'altitude', parseNumericInput(e.target.value))}
                                             />
                                         </div>
                                     </div>
@@ -115,24 +139,44 @@ export default function WaypointSelectionPanel({ waypoints, onDeleteWaypoint }) 
                                                 type="number"
                                                 className="bg-transparent text-white text-[11px] outline-none w-full"
                                                 value={data.cameraTilt}
-                                                onChange={(e) => handlePointChange(wp.id, 'cameraTilt', e.target.value)}
+                                                onChange={(e) => handlePointChange(wp.id, 'cameraTilt', parseNumericInput(e.target.value))}
                                             />
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-1">
                                         <span className="text-gray-400 text-[9px] uppercase">Action</span>
-                                        <div className="relative h-[28px] bg-[#1C1C1C] border border-[#333333] px-2 flex items-center">
-                                            <select
-                                                className="bg-transparent text-white text-[11px] outline-none w-full appearance-none cursor-pointer"
-                                                value={data.action}
-                                                onChange={(e) => handlePointChange(wp.id, 'action', e.target.value)}
-                                            >
-                                                <option value="Video Record" className="bg-[#222222]">Video Record</option>
-                                                <option value="Take Photo" className="bg-[#222222]">Take Photo</option>
-                                            </select>
-                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 pointer-events-none absolute right-4">
-                                                <path d="M6 9l6 6 6-6" />
-                                            </svg>
+                                        <div className="flex flex-col gap-2">
+                                            <div className="relative h-[28px] bg-[#1C1C1C] border border-[#333333] px-2 flex items-center">
+                                                <select
+                                                    className="bg-transparent text-white text-[11px] outline-none w-full appearance-none cursor-pointer"
+                                                    value={data.action}
+                                                    onChange={(e) => handleActionChange(wp.id, e.target.value)}
+                                                >
+                                                    {actionOptions.map((option) => (
+                                                        <option key={option.value} value={option.value} className="bg-[#222222]">
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 pointer-events-none absolute right-4">
+                                                    <path d="M6 9l6 6 6-6" />
+                                                </svg>
+                                            </div>
+
+                                            {isVideoRecord ? (
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-gray-400 text-[9px] uppercase">Duration (S)</span>
+                                                    <div className="h-[28px] bg-[#1C1C1C] border border-[#333333] px-2 flex items-center">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            className="bg-transparent text-white text-[11px] outline-none w-full"
+                                                            value={data.action_duration ?? ''}
+                                                            onChange={(e) => handlePointChange(wp.id, 'action_duration', parseNumericInput(e.target.value))}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ) : null}
                                         </div>
                                     </div>
                                 </div>

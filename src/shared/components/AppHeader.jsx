@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import headerBackground from '../../assets/images/image_background_navbar.png';
 import headerLogo from '../../assets/images/icon_app.svg';
+import { dockingService, uavService } from '../../services/api';
+import useTelemetry from '../hooks/useTelemetry';
 
 const SatelliteIcon = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
@@ -26,15 +28,38 @@ const SignalRender = ({ level, label }) => {
     );
 };
 
-const BatteryVertical = ({ level = 80 }) => (
-    <div className="flex flex-col items-center justify-end h-7 w-4">
-        <div className="w-[6px] h-[2px] bg-gray-300 rounded-t-[1px]" />
-        <div className="w-[16px] h-[22px] border-[1.5px] border-gray-300 rounded-[2px] p-[1.5px] flex flex-col justify-end">
-            <div
-                className="w-full bg-white rounded-[1px]"
-                style={{ height: `${level}%` }}
-            />
+const scaleRssiToSignalLevel = (rssi) => {
+    const value = Number(rssi);
+
+    if (!Number.isFinite(value) || value <= 0) {
+        return 0;
+    }
+
+    return Math.max(1, Math.min(4, Math.ceil((Math.min(value, 255) / 255) * 4)));
+};
+
+const BATTERY_TELEMETRY_STALE_MS = 10000;
+
+const BatteryVertical = ({ level = 80, isStale = false }) => (
+    <div className="relative flex h-7 w-4 flex-col items-center justify-end">
+        <div className={`h-[2px] w-[6px] rounded-t-[1px] ${isStale ? 'bg-[#7c8796]' : 'bg-gray-300'}`} />
+        <div className={`flex h-[22px] w-[16px] flex-col justify-end rounded-[2px] border-[1.5px] p-[1.5px] ${isStale ? 'border-[#7c8796]' : 'border-gray-300'}`}>
+            {!isStale ? (
+                <div
+                    className="w-full rounded-[1px] bg-white"
+                    style={{ height: `${level}%` }}
+                />
+            ) : null}
         </div>
+        {isStale ? (
+            <svg
+                viewBox="0 0 16 22"
+                aria-hidden="true"
+                className="pointer-events-none absolute bottom-0 h-[22px] w-[16px]"
+            >
+                <line x1="2" y1="20" x2="14" y2="2" stroke="#ff5b5b" strokeWidth="1.75" strokeLinecap="round" />
+            </svg>
+        ) : null}
     </div>
 );
 
@@ -54,6 +79,9 @@ export default function AppHeader() {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const settingsRef = useRef(null);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [selectedDrone, setSelectedDrone] = useState(null);
+    const [selectedDocking, setSelectedDocking] = useState(null);
+    const [lastBatteryTelemetryAt, setLastBatteryTelemetryAt] = useState(null);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -74,24 +102,90 @@ export default function AppHeader() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [settingsRef]);
 
+    useEffect(() => {
+        let isCancelled = false;
+
+        const fetchDrone = async () => {
+            try {
+                const [uavData, dockingData] = await Promise.all([
+                    uavService.getUav(),
+                    dockingService.getDocking(),
+                ]);
+
+                if (!isCancelled && uavData?.id) {
+                    setSelectedDrone(uavData);
+                }
+
+                if (!isCancelled && dockingData?.id) {
+                    setSelectedDocking(dockingData);
+                }
+            } catch (error) {
+                console.error('Error fetching header status info:', error);
+            }
+        };
+
+        fetchDrone();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, []);
+
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const timeStr = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     const dayStr = days[currentTime.getDay()];
     const dateStr = `${currentTime.getDate()} ${months[currentTime.getMonth()]}`;
-    const isSettingsRoute = location.pathname === '/about' || location.pathname === '/user-management';
+    const authRole = (localStorage.getItem('authRole') || '').toLowerCase();
+    const isAdmin = authRole === 'admin';
+    const isSettingsRoute = location.pathname === '/about' || (isAdmin && location.pathname === '/user-management');
     const isSettingsActive = isSettingsOpen || isSettingsRoute;
     const settingsIconColor = isSettingsActive ? '#FD0202' : '#BFBFBF';
+    const uavIds = selectedDrone?.id ? [selectedDrone.id] : [];
+    const { telemetry, telemetryStatus } = useTelemetry(uavIds);
+    const selectedTelemetry = selectedDrone ? telemetry[selectedDrone.id] : null;
+    const selectedTelemetryStatus = selectedDrone ? telemetryStatus[selectedDrone.id] : null;
+    const gps = selectedTelemetry?.gps || null;
+    const link = selectedTelemetry?.link || null;
+    const battery = selectedTelemetry?.battery || null;
+    const isGpsFresh = Boolean(selectedTelemetryStatus?.metrics?.gps?.isFresh);
+    const isLinkFresh = Boolean(selectedTelemetryStatus?.metrics?.link?.isFresh);
+    const isBatteryFresh = Boolean(selectedTelemetryStatus?.metrics?.battery?.isFresh);
+    const shouldShowGnss = Boolean(isGpsFresh && gps?.satellites != null);
+    const rcSignalLevel = isLinkFresh ? scaleRssiToSignalLevel(link?.rssi) : 0;
+    const batteryPercent = battery?.percent ?? null;
+    const batteryVoltage = battery?.voltage ?? null;
+    const batteryLevel = batteryPercent != null ? Math.max(0, Math.min(100, batteryPercent)) : 0;
+    const hasBatteryTelemetry = batteryPercent != null || batteryVoltage != null;
+    const isBatteryTelemetryStale = !isBatteryFresh || (
+        lastBatteryTelemetryAt != null
+        && (currentTime.getTime() - lastBatteryTelemetryAt) >= BATTERY_TELEMETRY_STALE_MS
+    );
+    const dockingTemperature = selectedDocking?.status?.temperature ?? null;
+
+    useEffect(() => {
+        if (battery?.percent != null || battery?.voltage != null) {
+            setLastBatteryTelemetryAt(Date.now());
+        }
+    }, [battery]);
+
+    useEffect(() => {
+        setLastBatteryTelemetryAt(null);
+    }, [selectedDrone?.id]);
 
     const handleLogout = () => {
         localStorage.removeItem('authToken');
+        localStorage.removeItem('authUsername');
+        localStorage.removeItem('authUserId');
+        localStorage.removeItem('authRole');
+        localStorage.removeItem('deviceToken');
         setIsSettingsOpen(false);
         navigate('/login');
     };
 
     return (
         <header
-            className="relative z-[1000] grid h-[104px] grid-cols-[auto_1fr_auto] items-center overflow-visible px-3 py-2 shadow-sm select-none md:px-4 xl:px-6"
+            className="relative z-[1000] grid h-[104px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center overflow-visible px-3 py-2 shadow-sm select-none md:px-4 xl:px-6"
         >
             <img
                 src={headerBackground}
@@ -101,7 +195,7 @@ export default function AppHeader() {
             />
 
             {/* Left Section - Branding */}
-            <div className="relative z-10 flex min-w-0 items-center justify-start md:mx-10 xl:mx-12 mb-2">
+            <div className="relative z-10 mb-2 flex min-w-0 items-center justify-start md:mx-10 xl:mx-12">
                 <div className="flex min-w-0 items-center gap-2 md:gap-3 xl:gap-4">
                     <img src={headerLogo} alt="Logo" className="h-[42px] w-auto shrink-0 object-contain md:h-[48px] xl:h-[56px]" />
                     <div className="flex items-center">
@@ -113,7 +207,7 @@ export default function AppHeader() {
             </div>
 
             {/* Center Section - Navigation */}
-            <div className="relative z-10 flex h-full items-center justify-center gap-4 px-3 md:gap-6 xl:gap-12 mt-4">
+            <div className="relative z-10 mt-4 flex h-full items-center justify-center gap-4 px-3 md:gap-6 xl:gap-12">
                 <NavLink to="/dashboard" className={navLinkStyles}>
                     DASHBOARD
                 </NavLink>
@@ -143,17 +237,21 @@ export default function AppHeader() {
                             >
                                 About
                             </NavLink>
-                            <div className="mx-4 my-1 h-[1px] bg-[#A30000]/45"></div>
-                            <NavLink
-                                to="/user-management"
-                                onClick={() => setIsSettingsOpen(false)}
-                                className={({ isActive }) => `
-                                    px-4 py-3 text-[13px] font-semibold tracking-wide transition-colors text-left border-l-2
-                                    ${isActive ? 'text-[#FD5757] bg-[#3a0909]/60 border-[#FD5757]' : 'text-[#FFFFFF] hover:bg-[#3a0909]/55 border-transparent hover:text-white'}
-                                `}
-                            >
-                                User Management
-                            </NavLink>
+                            {isAdmin ? (
+                                <>
+                                    <div className="mx-4 my-1 h-[1px] bg-[#A30000]/45"></div>
+                                    <NavLink
+                                        to="/user-management"
+                                        onClick={() => setIsSettingsOpen(false)}
+                                        className={({ isActive }) => `
+                                            px-4 py-3 text-[13px] font-semibold tracking-wide transition-colors text-left border-l-2
+                                            ${isActive ? 'text-[#FD5757] bg-[#3a0909]/60 border-[#FD5757]' : 'text-[#FFFFFF] hover:bg-[#3a0909]/55 border-transparent hover:text-white'}
+                                        `}
+                                    >
+                                        User Management
+                                    </NavLink>
+                                </>
+                            ) : null}
                             <div className="mx-4 my-1 h-[1px] bg-[#A30000]/45"></div>
                             <button
                                 type="button"
@@ -168,33 +266,44 @@ export default function AppHeader() {
             </div>
 
             {/* Right Section - Status, Telemetry and Clock */}
-            <div className="relative z-10 font-tomorrow flex h-full items-center justify-end mt-4 mr-10">
+            <div className="relative z-10 mr-10 mt-4 flex h-full items-center justify-end justify-self-end font-tomorrow">
                 <div className="flex h-full items-center gap-4 md:gap-6 xl:gap-8">
 
                     {/* GNSS */}
-                    <div className="flex flex-col items-center justify-center">
-                        <span className="hidden md:block text-[10px] font-semibold text-gray-100 tracking-wider font-sans">GNSS+</span>
-                        <div className="flex items-center space-x-1 mt-[1px]">
-                            <SatelliteIcon />
-                            <span className="text-[13px] font-bold text-white tracking-widest">31</span>
+                    {shouldShowGnss ? (
+                        <div className="flex flex-col items-center justify-center">
+                            <span className="hidden md:block text-[10px] font-semibold text-gray-100 tracking-wider font-sans">
+                                {gps.fix_type_label || 'GNSS'}
+                            </span>
+                            <div className="flex items-center space-x-1 mt-[1px]">
+                                <SatelliteIcon />
+                                <span className="text-[13px] font-bold text-white tracking-widest">{gps.satellites}</span>
+                            </div>
                         </div>
-                    </div>
+                    ) : null}
 
-                    {/* Signals */}
-                    <div className="flex flex-col justify-center space-y-1">
-                        <SignalRender level={3} label="RC" />
-                        <SignalRender level={4} label="4G" />
+                    {/* Signal */}
+                    <div className="flex items-center justify-center">
+                        <SignalRender level={rcSignalLevel} label="RC" />
                     </div>
 
                     {/* Battery */}
-                    <div className="flex items-center space-x-2">
-                        <span className="text-[18px] md:text-[20px] xl:text-[22px] font-semibold tracking-tighter text-white">80%</span>
-                        <BatteryVertical level={80} />
-                        <div className="hidden xl:flex flex-col text-[10px] font-semibold text-gray-100 leading-[1.15] space-y-[1px] ml-1">
-                            <span>25°C</span>
-                            <span>51.8V</span>
+                    {hasBatteryTelemetry ? (
+                        <div className="flex items-center space-x-2">
+                            {!isBatteryTelemetryStale && batteryPercent != null ? (
+                                <span className="text-[18px] md:text-[20px] xl:text-[22px] font-semibold tracking-tighter text-white">
+                                    {`${batteryPercent}%`}
+                                </span>
+                            ) : null}
+                            <BatteryVertical level={batteryLevel} isStale={isBatteryTelemetryStale} />
+                            <div className="ml-1 hidden flex-col space-y-[1px] text-[10px] font-semibold leading-[1.15] text-gray-100 xl:flex">
+                                <span>{dockingTemperature != null ? `${Number(dockingTemperature).toFixed(1)}°C` : '--°C'}</span>
+                                {!isBatteryTelemetryStale && batteryVoltage != null ? (
+                                    <span>{`${batteryVoltage.toFixed(1)}V`}</span>
+                                ) : null}
+                            </div>
                         </div>
-                    </div>
+                    ) : null}
 
                     {/* Clock */}
                     <div className="ml-1 md:ml-2 flex min-w-[96px] md:min-w-[118px] xl:min-w-[130px] flex-row items-center rounded bg-[#000000] px-2 md:px-3 py-[6px]">

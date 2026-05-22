@@ -42,6 +42,47 @@ function TextInput({
     );
 }
 
+function SelectInput({
+    label,
+    name,
+    value,
+    onChange,
+    options,
+    required = false,
+}) {
+    return (
+        <div>
+            <InputLabel required={required}>{label}</InputLabel>
+            <div className="relative">
+                <select
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    className="h-[44px] w-full appearance-none border bg-[#1B1B1B] px-4 py-2 pr-10 text-[13px] text-white outline-none transition-colors focus:border-[#FD5757]"
+                    style={{ borderColor: modalStroke }}
+                >
+                    {options.map((option) => (
+                        <option key={option.value} value={option.value} className="bg-[#1B1B1B]">
+                            {option.label}
+                        </option>
+                    ))}
+                </select>
+                <svg
+                    className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B7B7B7]"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                >
+                    <path d="m6 9 6 6 6-6" />
+                </svg>
+            </div>
+        </div>
+    );
+}
+
 export default function CreateUserModal({
     isOpen,
     formData,
@@ -98,15 +139,6 @@ export default function CreateUserModal({
                     <form onSubmit={onSubmit} className="space-y-5">
                         <div className="grid gap-5 md:grid-cols-2">
                             <TextInput
-                                label="Email"
-                                name="email"
-                                type="email"
-                                value={formData.email}
-                                onChange={onChange}
-                                placeholder="user@example.com"
-                                required
-                            />
-                            <TextInput
                                 label="Username"
                                 name="username"
                                 value={formData.username}
@@ -114,34 +146,18 @@ export default function CreateUserModal({
                                 placeholder="user1"
                                 required
                             />
-                        </div>
-
-                        <div className="grid gap-5 md:grid-cols-2">
-                            <TextInput
-                                label="Date of Birth"
-                                name="dob"
-                                type="date"
-                                value={formData.dob}
+                            <SelectInput
+                                label="Role"
+                                name="role"
+                                value={formData.role}
                                 onChange={onChange}
-                                placeholder="1990-01-01"
-                                inputStyle={{ colorScheme: 'dark' }}
-                            />
-                            <TextInput
-                                label="Phone"
-                                name="phone"
-                                value={formData.phone}
-                                onChange={onChange}
-                                placeholder="+628123456789"
+                                options={[
+                                    { value: 'user', label: 'User' },
+                                    { value: 'admin', label: 'Admin' },
+                                ]}
+                                required
                             />
                         </div>
-
-                        <TextInput
-                            label="Pilot Certificate"
-                            name="pilot_cert"
-                            value={formData.pilot_cert}
-                            onChange={onChange}
-                            placeholder="CERT-001"
-                        />
 
                         <TextInput
                             label="Password"

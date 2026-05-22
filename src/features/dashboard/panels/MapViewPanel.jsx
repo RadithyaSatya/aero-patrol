@@ -75,12 +75,13 @@ const trailPathOptions = {
     opacity: 0.9
 };
 
-export default function MapViewPanel({ telemetry, selectedDrone, trailPositions = [] }) {
+export default function MapViewPanel({ telemetry, telemetryStatus = null, selectedDrone, trailPositions = [] }) {
     const defaultCenter = [-6.200000, 106.816666]; // Jakarta fallback
 
     // Get drone position from telemetry
     const location = telemetry?.location || {};
-    const hasLocation = location.latitude != null && location.longitude != null;
+    const isLocationFresh = Boolean(telemetryStatus?.metrics?.location?.isFresh);
+    const hasLocation = isLocationFresh && location.latitude != null && location.longitude != null;
     const dronePosition = hasLocation
         ? [location.latitude, location.longitude]
         : null;
@@ -94,8 +95,8 @@ export default function MapViewPanel({ telemetry, selectedDrone, trailPositions 
     // Map center — use drone position, then home, then default
     const center = dronePosition || homePosition || defaultCenter;
 
-    // Max range circle (use drone max_range or default 1800m)
-    const maxRange = selectedDrone?.max_range_meter || 1800;
+    const parsedMaxRange = Number(selectedDrone?.max_range_meter);
+    const maxRange = Number.isFinite(parsedMaxRange) && parsedMaxRange > 0 ? parsedMaxRange : null;
 
     return (
         <div className="relative h-full w-full overflow-hidden bg-[#181d25] select-none">
@@ -125,7 +126,7 @@ export default function MapViewPanel({ telemetry, selectedDrone, trailPositions 
                 <MapFollower position={dronePosition} shouldFollow={hasLocation} />
 
                 {/* Max Radius Circle around drone home */}
-                {homePosition && (
+                {homePosition && maxRange != null && (
                     <Circle
                         center={homePosition}
                         radius={maxRange}
