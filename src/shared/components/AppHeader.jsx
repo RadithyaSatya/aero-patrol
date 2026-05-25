@@ -146,12 +146,21 @@ export default function AppHeader() {
     const selectedTelemetry = selectedDrone ? telemetry[selectedDrone.id] : null;
     const selectedTelemetryStatus = selectedDrone ? telemetryStatus[selectedDrone.id] : null;
     const gps = selectedTelemetry?.gps || null;
+    const gps2 = selectedTelemetry?.gps2 || null;
     const link = selectedTelemetry?.link || null;
     const battery = selectedTelemetry?.battery || null;
     const isGpsFresh = Boolean(selectedTelemetryStatus?.metrics?.gps?.isFresh);
+    const isGps2Fresh = Boolean(selectedTelemetryStatus?.metrics?.gps2?.isFresh);
     const isLinkFresh = Boolean(selectedTelemetryStatus?.metrics?.link?.isFresh);
     const isBatteryFresh = Boolean(selectedTelemetryStatus?.metrics?.battery?.isFresh);
-    const shouldShowGnss = Boolean(isGpsFresh && gps?.satellites != null);
+    const gnssTelemetry = [
+        isGpsFresh && gps?.satellites != null
+            ? { id: 'gps', label: 'GPS 1', ...gps }
+            : null,
+        isGps2Fresh && gps2?.satellites != null
+            ? { id: 'gps2', label: 'GPS 2', ...gps2 }
+            : null,
+    ].filter(Boolean);
     const rcSignalLevel = isLinkFresh ? scaleRssiToSignalLevel(link?.rssi) : 0;
     const batteryPercent = battery?.percent ?? null;
     const batteryVoltage = battery?.voltage ?? null;
@@ -270,15 +279,19 @@ export default function AppHeader() {
                 <div className="flex h-full items-center gap-4 md:gap-6 xl:gap-8">
 
                     {/* GNSS */}
-                    {shouldShowGnss ? (
-                        <div className="flex flex-col items-center justify-center">
-                            <span className="hidden md:block text-[10px] font-semibold text-gray-100 tracking-wider font-sans">
-                                {gps.fix_type_label || 'GNSS'}
-                            </span>
-                            <div className="flex items-center space-x-1 mt-[1px]">
-                                <SatelliteIcon />
-                                <span className="text-[13px] font-bold text-white tracking-widest">{gps.satellites}</span>
-                            </div>
+                    {gnssTelemetry.length > 0 ? (
+                        <div className="flex items-center gap-3 md:gap-4">
+                            {gnssTelemetry.map((gnss) => (
+                                <div key={gnss.id} className="flex flex-col items-center justify-center">
+                                    <span className="hidden md:block text-[10px] font-semibold text-gray-100 tracking-wider font-sans">
+                                        {`${gnss.label} · ${gnss.fix_type_label || 'GNSS'}`}
+                                    </span>
+                                    <div className="mt-[1px] flex items-center space-x-1">
+                                        <SatelliteIcon />
+                                        <span className="text-[13px] font-bold text-white tracking-widest">{gnss.satellites}</span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     ) : null}
 
