@@ -1,4 +1,6 @@
 import React from 'react';
+import dummyDroneImage from '../../../assets/img_dummy.png';
+import { DRONE_STREAM_URL } from '../../../shared/config/streamConfig';
 
 const CompassWidget = () => (
     <div className="absolute bottom-6 right-6 w-32 h-32 rounded-full bg-black/40 flex items-center justify-center">
@@ -29,13 +31,26 @@ const CompassWidget = () => (
 );
 
 export default function MainVideoFeedPanel({ compact = false }) {
+    const hasDroneStream = Boolean(DRONE_STREAM_URL);
+
     return (
         <div className="font-tomorrow relative h-full w-full overflow-hidden bg-[#1c222c] select-none">
             {/* Video Background Placeholder */}
-            <div
-                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                style={{ backgroundImage: `url('/src/assets/img_dummy.png')` }}
-            />
+            {hasDroneStream ? (
+                <video
+                    src={DRONE_STREAM_URL}
+                    autoPlay
+                    muted
+                    playsInline
+                    controls={false}
+                    className="absolute inset-0 h-full w-full object-cover"
+                />
+            ) : (
+                <div
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                    style={{ backgroundImage: `url(${dummyDroneImage})` }}
+                />
+            )}
 
             {/* Top Left Badge */}
             <div className={`absolute bg-black/60 uppercase flex items-center justify-center ${compact ? 'left-3 top-3 px-2 py-1' : 'left-4 top-4 px-3 py-1.5'}`}>

@@ -1,8 +1,10 @@
 import React from 'react';
 import dummyDockingCamImage from '../../../assets/images/image_dummy_docking_cam.png';
+import { DOCK_CCTV_HLS_URL } from '../../../shared/config/streamConfig';
 
 export default function DockCamPanel({ variant = 'default', streamBorderClassName = 'border' }) {
     const isStream = variant === 'stream';
+    const hasDockStream = Boolean(DOCK_CCTV_HLS_URL);
 
     if (isStream) {
         return (
@@ -19,10 +21,21 @@ export default function DockCamPanel({ variant = 'default', streamBorderClassNam
                     <div className="pointer-events-none absolute bottom-0 right-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#ED0000]" />
 
-                    <div
-                        className="absolute inset-x-0 bottom-0 top-[1px] bg-cover bg-center opacity-80"
-                        style={{ backgroundImage: `url(${dummyDockingCamImage})` }}
-                    />
+                    {hasDockStream ? (
+                        <video
+                            src={DOCK_CCTV_HLS_URL}
+                            autoPlay
+                            muted
+                            playsInline
+                            controls={false}
+                            className="absolute inset-x-0 bottom-0 top-[1px] h-full w-full object-cover"
+                        />
+                    ) : (
+                        <div
+                            className="absolute inset-x-0 bottom-0 top-[1px] bg-cover bg-center opacity-80"
+                            style={{ backgroundImage: `url(${dummyDockingCamImage})` }}
+                        />
+                    )}
                     <div className="absolute inset-x-0 bottom-0 top-[1px] bg-gradient-to-t from-black/70 via-black/20 to-black/45" />
 
                     <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
@@ -46,10 +59,21 @@ export default function DockCamPanel({ variant = 'default', streamBorderClassNam
             <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
             <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
 
-            <div
-                className="absolute inset-0 bg-cover bg-center opacity-80"
-                style={{ backgroundImage: `url(${dummyDockingCamImage})` }}
-            />
+            {hasDockStream ? (
+                <video
+                    src={DOCK_CCTV_HLS_URL}
+                    autoPlay
+                    muted
+                    playsInline
+                    controls={false}
+                    className="absolute inset-0 h-full w-full object-cover"
+                />
+            ) : (
+                <div
+                    className="absolute inset-0 bg-cover bg-center opacity-80"
+                    style={{ backgroundImage: `url(${dummyDockingCamImage})` }}
+                />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/45" />
 
             <div className="absolute left-4 top-4 flex items-center gap-2 bg-black/55 px-3 py-1.5">

@@ -1,4 +1,6 @@
 import React from 'react';
+import dummyDroneImage from '../../../assets/img_dummy.png';
+import { DRONE_STREAM_URL } from '../../../shared/config/streamConfig';
 
 const CompassWidget = () => (
     <div className="absolute bottom-4 right-4 w-20 h-20 rounded-full bg-black/40 flex items-center justify-center scale-75 transform origin-bottom-right">
@@ -32,14 +34,27 @@ const CompassWidget = () => (
 );
 
 export default function DroneCamPanel() {
+    const hasDroneStream = Boolean(DRONE_STREAM_URL);
+
     return (
         <div className="relative w-full h-full bg-black rounded-[24px] overflow-hidden border border-[#2a3240] shadow-lg">
             {/* Main Video Feed (Placeholder Image) */}
-            <img
-                src="/src/assets/img_dummy.png"
-                alt="Video Feed"
-                className="w-full h-full object-cover opacity-80"
-            />
+            {hasDroneStream ? (
+                <video
+                    src={DRONE_STREAM_URL}
+                    autoPlay
+                    muted
+                    playsInline
+                    controls={false}
+                    className="h-full w-full object-cover"
+                />
+            ) : (
+                <img
+                    src={dummyDroneImage}
+                    alt="Video Feed"
+                    className="w-full h-full object-cover opacity-80"
+                />
+            )}
             {/* Dark overlay for realistic screen feel */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#12161c]/60 via-transparent to-transparent"></div>
 
