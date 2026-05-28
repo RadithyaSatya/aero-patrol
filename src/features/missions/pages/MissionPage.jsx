@@ -122,6 +122,13 @@ export default function MissionPage() {
         setWaypoints((prev) => prev.filter((waypoint) => waypoint.id !== waypointId));
     };
 
+    const handleTakeoffHoldDurationChange = (value) => {
+        setMissionFormValues((prev) => ({
+            ...prev,
+            takeoffHoldDuration: value,
+        }));
+    };
+
     const handleUpdateWaypoint = (waypointId, updates) => {
         setWaypoints((prev) => prev.map((waypoint) => {
             if (waypoint.id !== waypointId) {
@@ -131,7 +138,9 @@ export default function MissionPage() {
             const nextWaypoint = { ...waypoint, ...updates };
 
             if (nextWaypoint.action === 'take_picture') {
-                nextWaypoint.action_duration = null;
+                if (nextWaypoint.action_duration == null || nextWaypoint.action_duration === '') {
+                    nextWaypoint.action_duration = 0;
+                }
             } else if (nextWaypoint.action === 'video_record' && (nextWaypoint.action_duration == null || nextWaypoint.action_duration === '')) {
                 nextWaypoint.action_duration = 10;
             }
@@ -218,6 +227,7 @@ export default function MissionPage() {
                     <div className="flex-1 border border-[#2a3240] overflow-hidden shadow-lg relative bg-[#181d25]">
                         <MissionMapPanel
                             waypoints={waypoints}
+                            takeoffHoldDuration={missionFormValues.takeoffHoldDuration}
                             onAddWaypoint={handleAddWaypoint}
                             onCancelMission={handleCancelMission}
                             onLaunchMission={() => handleCreateMission(missionFormValues)}
@@ -240,8 +250,10 @@ export default function MissionPage() {
                                 <WaypointSelectionPanel
                                     waypoints={waypoints}
                                     takeoffAltitude={takeoffAltitude}
+                                    takeoffHoldDuration={missionFormValues.takeoffHoldDuration}
                                     selectedDrone={selectedDrone}
                                     onTakeoffAltitudeChange={setTakeoffAltitude}
+                                    onTakeoffHoldDurationChange={handleTakeoffHoldDurationChange}
                                     onUpdateWaypoint={handleUpdateWaypoint}
                                     onCancel={handleCancelMission}
                                     onDeleteWaypoint={handleDeleteWaypoint}
@@ -251,7 +263,12 @@ export default function MissionPage() {
                                 <MissionDetailPanel
                                     waypointsCount={waypoints.length}
                                     onClearWaypoints={() => setWaypoints([])}
-                                    onFormChange={setMissionFormValues}
+                                    onFormChange={(nextValues) => {
+                                        setMissionFormValues((prev) => ({
+                                            ...prev,
+                                            ...nextValues,
+                                        }));
+                                    }}
                                     submitError={createMissionError}
                                 />
                             </div>

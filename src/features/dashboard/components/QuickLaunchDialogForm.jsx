@@ -13,6 +13,27 @@ L.Icon.Default.mergeOptions({
 
 const DEFAULT_TAKEOFF_ALTITUDE = 25;
 const DEFAULT_FLIGHT_ALTITUDE = 25;
+const DEFAULT_TAKEOFF_HOLD_DURATION = '0';
+
+const normalizeNumericInputValue = (value, fallback = '0') => {
+    if (value === '') {
+        return fallback;
+    }
+
+    return String(value).replace(/^(-?)0+(?=\d)/, '$1');
+};
+
+const handleNumericFocus = (event) => {
+    if (String(event.target.value) === '0') {
+        event.target.select();
+    }
+};
+
+const handleNumericClick = (event) => {
+    if (String(event.target.value) === '0') {
+        event.target.select();
+    }
+};
 
 const dockIcon = new L.DivIcon({
     className: 'custom-dock-icon',
@@ -208,6 +229,7 @@ export default function QuickLaunchDialogForm({
     isOpen,
     missionType,
     selectedDrone,
+    telemetry,
     onClose,
     onLaunch,
     isLaunching = false,
@@ -216,6 +238,7 @@ export default function QuickLaunchDialogForm({
     const [roiPosition, setRoiPosition] = useState(null);
     const [takeoffAltitude, setTakeoffAltitude] = useState(String(DEFAULT_TAKEOFF_ALTITUDE));
     const [flightAltitude, setFlightAltitude] = useState(String(DEFAULT_FLIGHT_ALTITUDE));
+    const [takeoffHoldDuration, setTakeoffHoldDuration] = useState(DEFAULT_TAKEOFF_HOLD_DURATION);
     const [localError, setLocalError] = useState('');
 
     const [spiralPhase, setSpiralPhase] = useState('settingCenter');
@@ -248,6 +271,7 @@ export default function QuickLaunchDialogForm({
         setRoiPosition(null);
         setTakeoffAltitude(String(DEFAULT_TAKEOFF_ALTITUDE));
         setFlightAltitude(String(DEFAULT_FLIGHT_ALTITUDE));
+        setTakeoffHoldDuration(DEFAULT_TAKEOFF_HOLD_DURATION);
         setLocalError('');
         setSpiralPhase('settingCenter');
         setSpiralCenter(null);
@@ -312,7 +336,7 @@ export default function QuickLaunchDialogForm({
 
     const defaultCenter = [-6.2, 106.816666];
     const dockPosition = toLatLng(selectedDrone?.home_latitude, selectedDrone?.home_longitude);
-    const dronePosition = dockPosition;
+    const dronePosition = toLatLng(telemetry?.location?.latitude, telemetry?.location?.longitude) || dockPosition;
     const center = dronePosition || dockPosition || defaultCenter;
     const initialZoom = dronePosition ? 16 : 13;
     const parsedFenceRadius = Number(selectedDrone?.max_range_meter);
@@ -400,15 +424,21 @@ export default function QuickLaunchDialogForm({
     const handleSubmit = () => {
         const normalizedTakeoffAltitude = Number(takeoffAltitude);
         const normalizedFlightAltitude = Number(flightAltitude);
+        const normalizedTakeoffHoldDuration = Number(takeoffHoldDuration);
         const waypointAltitude = isLaunch ? normalizedTakeoffAltitude : normalizedFlightAltitude;
 
-        if (!Number.isFinite(normalizedTakeoffAltitude) || normalizedTakeoffAltitude <= 0) {
-            setLocalError('Takeoff altitude must be greater than 0.');
+        if (!Number.isFinite(normalizedTakeoffAltitude) || normalizedTakeoffAltitude < 0) {
+            setLocalError('Takeoff altitude must be 0 or greater.');
             return;
         }
 
         if (isSpiral && (!Number.isFinite(normalizedFlightAltitude) || normalizedFlightAltitude <= 0)) {
             setLocalError('Flight altitude must be greater than 0.');
+            return;
+        }
+
+        if (!Number.isFinite(normalizedTakeoffHoldDuration) || normalizedTakeoffHoldDuration < 0) {
+            setLocalError('Takeoff hold duration must be 0 or greater.');
             return;
         }
 
@@ -448,6 +478,7 @@ export default function QuickLaunchDialogForm({
         onLaunch?.({
             missionType,
             takeoffAltitude: normalizedTakeoffAltitude,
+            takeoffHoldDuration: String(Math.trunc(normalizedTakeoffHoldDuration)),
             roi,
             waypoints: rawWaypoints.map((waypoint, index) => ({
                 id: index + 1,
@@ -456,7 +487,7 @@ export default function QuickLaunchDialogForm({
                 altitude: waypointAltitude,
                 cameraTilt: 20,
                 action: 'take_picture',
-                action_duration: null,
+                action_duration: 0,
             })),
         });
     };
@@ -633,12 +664,14 @@ export default function QuickLaunchDialogForm({
                             <div className="flex items-end justify-center gap-4">
                                 <div className="flex flex-col">
                                     <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">Takeoff Altitude (M)</label>
-                                    <input
-                                        type="number"
-                                        className="h-[32px] w-[160px] rounded border border-[#2d3748] bg-[#1a202c]/90 px-3 text-left text-[12px] text-white outline-none transition-colors placeholder-gray-500 focus:border-gray-400"
-                                        value={takeoffAltitude}
-                                        onChange={(event) => setTakeoffAltitude(event.target.value)}
-                                    />
+                                        <input
+                                            type="number"
+                                            className="h-[32px] w-[160px] rounded border border-[#2d3748] bg-[#1a202c]/90 px-3 text-left text-[12px] text-white outline-none transition-colors placeholder-gray-500 focus:border-gray-400"
+                                            value={takeoffAltitude}
+                                            onChange={(event) => setTakeoffAltitude(normalizeNumericInputValue(event.target.value))}
+                                            onFocus={handleNumericFocus}
+                                            onClick={handleNumericClick}
+                                        />
                                 </div>
 
                                 {isSpiral ? (
@@ -648,7 +681,9 @@ export default function QuickLaunchDialogForm({
                                             type="number"
                                             className="h-[32px] w-[160px] rounded border border-[#2d3748] bg-[#1a202c]/90 px-3 text-left text-[12px] text-white outline-none transition-colors placeholder-gray-500 focus:border-gray-400"
                                             value={flightAltitude}
-                                            onChange={(event) => setFlightAltitude(event.target.value)}
+                                            onChange={(event) => setFlightAltitude(normalizeNumericInputValue(event.target.value))}
+                                            onFocus={handleNumericFocus}
+                                            onClick={handleNumericClick}
                                         />
                                     </div>
                                 ) : null}
@@ -661,6 +696,21 @@ export default function QuickLaunchDialogForm({
                                         onClear={() => setRoiPosition(null)}
                                         emptyLabel="Click map to set point"
                                     />
+                                ) : null}
+
+                                {isLaunch || isROI ? (
+                                    <div className="flex flex-col">
+                                        <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">Takeoff Hold Duration (S)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            className="h-[32px] w-[160px] rounded border border-[#2d3748] bg-[#1a202c]/90 px-3 text-left text-[12px] text-white outline-none transition-colors placeholder-gray-500 focus:border-gray-400"
+                                            value={takeoffHoldDuration}
+                                            onChange={(event) => setTakeoffHoldDuration(normalizeNumericInputValue(event.target.value))}
+                                            onFocus={handleNumericFocus}
+                                            onClick={handleNumericClick}
+                                        />
+                                    </div>
                                 ) : null}
 
                                 {isSpiral ? (

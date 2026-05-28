@@ -1,13 +1,17 @@
 const SCHEDULE_TIMEZONE = 'Asia/Jakarta';
 const DEFAULT_MISSION_PRIORITY = 120;
 const DEFAULT_MISSION_STATUS = 'Waiting';
-const DEFAULT_NOW_OFFSET_MINUTES = 2;
+const DEFAULT_NOW_OFFSET_MINUTES = (() => {
+    const value = Number(import.meta.env.VITE_MISSION_NOW_OFFSET_MINUTES);
+    return Number.isFinite(value) && value >= 0 ? value : 2;
+})();
 const DEFAULT_RECORD_VIDEO_DURATION = 10;
 const DEFAULT_TAKEOFF_ALTITUDE = 15;
 const JAKARTA_UTC_OFFSET = '+07:00';
 
 const INITIAL_MISSION_FORM_VALUES = {
     missionName: 'Mission1',
+    takeoffHoldDuration: '0',
     timeMode: 'recurrent',
     oneTimeDate: '',
     oneTimeStartTime: '',
@@ -64,6 +68,26 @@ const normalizePositiveInteger = (value, fallbackValue) => {
 
     if (!Number.isFinite(numericValue) || numericValue < 1) {
         return fallbackValue;
+    }
+
+    return Math.trunc(numericValue);
+};
+
+const normalizeNonNegativeInteger = (value, fallbackValue) => {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+        return fallbackValue;
+    }
+
+    return Math.trunc(numericValue);
+};
+
+const normalizeOptionalNonNegativeInteger = (value) => {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+        throw new Error('Takeoff hold duration must be 0 or greater.');
     }
 
     return Math.trunc(numericValue);
@@ -212,6 +236,7 @@ const buildMissionPayload = ({
 }) => {
     const missionName = String(formValues.missionName ?? '').trim();
     const normalizedTakeoffAltitude = Number(takeoffAltitude);
+    const normalizedTakeoffHoldDuration = normalizeOptionalNonNegativeInteger(formValues.takeoffHoldDuration);
     const rawPriority = String(formValues.priority ?? '').trim();
     const normalizedPriority = rawPriority ? normalizePositiveInteger(rawPriority, DEFAULT_MISSION_PRIORITY) : null;
 
@@ -219,8 +244,8 @@ const buildMissionPayload = ({
         throw new Error('Mission name is required.');
     }
 
-    if (!Number.isFinite(normalizedTakeoffAltitude) || normalizedTakeoffAltitude <= 0) {
-        throw new Error('Takeoff altitude must be greater than 0.');
+    if (!Number.isFinite(normalizedTakeoffAltitude) || normalizedTakeoffAltitude < 0) {
+        throw new Error('Takeoff altitude must be 0 or greater.');
     }
 
     const payload = {
@@ -247,7 +272,7 @@ const buildMissionPayload = ({
                 altitude: Number.isFinite(altitude) ? altitude : 25,
                 action: mapWaypointActionForApi(waypoint.action),
                 action_duration: isTakePicture
-                    ? null
+                    ? normalizeNonNegativeInteger(waypoint.action_duration, 0)
                     : normalizePositiveInteger(waypoint.action_duration, DEFAULT_RECORD_VIDEO_DURATION),
             };
         }),
@@ -266,6 +291,10 @@ const buildMissionPayload = ({
 
             payload.roi = { latitude, longitude };
         }
+    }
+
+    if (normalizedTakeoffHoldDuration != null) {
+        payload.takeoff_hold_duration = normalizedTakeoffHoldDuration;
     }
 
     if (normalizedPriority != null) {

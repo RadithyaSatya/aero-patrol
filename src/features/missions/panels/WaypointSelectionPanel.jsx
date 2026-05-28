@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     formatFlightDuration,
     formatMissionDistance,
-    getEstimatedFlightDurationSeconds,
+    getEstimatedMissionDurationSeconds,
     getMissionProfileLengthMeters,
 } from '../utils/missionMetrics';
 
@@ -21,16 +21,48 @@ const actionOptions = [
     { value: 'video_record', label: 'Record Video' },
 ];
 
-const parseNumericInput = (value) => (value === '' ? '' : Number(value));
+const parseNumericInput = (value) => {
+    if (value === '') {
+        return 0;
+    }
+
+    const normalizedValue = String(value).replace(/^(-?)0+(?=\d)/, '$1');
+    return Number(normalizedValue);
+};
+
+const normalizeNumericInputValue = (value, fallback = '0') => {
+    if (value === '') {
+        return fallback;
+    }
+
+    return String(value).replace(/^(-?)0+(?=\d)/, '$1');
+};
+
+const handleNumericFocus = (event) => {
+    if (String(event.target.value) === '0') {
+        event.target.select();
+    }
+};
+
+const handleNumericClick = (event) => {
+    if (String(event.target.value) === '0') {
+        event.target.select();
+    }
+};
 
 export default function WaypointSelectionPanel({
     waypoints,
     takeoffAltitude,
+    takeoffHoldDuration = 0,
     selectedDrone,
     onTakeoffAltitudeChange,
+    onTakeoffHoldDurationChange,
     onUpdateWaypoint,
     onDeleteWaypoint,
 }) {
+    const [draftValues, setDraftValues] = useState({});
+    const [takeoffAltitudeDraft, setTakeoffAltitudeDraft] = useState(String(takeoffAltitude ?? 0));
+    const [takeoffHoldDurationDraft, setTakeoffHoldDurationDraft] = useState(String(takeoffHoldDuration ?? 0));
     const batteryPercent = selectedDrone?.status?.battery_percent;
     const homePosition = selectedDrone?.home_latitude != null && selectedDrone?.home_longitude != null
         ? { lat: Number(selectedDrone.home_latitude), lng: Number(selectedDrone.home_longitude) }
@@ -39,18 +71,97 @@ export default function WaypointSelectionPanel({
         waypoints,
         homePosition,
     });
-    const estimatedFlightDurationSeconds = getEstimatedFlightDurationSeconds(missionLengthMeters, selectedDrone?.flight_speed);
+    const estimatedFlightDurationSeconds = getEstimatedMissionDurationSeconds({
+        missionLengthMeters,
+        flightSpeed: selectedDrone?.flight_speed,
+        takeoffHoldDuration,
+        waypoints,
+    });
 
     const handlePointChange = (id, field, value) => {
         onUpdateWaypoint?.(id, { [field]: value });
     };
 
+    const getDraftKey = (id, field) => `${id}:${field}`;
+
+    const getFieldValue = (id, field, fallbackValue) => {
+        const draftKey = getDraftKey(id, field);
+        if (draftValues[draftKey] != null) {
+            return draftValues[draftKey];
+        }
+
+        return String(fallbackValue ?? 0);
+    };
+
+    const handleDraftChange = (id, field, rawValue) => {
+        const normalizedValue = normalizeNumericInputValue(rawValue);
+        const draftKey = getDraftKey(id, field);
+
+        setDraftValues((current) => ({
+            ...current,
+            [draftKey]: normalizedValue,
+        }));
+        handlePointChange(id, field, parseNumericInput(normalizedValue));
+    };
+
+    const handleDraftBlur = (id, field, fallbackValue) => {
+        const normalizedValue = normalizeNumericInputValue(
+            draftValues[getDraftKey(id, field)] ?? String(fallbackValue ?? 0)
+        );
+        const draftKey = getDraftKey(id, field);
+
+        setDraftValues((current) => ({
+            ...current,
+            [draftKey]: normalizedValue,
+        }));
+        handlePointChange(id, field, parseNumericInput(normalizedValue));
+    };
+
     const handleActionChange = (id, value) => {
         onUpdateWaypoint?.(id, {
             action: value,
-            action_duration: value === 'video_record' ? 10 : null,
+            action_duration: value === 'video_record' ? 10 : 0,
         });
     };
+
+    const handleTakeoffAltitudeDraftChange = (rawValue) => {
+        const normalizedValue = normalizeNumericInputValue(rawValue);
+        setTakeoffAltitudeDraft(normalizedValue);
+        onTakeoffAltitudeChange?.(parseNumericInput(normalizedValue));
+    };
+
+    const handleTakeoffHoldDurationDraftChange = (rawValue) => {
+        const normalizedValue = normalizeNumericInputValue(rawValue);
+        setTakeoffHoldDurationDraft(normalizedValue);
+        onTakeoffHoldDurationChange?.(parseNumericInput(normalizedValue));
+    };
+
+    useEffect(() => {
+        setDraftValues((current) => {
+            const nextValues = {};
+
+            waypoints.forEach((waypoint) => {
+                const data = {
+                    ...defaultWaypointValues,
+                    ...waypoint,
+                };
+
+                nextValues[getDraftKey(waypoint.id, 'altitude')] = current[getDraftKey(waypoint.id, 'altitude')] ?? String(data.altitude ?? 0);
+                nextValues[getDraftKey(waypoint.id, 'cameraTilt')] = current[getDraftKey(waypoint.id, 'cameraTilt')] ?? String(data.cameraTilt ?? 0);
+                nextValues[getDraftKey(waypoint.id, 'action_duration')] = current[getDraftKey(waypoint.id, 'action_duration')] ?? String(data.action_duration ?? 0);
+            });
+
+            return nextValues;
+        });
+    }, [waypoints]);
+
+    useEffect(() => {
+        setTakeoffAltitudeDraft(String(takeoffAltitude ?? 0));
+    }, [takeoffAltitude]);
+
+    useEffect(() => {
+        setTakeoffHoldDurationDraft(String(takeoffHoldDuration ?? 0));
+    }, [takeoffHoldDuration]);
 
     return (
         <div className="font-tomorrow relative grid h-full w-full min-h-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden border bg-[#222222] p-5 select-none" style={{ borderColor: panelStroke }}>
@@ -73,22 +184,40 @@ export default function WaypointSelectionPanel({
                         </div>
                         <span className="text-white text-sm font-medium tracking-wider">{batteryPercent != null ? `${batteryPercent}%` : '--'}</span>
                     </div>
-                    <span className="text-gray-400 text-[10px] mt-1">Estimated Flight Time: {formatFlightDuration(estimatedFlightDurationSeconds)}</span>
+                    <span className="text-gray-400 text-[10px] mt-1">Estimated Mission Time: {formatFlightDuration(estimatedFlightDurationSeconds)}</span>
                 </div>
             </div>
 
             <div className="mb-4 h-px w-full shrink-0" style={{ backgroundImage: dividerStroke }} />
 
             {/* Global Takeoff Altitude Settings */}
-            <div className="mb-4 shrink-0">
-                <label className="text-gray-400 text-[10px] tracking-wide uppercase block mb-1">Takeoff Altitude</label>
-                <div className="w-full h-[32px] bg-[#1C1C1C] border border-[#333333] px-3 flex items-center justify-between">
-                    <input
-                        type="number"
-                        className="bg-transparent text-white text-xs outline-none w-full"
-                        value={takeoffAltitude}
-                        onChange={(e) => onTakeoffAltitudeChange?.(e.target.value)}
-                    />
+            <div className="mb-4 shrink-0 grid grid-cols-2 gap-3">
+                <div>
+                    <label className="mb-1 block text-[10px] tracking-wide text-gray-400 uppercase">Takeoff Altitude</label>
+                    <div className="flex h-[32px] w-full items-center justify-between border border-[#333333] bg-[#1C1C1C] px-3">
+                        <input
+                            type="number"
+                            className="w-full bg-transparent text-xs text-white outline-none"
+                            value={takeoffAltitudeDraft}
+                            onChange={(e) => handleTakeoffAltitudeDraftChange(e.target.value)}
+                            onFocus={handleNumericFocus}
+                            onClick={handleNumericClick}
+                        />
+                    </div>
+                </div>
+                <div>
+                    <label className="mb-1 block text-[10px] tracking-wide text-gray-400 uppercase">Takeoff Hold (S)</label>
+                    <div className="flex h-[32px] w-full items-center justify-between border border-[#333333] bg-[#1C1C1C] px-3">
+                        <input
+                            type="number"
+                            min="0"
+                            className="w-full bg-transparent text-xs text-white outline-none"
+                            value={takeoffHoldDurationDraft}
+                            onChange={(e) => handleTakeoffHoldDurationDraftChange(e.target.value)}
+                            onFocus={handleNumericFocus}
+                            onClick={handleNumericClick}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -102,8 +231,6 @@ export default function WaypointSelectionPanel({
                             ...defaultWaypointValues,
                             ...wp,
                         };
-                        const isVideoRecord = data.action === 'video_record';
-
                         return (
                             <div key={wp.id} className="bg-[#222222] border p-3 relative" style={{ borderColor: panelStroke }}>
                                 <button
@@ -127,8 +254,11 @@ export default function WaypointSelectionPanel({
                                             <input
                                                 type="number"
                                                 className="bg-transparent text-white text-[11px] outline-none w-full"
-                                                value={data.altitude}
-                                                onChange={(e) => handlePointChange(wp.id, 'altitude', parseNumericInput(e.target.value))}
+                                                value={getFieldValue(wp.id, 'altitude', data.altitude)}
+                                                onChange={(e) => handleDraftChange(wp.id, 'altitude', e.target.value)}
+                                                onBlur={() => handleDraftBlur(wp.id, 'altitude', data.altitude)}
+                                                onFocus={handleNumericFocus}
+                                                onClick={handleNumericClick}
                                             />
                                         </div>
                                     </div>
@@ -138,8 +268,11 @@ export default function WaypointSelectionPanel({
                                             <input
                                                 type="number"
                                                 className="bg-transparent text-white text-[11px] outline-none w-full"
-                                                value={data.cameraTilt}
-                                                onChange={(e) => handlePointChange(wp.id, 'cameraTilt', parseNumericInput(e.target.value))}
+                                                value={getFieldValue(wp.id, 'cameraTilt', data.cameraTilt)}
+                                                onChange={(e) => handleDraftChange(wp.id, 'cameraTilt', e.target.value)}
+                                                onBlur={() => handleDraftBlur(wp.id, 'cameraTilt', data.cameraTilt)}
+                                                onFocus={handleNumericFocus}
+                                                onClick={handleNumericClick}
                                             />
                                         </div>
                                     </div>
@@ -162,21 +295,21 @@ export default function WaypointSelectionPanel({
                                                     <path d="M6 9l6 6 6-6" />
                                                 </svg>
                                             </div>
-
-                                            {isVideoRecord ? (
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="text-gray-400 text-[9px] uppercase">Duration (S)</span>
-                                                    <div className="h-[28px] bg-[#1C1C1C] border border-[#333333] px-2 flex items-center">
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            className="bg-transparent text-white text-[11px] outline-none w-full"
-                                                            value={data.action_duration ?? ''}
-                                                            onChange={(e) => handlePointChange(wp.id, 'action_duration', parseNumericInput(e.target.value))}
-                                                        />
-                                                    </div>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-gray-400 text-[9px] uppercase">Hold (S)</span>
+                                                <div className="h-[28px] bg-[#1C1C1C] border border-[#333333] px-2 flex items-center">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        className="bg-transparent text-white text-[11px] outline-none w-full"
+                                                        value={getFieldValue(wp.id, 'action_duration', data.action_duration)}
+                                                        onChange={(e) => handleDraftChange(wp.id, 'action_duration', e.target.value)}
+                                                        onBlur={() => handleDraftBlur(wp.id, 'action_duration', data.action_duration)}
+                                                        onFocus={handleNumericFocus}
+                                                        onClick={handleNumericClick}
+                                                    />
                                                 </div>
-                                            ) : null}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

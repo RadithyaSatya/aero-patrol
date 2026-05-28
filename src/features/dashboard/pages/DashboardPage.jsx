@@ -388,7 +388,7 @@ export default function DashboardPage() {
         setIsLaunchDialogOpen(true);
     };
 
-    const handleQuickLaunchLaunch = async ({ missionType, takeoffAltitude, roi, waypoints }, options = {}) => {
+    const handleQuickLaunchLaunch = async ({ missionType, takeoffAltitude, takeoffHoldDuration, roi, waypoints }, options = {}) => {
         setQuickLaunchSubmitError('');
         if (!options.keepScheduleConflictModal) {
             setQuickLaunchScheduleConflictState(null);
@@ -406,6 +406,7 @@ export default function DashboardPage() {
             const payload = buildMissionPayload({
                 formValues: {
                     missionName: `Quick Launch ${missionType}`,
+                    takeoffHoldDuration,
                     timeMode: 'now',
                 },
                 takeoffAltitude,
@@ -433,6 +434,7 @@ export default function DashboardPage() {
                     retryArgs: {
                         missionType,
                         takeoffAltitude,
+                        takeoffHoldDuration,
                         roi,
                         waypoints,
                         confirmRecentHistoryGuard: Boolean(options.confirmRecentHistoryGuard),
@@ -451,6 +453,7 @@ export default function DashboardPage() {
                     retryArgs: {
                         missionType,
                         takeoffAltitude,
+                        takeoffHoldDuration,
                         roi,
                         waypoints,
                         confirmRecentHistoryGuard: Boolean(options.confirmRecentHistoryGuard),
@@ -620,6 +623,7 @@ export default function DashboardPage() {
                 isOpen={isLaunchFormOpen}
                 missionType={selectedLaunchType}
                 selectedDrone={selectedDrone}
+                telemetry={selectedTelemetry}
                 onClose={handleQuickLaunchBack}
                 onLaunch={handleQuickLaunchLaunch}
                 isLaunching={isCreatingQuickLaunch}

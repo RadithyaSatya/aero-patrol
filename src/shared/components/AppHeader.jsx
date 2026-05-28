@@ -11,34 +11,27 @@ const SatelliteIcon = () => (
     </svg>
 );
 
-const SignalRender = ({ level, label }) => {
-    const heights = ['h-1/4', 'h-2/4', 'h-3/4', 'h-full'];
-    return (
-        <div className="flex items-center justify-end space-x-2 min-w-[3rem] text-white">
-            <span className="text-[11px] font-bold text-gray-100">{label}</span>
-            <div className="flex items-end space-x-[2px] h-[14px]">
-                {[1, 2, 3, 4].map((bar, idx) => (
-                    <div
-                        key={bar}
-                        className={`w-[3px] rounded-[0.5px] ${heights[idx]} ${bar <= level ? 'bg-white' : 'bg-[#566070]'}`}
-                    />
-                ))}
-            </div>
-        </div>
-    );
-};
+const BATTERY_TELEMETRY_STALE_MS = 10000;
+const UPPERCASE_TELEMETRY_TOKENS = new Set(['GPS', 'RTK', 'DGPS', 'PPP']);
 
-const scaleRssiToSignalLevel = (rssi) => {
-    const value = Number(rssi);
-
-    if (!Number.isFinite(value) || value <= 0) {
-        return 0;
+const formatTelemetryLabel = (value, fallback = '--') => {
+    if (value == null) {
+        return fallback;
     }
 
-    return Math.max(1, Math.min(4, Math.ceil((Math.min(value, 255) / 255) * 4)));
-};
+    return String(value)
+        .split('_')
+        .filter(Boolean)
+        .map((token) => {
+            const upperToken = token.toUpperCase();
+            if (UPPERCASE_TELEMETRY_TOKENS.has(upperToken)) {
+                return upperToken;
+            }
 
-const BATTERY_TELEMETRY_STALE_MS = 10000;
+            return upperToken.charAt(0) + upperToken.slice(1).toLowerCase();
+        })
+        .join(' ');
+};
 
 const BatteryVertical = ({ level = 80, isStale = false }) => (
     <div className="relative flex h-7 w-4 flex-col items-center justify-end">
@@ -147,11 +140,9 @@ export default function AppHeader() {
     const selectedTelemetryStatus = selectedDrone ? telemetryStatus[selectedDrone.id] : null;
     const gps = selectedTelemetry?.gps || null;
     const gps2 = selectedTelemetry?.gps2 || null;
-    const link = selectedTelemetry?.link || null;
     const battery = selectedTelemetry?.battery || null;
     const isGpsFresh = Boolean(selectedTelemetryStatus?.metrics?.gps?.isFresh);
     const isGps2Fresh = Boolean(selectedTelemetryStatus?.metrics?.gps2?.isFresh);
-    const isLinkFresh = Boolean(selectedTelemetryStatus?.metrics?.link?.isFresh);
     const isBatteryFresh = Boolean(selectedTelemetryStatus?.metrics?.battery?.isFresh);
     const gnssTelemetry = [
         isGpsFresh && gps?.satellites != null
@@ -161,7 +152,6 @@ export default function AppHeader() {
             ? { id: 'gps2', label: 'GPS 2', ...gps2 }
             : null,
     ].filter(Boolean);
-    const rcSignalLevel = isLinkFresh ? scaleRssiToSignalLevel(link?.rssi) : 0;
     const batteryPercent = battery?.percent ?? null;
     const batteryVoltage = battery?.voltage ?? null;
     const batteryLevel = batteryPercent != null ? Math.max(0, Math.min(100, batteryPercent)) : 0;
@@ -284,7 +274,7 @@ export default function AppHeader() {
                             {gnssTelemetry.map((gnss) => (
                                 <div key={gnss.id} className="flex flex-col items-center justify-center">
                                     <span className="hidden md:block text-[10px] font-semibold text-gray-100 tracking-wider font-sans">
-                                        {`${gnss.label} · ${gnss.fix_type_label || 'GNSS'}`}
+                                        {`${gnss.label} · ${formatTelemetryLabel(gnss.fix_type_label, 'GNSS')}`}
                                     </span>
                                     <div className="mt-[1px] flex items-center space-x-1">
                                         <SatelliteIcon />
@@ -294,11 +284,6 @@ export default function AppHeader() {
                             ))}
                         </div>
                     ) : null}
-
-                    {/* Signal */}
-                    <div className="flex items-center justify-center">
-                        <SignalRender level={rcSignalLevel} label="RC" />
-                    </div>
 
                     {/* Battery */}
                     {hasBatteryTelemetry ? (

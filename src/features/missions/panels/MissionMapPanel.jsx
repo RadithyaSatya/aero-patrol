@@ -13,7 +13,7 @@ import {
 import {
     formatFlightDuration,
     formatMissionDistance,
-    getEstimatedFlightDurationSeconds,
+    getEstimatedMissionDurationSeconds,
     getMissionProfileLengthMeters,
 } from '../utils/missionMetrics';
 
@@ -151,6 +151,7 @@ const formatCoordinate = (value) => {
 
 export default function MissionMapPanel({
     waypoints,
+    takeoffHoldDuration = '',
     onAddWaypoint,
     onCancelMission,
     onLaunchMission,
@@ -186,6 +187,7 @@ export default function MissionMapPanel({
         { label: 'Status', value: missionRun?.status || missionDetail?.status || '-' },
         { label: 'Schedule', value: formatScheduleType(missionRun?.schedule_type || missionDetail?.schedule_type || '') },
         { label: 'Run At', value: missionDateTime },
+        { label: 'Takeoff Hold', value: missionDetail?.takeoff_hold_duration != null ? `${missionDetail.takeoff_hold_duration} s` : '-' },
         { label: 'Waypoints', value: `${activeWaypoints.length}` },
     ];
 
@@ -197,7 +199,12 @@ export default function MissionMapPanel({
         waypoints: activeWaypoints,
         homePosition,
     });
-    const estimatedFlightDurationSeconds = getEstimatedFlightDurationSeconds(missionLengthMeters, selectedDrone?.flight_speed);
+    const estimatedFlightDurationSeconds = getEstimatedMissionDurationSeconds({
+        missionLengthMeters,
+        flightSpeed: selectedDrone?.flight_speed,
+        takeoffHoldDuration: isViewMode ? missionDetail?.takeoff_hold_duration : takeoffHoldDuration,
+        waypoints: activeWaypoints,
+    });
     const batteryPercent = selectedDrone?.status?.battery_percent;
     const batteryLabel = batteryPercent != null
         ? `${batteryPercent}% (${batteryPercent >= 60 ? 'Good' : batteryPercent >= 30 ? 'Moderate' : 'Low'})`
@@ -400,7 +407,7 @@ export default function MissionMapPanel({
                                                 </div>
                                             </div>
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-[9px] uppercase text-gray-400">Duration (S)</span>
+                                                <span className="text-[9px] uppercase text-gray-400">Hold (S)</span>
                                                 <div className="rounded border border-[#393F44] bg-[#2C2C2C] px-2 py-1">
                                                     <span className="text-[11px] text-white">{wp.action_duration ?? '-'}</span>
                                                 </div>
@@ -456,7 +463,7 @@ export default function MissionMapPanel({
                                 <span className="text-white text-[11px] font-semibold">{batteryLabel}</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-gray-400 text-[10px] mb-1">Flight Estimation</span>
+                                <span className="text-gray-400 text-[10px] mb-1">Mission Estimation</span>
                                 <span className="text-white text-[11px]">{formatFlightDuration(estimatedFlightDurationSeconds)}</span>
                             </div>
                             <div className="flex flex-col">

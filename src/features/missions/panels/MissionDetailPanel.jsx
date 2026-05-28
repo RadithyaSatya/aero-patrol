@@ -110,13 +110,23 @@ function SelectField({ label, value, onChange, options, className = '' }) {
 }
 
 function InlineDurationField({ value, onChange, suffix, placeholder }) {
+    const handleChange = (event) => {
+        onChange({
+            ...event,
+            target: {
+                ...event.target,
+                value: event.target.value === '' ? '0' : event.target.value,
+            },
+        });
+    };
+
     return (
         <div className="flex h-[40px] min-w-0 items-center gap-2 text-[11px] text-gray-300">
             <span className="shrink whitespace-nowrap">Ends After</span>
             <input
                 type="number"
                 value={value}
-                onChange={onChange}
+                onChange={handleChange}
                 placeholder={placeholder}
                 className="h-[28px] w-[56px] shrink-0 border bg-[#181818] px-2 text-center text-[12px] text-white outline-none"
                 style={{ borderColor: recurrentPanelBorder }}
@@ -396,7 +406,7 @@ export default function MissionDetailPanel({
             <div className="mb-4 flex shrink-0 items-start justify-between">
                 <div>
                     <h2 className="text-[24px] font-medium tracking-wide text-white">Create Mission</h2>
-                    <p className="mt-[2px] text-[13px] text-gray-400">{waypointsCount} Pinpoint - 25 meter</p>
+                    <p className="mt-[2px] text-[13px] text-gray-400">{waypointsCount} Pinpoint</p>
                 </div>
                 <button
                     type="button"

@@ -105,6 +105,35 @@ export const getEstimatedFlightDurationSeconds = (missionLengthMeters, flightSpe
     return normalizedDistance / normalizedSpeed;
 };
 
+export const getMissionHoldDurationSeconds = ({
+    takeoffHoldDuration = null,
+    waypoints = [],
+} = {}) => {
+    const normalizedTakeoffHoldDuration = toFiniteNumber(takeoffHoldDuration);
+    const totalWaypointHoldDuration = (Array.isArray(waypoints) ? waypoints : []).reduce((total, waypoint) => {
+        const duration = toFiniteNumber(waypoint?.action_duration);
+        return total + Math.max(0, duration ?? 0);
+    }, 0);
+
+    return Math.max(0, normalizedTakeoffHoldDuration ?? 0) + totalWaypointHoldDuration;
+};
+
+export const getEstimatedMissionDurationSeconds = ({
+    missionLengthMeters,
+    flightSpeed,
+    takeoffHoldDuration = null,
+    waypoints = [],
+} = {}) => {
+    const flightDuration = getEstimatedFlightDurationSeconds(missionLengthMeters, flightSpeed) ?? 0;
+    const holdDuration = getMissionHoldDurationSeconds({ takeoffHoldDuration, waypoints });
+
+    if (flightDuration <= 0 && holdDuration <= 0) {
+        return null;
+    }
+
+    return flightDuration + holdDuration;
+};
+
 export const formatMissionDistance = (distanceMeters) => {
     const normalizedDistance = toFiniteNumber(distanceMeters);
 
