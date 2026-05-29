@@ -1,6 +1,7 @@
 import React from 'react';
 import dummyDroneImage from '../../../assets/img_dummy.png';
 import { DRONE_STREAM_URL } from '../../../shared/config/streamConfig';
+import HlsVideo from '../../../shared/components/HlsVideo';
 
 const CompassWidget = () => (
     <div className="absolute bottom-6 right-6 w-32 h-32 rounded-full bg-black/40 flex items-center justify-center">
@@ -37,7 +38,7 @@ export default function MainVideoFeedPanel({ compact = false }) {
         <div className="font-tomorrow relative h-full w-full overflow-hidden bg-[#1c222c] select-none">
             {/* Video Background Placeholder */}
             {hasDroneStream ? (
-                <video
+                <HlsVideo
                     src={DRONE_STREAM_URL}
                     autoPlay
                     muted

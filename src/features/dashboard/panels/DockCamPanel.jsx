@@ -1,6 +1,7 @@
 import React from 'react';
 import dummyDockingCamImage from '../../../assets/images/image_dummy_docking_cam.png';
 import { DOCK_CCTV_HLS_URL } from '../../../shared/config/streamConfig';
+import HlsVideo from '../../../shared/components/HlsVideo';
 
 export default function DockCamPanel({ variant = 'default', streamBorderClassName = 'border' }) {
     const isStream = variant === 'stream';
@@ -22,7 +23,7 @@ export default function DockCamPanel({ variant = 'default', streamBorderClassNam
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#ED0000]" />
 
                     {hasDockStream ? (
-                        <video
+                        <HlsVideo
                             src={DOCK_CCTV_HLS_URL}
                             autoPlay
                             muted
@@ -60,7 +61,7 @@ export default function DockCamPanel({ variant = 'default', streamBorderClassNam
             <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
 
             {hasDockStream ? (
-                <video
+                <HlsVideo
                     src={DOCK_CCTV_HLS_URL}
                     autoPlay
                     muted
