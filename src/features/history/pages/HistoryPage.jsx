@@ -99,10 +99,17 @@ function HistoryTableState({ children, tone = 'default' }) {
     );
 }
 
-const DownloadCell = ({ title, subtitle }) => (
+const DownloadCell = ({ title, subtitle, onClick, disabled = false }) => (
     <button
         type="button"
-        className="flex items-center gap-2 text-left text-[#3B82F6] transition-opacity hover:opacity-80"
+        onClick={(event) => {
+            event.stopPropagation();
+            onClick?.(event);
+        }}
+        disabled={disabled}
+        className={`flex items-center gap-2 text-left transition-opacity ${
+            disabled ? 'cursor-not-allowed text-gray-500 opacity-60' : 'text-[#3B82F6] hover:opacity-80'
+        }`}
     >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="h-4 w-4 shrink-0">
             <path
@@ -111,11 +118,22 @@ const DownloadCell = ({ title, subtitle }) => (
             />
         </svg>
         <div className="flex flex-col leading-tight">
-            <span className="text-[11px] font-medium text-[#3B82F6]">{title}</span>
+            <span className={`text-[11px] font-medium ${disabled ? 'text-gray-500' : 'text-[#3B82F6]'}`}>{title}</span>
             <span className="mt-1 text-[10px] text-gray-400">{subtitle}</span>
         </div>
     </button>
 );
+
+const downloadBlob = (blob, filename) => {
+    const objectUrl = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(objectUrl);
+};
 
 const toLatLng = (latitude, longitude) => {
     if (latitude == null || longitude == null) return null;
@@ -275,7 +293,13 @@ export default function HistoryPage() {
     const [selectedDrone, setSelectedDrone] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState('');
+    const [mediaPreviewUrl, setMediaPreviewUrl] = useState('');
+    const [mediaPreviewName, setMediaPreviewName] = useState('');
+    const [mediaPreviewError, setMediaPreviewError] = useState('');
+    const [isMediaPreviewLoading, setIsMediaPreviewLoading] = useState(false);
+    const [activeDownloadKey, setActiveDownloadKey] = useState('');
     const requestVersionRef = useRef(0);
+    const previewRequestVersionRef = useRef(0);
 
     useEffect(() => {
         let isCancelled = false;
@@ -402,6 +426,102 @@ export default function HistoryPage() {
             limit: nextLimit,
         }));
         setIsLimitMenuOpen(false);
+    };
+
+    useEffect(() => {
+        let isCancelled = false;
+        const previewRequestVersion = previewRequestVersionRef.current + 1;
+        previewRequestVersionRef.current = previewRequestVersion;
+
+        setMediaPreviewError('');
+        setMediaPreviewName('');
+        setMediaPreviewUrl((current) => {
+            if (current) {
+                window.URL.revokeObjectURL(current);
+            }
+            return '';
+        });
+
+        if (!highlightedHistory?.id || !highlightedHistory?.has_full_video) {
+            setIsMediaPreviewLoading(false);
+            return () => {
+                isCancelled = true;
+            };
+        }
+
+        setIsMediaPreviewLoading(true);
+
+        const loadPreview = async () => {
+            try {
+                const file = await historyService.getMissionHistoryFullVideoFile(highlightedHistory.id);
+
+                if (isCancelled || previewRequestVersionRef.current !== previewRequestVersion) {
+                    return;
+                }
+
+                const objectUrl = window.URL.createObjectURL(file.blob);
+                setMediaPreviewUrl(objectUrl);
+                setMediaPreviewName(file.filename);
+            } catch (error) {
+                if (isCancelled || previewRequestVersionRef.current !== previewRequestVersion) {
+                    return;
+                }
+
+                setMediaPreviewError(error.message || 'Failed to load full video preview');
+            } finally {
+                if (!isCancelled && previewRequestVersionRef.current === previewRequestVersion) {
+                    setIsMediaPreviewLoading(false);
+                }
+            }
+        };
+
+        loadPreview();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [highlightedHistory?.has_full_video, highlightedHistory?.id]);
+
+    useEffect(() => () => {
+        if (mediaPreviewUrl) {
+            window.URL.revokeObjectURL(mediaPreviewUrl);
+        }
+    }, [mediaPreviewUrl]);
+
+    const handleDownloadFullVideo = async (historyItem) => {
+        if (!historyItem?.id || !historyItem?.has_full_video) {
+            return;
+        }
+
+        const downloadKey = `full-video-${historyItem.id}`;
+        setActiveDownloadKey(downloadKey);
+
+        try {
+            const file = await historyService.getMissionHistoryFullVideoFile(historyItem.id);
+            downloadBlob(file.blob, file.filename);
+        } catch (error) {
+            window.alert(error.message || 'Failed to download full video');
+        } finally {
+            setActiveDownloadKey((current) => (current === downloadKey ? '' : current));
+        }
+    };
+
+    const handleDownloadMediaArchive = async (historyItem) => {
+        if (!historyItem?.id || (historyItem.media_count ?? 0) <= 0) {
+            return;
+        }
+
+        const downloadKey = `media-archive-${historyItem.id}`;
+        setActiveDownloadKey(downloadKey);
+
+        try {
+            const file = await historyService.getMissionHistoryMediaArchiveFile(historyItem.id);
+            downloadBlob(file.blob, file.filename);
+        } catch (error) {
+            window.alert(error.message || 'Failed to download media archive');
+        } finally {
+            setActiveDownloadKey((current) => (current === downloadKey ? '' : current));
+        }
     };
 
     return (
@@ -532,12 +652,16 @@ export default function HistoryPage() {
                                     <div className="text-gray-300">{row.task_summary || '-'}</div>
                                     <div className="text-gray-300">{getHistoryDuration(row)}</div>
                                     <DownloadCell
-                                        title={`${row.mission_name || row.mission_snapshot?.mission_name || `Mission ${row.mission_id}`}.mp4`}
-                                        subtitle="Full Video"
+                                        title={activeDownloadKey === `full-video-${row.id}` ? 'Downloading...' : `${row.mission_name || row.mission_snapshot?.mission_name || `Mission ${row.mission_id}`}.mp4`}
+                                        subtitle={row.has_full_video ? 'Full Video' : 'Full video unavailable'}
+                                        disabled={!row.has_full_video || activeDownloadKey === `media-archive-${row.id}`}
+                                        onClick={() => handleDownloadFullVideo(row)}
                                     />
                                     <DownloadCell
-                                        title="Download"
+                                        title={activeDownloadKey === `media-archive-${row.id}` ? 'Downloading...' : 'Download'}
                                         subtitle={`${row.media_count ?? 0} Media ZIP`}
+                                        disabled={(row.media_count ?? 0) <= 0 || activeDownloadKey === `full-video-${row.id}`}
+                                        onClick={() => handleDownloadMediaArchive(row)}
                                     />
                                 </div>
                             ))
@@ -620,31 +744,46 @@ export default function HistoryPage() {
                     <div className="h-px w-full bg-[#FB5555]" />
 
                     <div className="relative min-h-0 flex-1 overflow-hidden border border-[#5E0A0A] bg-black">
-                        <img
-                            src={mediaPreviewImage}
-                            alt="History media preview"
-                            className="h-full w-full object-cover opacity-75"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                        {mediaPreviewUrl ? (
+                            <video
+                                src={mediaPreviewUrl}
+                                controls
+                                preload="metadata"
+                                className="h-full w-full object-cover"
+                            />
+                        ) : (
+                            <img
+                                src={mediaPreviewImage}
+                                alt="History media preview"
+                                className="h-full w-full object-cover opacity-75"
+                            />
+                        )}
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
 
-                        <button
-                            type="button"
-                            aria-label="Play history media"
-                            className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#FC4747] bg-[#2A1212]/85 transition-transform hover:scale-105"
-                        >
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="white" aria-hidden="true">
-                                <path d="M8 5v14l11-7z" />
-                            </svg>
-                        </button>
+                        {!mediaPreviewUrl ? (
+                            <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
+                                <div className="max-w-[280px] rounded border border-[#5E0A0A] bg-[#140b0b]/85 px-5 py-4 text-[12px] text-gray-300 backdrop-blur-sm">
+                                    {isMediaPreviewLoading
+                                        ? 'Loading full video preview...'
+                                        : mediaPreviewError
+                                            ? mediaPreviewError
+                                            : highlightedHistory?.has_full_video
+                                                ? 'Full video preview is not available yet.'
+                                                : 'No full video is available for this mission history.'}
+                                </div>
+                            </div>
+                        ) : null}
 
-                        <div className="absolute bottom-5 left-5 right-5">
+                        <div className="pointer-events-none absolute bottom-5 left-5 right-5">
                             <div className="mb-2 flex items-center justify-between text-[11px] text-white">
-                                <span>{highlightedMissionName}.mp4</span>
+                                <span>{mediaPreviewName || `${highlightedMissionName}.mp4`}</span>
                                 <span>{getHistoryDuration(highlightedHistory)}</span>
                             </div>
-                            <div className="h-[3px] bg-white/20">
-                                <div className="h-full w-[46%] bg-[#FC4747]" />
-                            </div>
+                            {!mediaPreviewUrl ? (
+                                <div className="h-[3px] bg-white/20">
+                                    <div className={`h-full bg-[#FC4747] ${isMediaPreviewLoading ? 'w-[46%]' : 'w-0'}`} />
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                 </PanelShell>

@@ -1,11 +1,11 @@
 import React from 'react';
 import dummyDockingCamImage from '../../../assets/images/image_dummy_docking_cam.png';
-import { DOCK_CCTV_HLS_URL } from '../../../shared/config/streamConfig';
-import HlsVideo from '../../../shared/components/HlsVideo';
+import { DOCK_CCTV_STREAM_URL } from '../../../shared/config/streamConfig';
+import WebRtcStream from '../../../shared/components/WebRtcStream';
 
 export default function DockCamPanel({ variant = 'default', streamBorderClassName = 'border' }) {
     const isStream = variant === 'stream';
-    const hasDockStream = Boolean(DOCK_CCTV_HLS_URL);
+    const hasDockStream = Boolean(DOCK_CCTV_STREAM_URL);
 
     if (isStream) {
         return (
@@ -23,8 +23,9 @@ export default function DockCamPanel({ variant = 'default', streamBorderClassNam
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#ED0000]" />
 
                     {hasDockStream ? (
-                        <HlsVideo
-                            src={DOCK_CCTV_HLS_URL}
+                        <WebRtcStream
+                            src={DOCK_CCTV_STREAM_URL}
+                            title="Dock Cam Stream"
                             autoPlay
                             muted
                             playsInline
@@ -39,16 +40,9 @@ export default function DockCamPanel({ variant = 'default', streamBorderClassNam
                     )}
                     <div className="absolute inset-x-0 bottom-0 top-[1px] bg-gradient-to-t from-black/70 via-black/20 to-black/45" />
 
-                    <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
-                        <div>
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400">Dock Status</p>
-                            <p className="mt-1 text-sm font-semibold tracking-wide text-white">Standby • Gate Secured</p>
-                        </div>
-
-                        <div className="bg-black/55 px-3 py-1.5 text-right">
-                            <p className="text-[10px] uppercase tracking-[0.16em] text-gray-400">Link</p>
-                            <p className="mt-1 text-xs font-medium tracking-wide text-[#1ab394]">Stable uplink</p>
-                        </div>
+                    <div className="absolute bottom-4 right-4 bg-black/55 px-3 py-1.5 text-right">
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-gray-400">Link</p>
+                        <p className="mt-1 text-xs font-medium tracking-wide text-[#1ab394]">Stable uplink</p>
                     </div>
                 </div>
             </div>
@@ -61,8 +55,9 @@ export default function DockCamPanel({ variant = 'default', streamBorderClassNam
             <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
 
             {hasDockStream ? (
-                <HlsVideo
-                    src={DOCK_CCTV_HLS_URL}
+                <WebRtcStream
+                    src={DOCK_CCTV_STREAM_URL}
+                    title="Dock Cam Stream"
                     autoPlay
                     muted
                     playsInline
@@ -82,16 +77,9 @@ export default function DockCamPanel({ variant = 'default', streamBorderClassNam
                 <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#FD5757]">Dock Cam</span>
             </div>
 
-            <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
-                <div>
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400">Dock Status</p>
-                    <p className="mt-1 text-sm font-semibold tracking-wide text-white">Standby • Gate Secured</p>
-                </div>
-
-                <div className="bg-black/55 px-3 py-1.5 text-right">
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-gray-400">Link</p>
-                    <p className="mt-1 text-xs font-medium tracking-wide text-[#1ab394]">Stable uplink</p>
-                </div>
+            <div className="absolute bottom-4 right-4 bg-black/55 px-3 py-1.5 text-right">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-gray-400">Link</p>
+                <p className="mt-1 text-xs font-medium tracking-wide text-[#1ab394]">Stable uplink</p>
             </div>
         </div>
     );

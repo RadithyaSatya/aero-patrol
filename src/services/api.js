@@ -1,6 +1,56 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://api-xflight.kumalabs.tech';
 export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://api-xflight.kumalabs.tech';
 
+const getAuthHeaders = () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('No authentication token found');
+
+    return {
+        'Authorization': `Bearer ${token}`,
+    };
+};
+
+const parseFilenameFromDisposition = (contentDisposition, fallbackName) => {
+    if (!contentDisposition) {
+        return fallbackName;
+    }
+
+    const utfMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utfMatch?.[1]) {
+        return decodeURIComponent(utfMatch[1]);
+    }
+
+    const asciiMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+    if (asciiMatch?.[1]) {
+        return asciiMatch[1];
+    }
+
+    return fallbackName;
+};
+
+const fetchBlobResponse = async (url, fallbackName) => {
+    const response = await fetch(url, {
+        headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to fetch file');
+    }
+
+    const blob = await response.blob();
+    const filename = parseFilenameFromDisposition(
+        response.headers.get('Content-Disposition'),
+        fallbackName
+    );
+
+    return {
+        blob,
+        filename,
+        contentType: response.headers.get('Content-Type') || blob.type || '',
+    };
+};
+
 export const authService = {
     login: async (username, password) => {
         const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -300,9 +350,6 @@ export const missionService = {
 
 export const historyService = {
     getMissionHistory: async ({ page = 1, limit = 20, missionId = '', missionName = '' } = {}) => {
-        const token = localStorage.getItem('authToken');
-        if (!token) throw new Error('No authentication token found');
-
         const params = new URLSearchParams({
             page: String(page),
             limit: String(limit),
@@ -317,9 +364,7 @@ export const historyService = {
         }
 
         const response = await fetch(`${API_BASE_URL}/mission-history?${params.toString()}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+            headers: getAuthHeaders(),
         });
 
         if (!response.ok) {
@@ -328,7 +373,45 @@ export const historyService = {
         }
 
         return response.json();
-    }
+    },
+
+    getMissionHistoryMedia: async (historyId, { eventId = '', includeFullVideo = false } = {}) => {
+        const params = new URLSearchParams();
+
+        if (eventId) {
+            params.set('event_id', String(eventId));
+        }
+
+        if (includeFullVideo) {
+            params.set('include_full_video', 'true');
+        }
+
+        const query = params.toString();
+        const response = await fetch(`${API_BASE_URL}/mission-history/${historyId}/media${query ? `?${query}` : ''}`, {
+            headers: getAuthHeaders(),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || errorData.message || 'Failed to fetch mission media');
+        }
+
+        return response.json();
+    },
+
+    getMissionHistoryFullVideoFile: async (historyId) => (
+        fetchBlobResponse(
+            `${API_BASE_URL}/mission-history/${historyId}/full-video`,
+            `mission-history-${historyId}-full-video.mp4`
+        )
+    ),
+
+    getMissionHistoryMediaArchiveFile: async (historyId) => (
+        fetchBlobResponse(
+            `${API_BASE_URL}/mission-history/${historyId}/media/archive`,
+            `mission-history-${historyId}-media.zip`
+        )
+    ),
 };
 
 export const telemetryService = {

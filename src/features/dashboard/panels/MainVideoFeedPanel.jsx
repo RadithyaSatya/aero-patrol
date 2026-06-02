@@ -1,7 +1,7 @@
 import React from 'react';
 import dummyDroneImage from '../../../assets/img_dummy.png';
 import { DRONE_STREAM_URL } from '../../../shared/config/streamConfig';
-import HlsVideo from '../../../shared/components/HlsVideo';
+import WebRtcStream from '../../../shared/components/WebRtcStream';
 
 const CompassWidget = () => (
     <div className="absolute bottom-6 right-6 w-32 h-32 rounded-full bg-black/40 flex items-center justify-center">
@@ -38,8 +38,9 @@ export default function MainVideoFeedPanel({ compact = false }) {
         <div className="font-tomorrow relative h-full w-full overflow-hidden bg-[#1c222c] select-none">
             {/* Video Background Placeholder */}
             {hasDroneStream ? (
-                <HlsVideo
+                <WebRtcStream
                     src={DRONE_STREAM_URL}
+                    title="Drone Cam Stream"
                     autoPlay
                     muted
                     playsInline
@@ -57,35 +58,6 @@ export default function MainVideoFeedPanel({ compact = false }) {
             <div className={`absolute bg-black/60 uppercase flex items-center justify-center ${compact ? 'left-3 top-3 px-2 py-1' : 'left-4 top-4 px-3 py-1.5'}`}>
                 <span className="text-[#F94343] text-[11px] font-bold tracking-widest">DRONE CAM</span>
             </div>
-
-            {/* Top Center Badge */}
-            {!compact && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/50 border border-[#F94343] px-3 py-1.5 flex items-center justify-center">
-                    <div className="flex items-center space-x-2 text-[#F94343]">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        <span className="text-[11px] font-bold tracking-widest uppercase">ZOOM 2.3X</span>
-                    </div>
-                </div>
-            )}
-
-            {/* Top Right Recording Badge */}
-            <div className={`absolute bg-black/50 border border-gray-500 flex items-center justify-center ${compact ? 'right-3 top-3 space-x-2 px-2 py-1' : 'right-4 top-4 space-x-4 px-3 py-1 rounded'}`}>
-                <div className="flex items-center space-x-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse mt-[1px]"></div>
-                    <span className="text-gray-100 text-[11px] font-bold uppercase tracking-wider">Recording</span>
-                </div>
-                {!compact && <span className="text-gray-100 text-[11px] font-mono font-bold tracking-widest pt-[2px]">00:10:40</span>}
-            </div>
-
-            {/* Bottom Left Status */}
-            {!compact && (
-                <div className="absolute bottom-5 left-5 flex flex-col items-start bg-black/30 px-2 py-1 rounded">
-                    <span className="text-gray-300 text-[10px] uppercase font-bold tracking-wider drop-shadow-md">Camera Status</span>
-                    <span className="text-white text-[13px] font-semibold tracking-wide drop-shadow-md mt-0.5">Recording</span>
-                </div>
-            )}
 
             {/* Bottom Right Compass */}
             <CompassWidget />

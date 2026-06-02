@@ -1,7 +1,7 @@
 import React from 'react';
 import dummyDroneImage from '../../../assets/img_dummy.png';
 import { DRONE_STREAM_URL } from '../../../shared/config/streamConfig';
-import HlsVideo from '../../../shared/components/HlsVideo';
+import WebRtcStream from '../../../shared/components/WebRtcStream';
 
 const CompassWidget = () => (
     <div className="absolute bottom-4 right-4 w-20 h-20 rounded-full bg-black/40 flex items-center justify-center scale-75 transform origin-bottom-right">
@@ -41,8 +41,9 @@ export default function DroneCamPanel() {
         <div className="relative w-full h-full bg-black rounded-[24px] overflow-hidden border border-[#2a3240] shadow-lg">
             {/* Main Video Feed (Placeholder Image) */}
             {hasDroneStream ? (
-                <HlsVideo
+                <WebRtcStream
                     src={DRONE_STREAM_URL}
+                    title="Drone Cam Stream"
                     autoPlay
                     muted
                     playsInline
@@ -62,15 +63,6 @@ export default function DroneCamPanel() {
             {/* Top Left Label */}
             <div className="absolute top-4 left-4 bg-black/40 px-3 py-1 rounded border border-[#ea580c]/50">
                 <span className="text-[#ea580c] text-[10px] font-bold tracking-wider">DRONE CAM</span>
-            </div>
-
-            {/* Top Right Recording Status */}
-            <div className="absolute top-4 right-4 flex items-center space-x-3 bg-black/40 px-3 py-1.5 rounded">
-                <div className="flex items-center space-x-1.5">
-                    <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></div>
-                    <span className="text-gray-200 text-[10px] font-semibold tracking-wider">Recording</span>
-                </div>
-                <span className="text-gray-100 text-[11px] font-mono font-bold tracking-widest pt-[1px]">00:10:40</span>
             </div>
 
             {/* Center Reticle */}
