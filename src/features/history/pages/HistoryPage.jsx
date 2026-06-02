@@ -297,6 +297,7 @@ export default function HistoryPage() {
     const [mediaPreviewName, setMediaPreviewName] = useState('');
     const [mediaPreviewError, setMediaPreviewError] = useState('');
     const [isMediaPreviewLoading, setIsMediaPreviewLoading] = useState(false);
+    const [hasMediaPreviewPlaybackError, setHasMediaPreviewPlaybackError] = useState(false);
     const [activeDownloadKey, setActiveDownloadKey] = useState('');
     const requestVersionRef = useRef(0);
     const previewRequestVersionRef = useRef(0);
@@ -435,6 +436,7 @@ export default function HistoryPage() {
 
         setMediaPreviewError('');
         setMediaPreviewName('');
+        setHasMediaPreviewPlaybackError(false);
         setMediaPreviewUrl((current) => {
             if (current) {
                 window.URL.revokeObjectURL(current);
@@ -462,6 +464,7 @@ export default function HistoryPage() {
                 const objectUrl = window.URL.createObjectURL(file.blob);
                 setMediaPreviewUrl(objectUrl);
                 setMediaPreviewName(file.filename);
+                setHasMediaPreviewPlaybackError(false);
             } catch (error) {
                 if (isCancelled || previewRequestVersionRef.current !== previewRequestVersion) {
                     return;
@@ -744,12 +747,16 @@ export default function HistoryPage() {
                     <div className="h-px w-full bg-[#FB5555]" />
 
                     <div className="relative min-h-0 flex-1 overflow-hidden border border-[#5E0A0A] bg-black">
-                        {mediaPreviewUrl ? (
+                        {mediaPreviewUrl && !hasMediaPreviewPlaybackError ? (
                             <video
                                 src={mediaPreviewUrl}
                                 controls
                                 preload="metadata"
                                 className="h-full w-full object-cover"
+                                onError={() => {
+                                    setHasMediaPreviewPlaybackError(true);
+                                    setMediaPreviewError('Full video preview could not be played');
+                                }}
                             />
                         ) : (
                             <img
@@ -760,7 +767,7 @@ export default function HistoryPage() {
                         )}
                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
 
-                        {!mediaPreviewUrl ? (
+                        {!mediaPreviewUrl || hasMediaPreviewPlaybackError ? (
                             <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
                                 <div className="max-w-[280px] rounded border border-[#5E0A0A] bg-[#140b0b]/85 px-5 py-4 text-[12px] text-gray-300 backdrop-blur-sm">
                                     {isMediaPreviewLoading
@@ -779,7 +786,7 @@ export default function HistoryPage() {
                                 <span>{mediaPreviewName || `${highlightedMissionName}.mp4`}</span>
                                 <span>{getHistoryDuration(highlightedHistory)}</span>
                             </div>
-                            {!mediaPreviewUrl ? (
+                            {!mediaPreviewUrl || hasMediaPreviewPlaybackError ? (
                                 <div className="h-[3px] bg-white/20">
                                     <div className={`h-full bg-[#FC4747] ${isMediaPreviewLoading ? 'w-[46%]' : 'w-0'}`} />
                                 </div>
