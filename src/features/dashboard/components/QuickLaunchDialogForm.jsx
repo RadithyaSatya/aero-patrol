@@ -519,7 +519,10 @@ export default function QuickLaunchDialogForm({
                                 zoomControl={false}
                                 scrollWheelZoom
                             >
-                                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                                <TileLayer
+                                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                                    attribution='Tiles &copy; Esri'
+                                />
                                 <MapInteractionHandler onClickRef={mapInteractionRef} />
                                 {dockPosition && fenceRadius != null ? (
                                     <Circle center={dockPosition} radius={fenceRadius} pathOptions={geofencePathOptions} />

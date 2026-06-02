@@ -117,9 +117,10 @@ export default function MapViewPanel({ telemetry, telemetryStatus = null, select
                 zoomControl={false}
                 scrollWheelZoom={true}
             >
-                {/* Dark CartoDB tile layer */}
+                {/* Satellite tile layer */}
                 <TileLayer
-                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    attribution='Tiles &copy; Esri'
                 />
 
                 {/* Follow drone position */}

@@ -260,7 +260,10 @@ const HistoryTrajectoryMap = ({ historyItem, homePosition, maxRange }) => {
             scrollWheelZoom
             style={{ height: '100%', width: '100%' }}
         >
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+            <TileLayer
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                attribution='Tiles &copy; Esri'
+            />
 
             {effectiveHomePosition ? (
                 <Circle center={effectiveHomePosition} radius={maxRange} pathOptions={geofencePathOptions} />
