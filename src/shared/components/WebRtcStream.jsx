@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 const STREAM_PROBE_TIMEOUT_MS = 4000;
+const readerScriptPromises = new Map();
 
 function buildStreamUrl(src, params = {}) {
     const url = new URL(src);
@@ -47,6 +48,39 @@ async function probeStreamAvailability(src) {
     }
 }
 
+function loadReaderScript(src) {
+    const scriptUrl = buildStreamUrl(new URL('./reader.js', src).toString());
+
+    if (!readerScriptPromises.has(scriptUrl)) {
+        const promise = new Promise((resolve, reject) => {
+            if (window.MediaMTXWebRTCReader) {
+                resolve(window.MediaMTXWebRTCReader);
+                return;
+            }
+
+            const existingScript = document.querySelector(`script[data-webrtc-reader="${scriptUrl}"]`);
+
+            if (existingScript) {
+                existingScript.addEventListener('load', () => resolve(window.MediaMTXWebRTCReader), { once: true });
+                existingScript.addEventListener('error', () => reject(new Error('Failed to load WebRTC reader')), { once: true });
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = scriptUrl;
+            script.async = true;
+            script.dataset.webrtcReader = scriptUrl;
+            script.onload = () => resolve(window.MediaMTXWebRTCReader);
+            script.onerror = () => reject(new Error('Failed to load WebRTC reader'));
+            document.head.appendChild(script);
+        });
+
+        readerScriptPromises.set(scriptUrl, promise);
+    }
+
+    return readerScriptPromises.get(scriptUrl);
+}
+
 export default function WebRtcStream({
     src,
     className = '',
@@ -59,19 +93,7 @@ export default function WebRtcStream({
 }) {
     const [status, setStatus] = useState(src ? 'checking' : 'empty');
     const [errorMessage, setErrorMessage] = useState('');
-
-    const streamUrl = useMemo(() => {
-        if (!src) {
-            return '';
-        }
-
-        return buildStreamUrl(src, {
-            autoplay: autoPlay,
-            muted,
-            playsInline,
-            controls,
-        });
-    }, [src, autoPlay, muted, playsInline, controls]);
+    const videoRef = useRef(null);
 
     useEffect(() => {
         let isCancelled = false;
@@ -110,6 +132,79 @@ export default function WebRtcStream({
         };
     }, [src, unavailableMessage]);
 
+    useEffect(() => {
+        let isCancelled = false;
+        let readerInstance = null;
+
+        if (!src || status !== 'ready' || !videoRef.current) {
+            return () => {
+                isCancelled = true;
+            };
+        }
+
+        const video = videoRef.current;
+        video.controls = controls;
+        video.muted = muted;
+        video.autoplay = autoPlay;
+        video.playsInline = playsInline;
+
+        const connectStream = async () => {
+            try {
+                const MediaMTXWebRTCReader = await loadReaderScript(src);
+
+                if (isCancelled || !MediaMTXWebRTCReader) {
+                    return;
+                }
+
+                readerInstance = new MediaMTXWebRTCReader({
+                    url: buildStreamUrl(new URL('whep', src).toString(), {
+                        autoplay: autoPlay,
+                        muted,
+                        playsinline: playsInline,
+                        controls,
+                    }),
+                    onError: (message) => {
+                        if (isCancelled) {
+                            return;
+                        }
+
+                        setStatus('unavailable');
+                        setErrorMessage(message || unavailableMessage);
+                    },
+                    onTrack: (event) => {
+                        if (isCancelled) {
+                            return;
+                        }
+
+                        setErrorMessage('');
+                        video.srcObject = event.streams[0];
+                    },
+                });
+            } catch (error) {
+                if (isCancelled) {
+                    return;
+                }
+
+                setStatus('unavailable');
+                setErrorMessage(error.message || unavailableMessage);
+            }
+        };
+
+        connectStream();
+
+        return () => {
+            isCancelled = true;
+
+            if (readerInstance) {
+                readerInstance.close();
+            }
+
+            if (video.srcObject) {
+                video.srcObject = null;
+            }
+        };
+    }, [src, status, autoPlay, muted, playsInline, controls, unavailableMessage]);
+
     if (!src) {
         return null;
     }
@@ -117,12 +212,14 @@ export default function WebRtcStream({
     return (
         <div className={`relative ${className}`}>
             {status === 'ready' ? (
-                <iframe
-                    src={streamUrl}
+                <video
+                    ref={videoRef}
                     title={title}
-                    className="h-full w-full border-0"
-                    allow="autoplay; fullscreen; picture-in-picture"
-                    scrolling="no"
+                    className="h-full w-full object-cover"
+                    muted={muted}
+                    autoPlay={autoPlay}
+                    playsInline={playsInline}
+                    controls={controls}
                 />
             ) : (
                 <div className="flex h-full w-full items-center justify-center bg-black/70 px-6 text-center">
