@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap } from 'react-leaflet';
+import React, { useEffect, useRef, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -49,21 +49,53 @@ const geofencePathOptions = {
     weight: 0.3
 };
 
+const overlayTopStroke = 'linear-gradient(90deg, #E83737 0%, rgba(251,85,85,0.2) 50%, #E83737 100%)';
+const overlayBottomStroke = 'linear-gradient(90deg, rgba(251,85,85,0.2) 0%, #E83737 22%, #E83737 100%)';
+
 // Component to auto-pan the map to follow the drone
-function MapFollower({ position, shouldFollow }) {
+function MapFollower({ position, shouldFollow, followZoom = 16, recenterRequest = 0, onRecenterComplete }) {
     const map = useMap();
     const hasInitialized = useRef(false);
+    const lastRecenterRequest = useRef(recenterRequest);
 
     useEffect(() => {
         if (position && shouldFollow) {
             if (!hasInitialized.current) {
-                map.setView(position, 16, { animate: false });
+                map.setView(position, followZoom, { animate: false });
                 hasInitialized.current = true;
             } else {
                 map.panTo(position, { animate: true, duration: 1 });
             }
         }
-    }, [position, shouldFollow, map]);
+    }, [position, shouldFollow, followZoom, map]);
+
+    useEffect(() => {
+        if (!position || recenterRequest === lastRecenterRequest.current) {
+            return;
+        }
+
+        lastRecenterRequest.current = recenterRequest;
+        hasInitialized.current = true;
+        map.setView(position, map.getZoom(), { animate: true });
+        onRecenterComplete?.();
+    }, [position, recenterRequest, onRecenterComplete, map]);
+
+    return null;
+}
+
+function MapInteractionHandler({ shouldFollow, onUserMove }) {
+    useMapEvents({
+        dragstart: () => {
+            if (shouldFollow) {
+                onUserMove();
+            }
+        },
+        zoomstart: () => {
+            if (shouldFollow) {
+                onUserMove();
+            }
+        },
+    });
 
     return null;
 }
@@ -75,8 +107,33 @@ const trailPathOptions = {
     opacity: 0.9
 };
 
+function MapControlButton({ children, className = '', ...props }) {
+    return (
+        <button
+            type="button"
+            className={`relative flex h-[54px] w-[54px] items-center justify-center overflow-hidden bg-[#222222] shadow-lg transition hover:bg-[#262626] disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
+            {...props}
+        >
+            <div
+                className="pointer-events-none absolute left-0 top-0 h-px w-full"
+                style={{ backgroundImage: overlayTopStroke }}
+            />
+            <div
+                className="pointer-events-none absolute bottom-0 left-0 h-px w-full"
+                style={{ backgroundImage: overlayBottomStroke }}
+            />
+            <div className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[#E83737]" />
+            <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#E83737]" />
+            <span className="relative z-10 flex items-center justify-center">{children}</span>
+        </button>
+    );
+}
+
 export default function MapViewPanel({ telemetry, telemetryStatus = null, selectedDrone, trailPositions = [] }) {
+    const mapRef = useRef(null);
     const defaultCenter = [-6.200000, 106.816666]; // Jakarta fallback
+    const [isFollowEnabled, setIsFollowEnabled] = useState(true);
+    const [recenterRequest, setRecenterRequest] = useState(0);
 
     // Get drone position from telemetry
     const location = telemetry?.location || {};
@@ -98,6 +155,32 @@ export default function MapViewPanel({ telemetry, telemetryStatus = null, select
     const parsedMaxRange = Number(selectedDrone?.max_range_meter);
     const maxRange = Number.isFinite(parsedMaxRange) && parsedMaxRange > 0 ? parsedMaxRange : null;
 
+    useEffect(() => {
+        setIsFollowEnabled(true);
+        setRecenterRequest(0);
+    }, [selectedDrone?.id]);
+
+    const handleDisableFollow = () => {
+        setIsFollowEnabled(false);
+    };
+
+    const handleRecenter = () => {
+        if (!dronePosition) {
+            return;
+        }
+
+        setIsFollowEnabled(true);
+        setRecenterRequest((current) => current + 1);
+    };
+
+    const handleZoomIn = () => {
+        mapRef.current?.zoomIn();
+    };
+
+    const handleZoomOut = () => {
+        mapRef.current?.zoomOut();
+    };
+
     return (
         <div className="relative h-full w-full overflow-hidden bg-[#181d25] select-none">
             {/* Telemetry HUD overlay */}
@@ -109,22 +192,42 @@ export default function MapViewPanel({ telemetry, telemetryStatus = null, select
                 </div>
             )}
 
+            <div className="absolute left-2 top-2 z-[400] flex items-center gap-2">
+                <span className={`rounded-lg px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] backdrop-blur-sm ${
+                    isFollowEnabled
+                        ? 'bg-[#12352b]/80 text-[#7ce0b8]'
+                        : 'bg-black/60 text-gray-300'
+                }`}>
+                    {isFollowEnabled ? 'Follow On' : 'Follow Off'}
+                </span>
+            </div>
+
             <MapContainer
                 center={center}
                 zoom={hasLocation ? 16 : 13}
+                ref={mapRef}
                 style={{ height: '100%', width: '100%' }}
                 attributionControl={false}
                 zoomControl={false}
                 scrollWheelZoom={true}
+                minZoom={3}
+                maxZoom={18}
             >
                 {/* Satellite tile layer */}
                 <TileLayer
                     url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                     attribution='Tiles &copy; Esri'
+                    maxNativeZoom={19}
                 />
 
+                <MapInteractionHandler shouldFollow={isFollowEnabled} onUserMove={handleDisableFollow} />
+
                 {/* Follow drone position */}
-                <MapFollower position={dronePosition} shouldFollow={hasLocation} />
+                <MapFollower
+                    position={dronePosition}
+                    shouldFollow={hasLocation && isFollowEnabled}
+                    recenterRequest={recenterRequest}
+                />
 
                 {/* Max Radius Circle around drone home */}
                 {homePosition && maxRange != null && (
@@ -156,6 +259,27 @@ export default function MapViewPanel({ telemetry, telemetryStatus = null, select
                     />
                 )}
             </MapContainer>
+
+            <div className="absolute top-[60vh] left-4 z-[450] flex flex-col">
+                <div className="flex flex-col gap-1">
+                    <MapControlButton onClick={handleRecenter} disabled={!dronePosition} aria-label="Center drone on map">
+                        <img
+                            src="/src/assets/images/icon_drone_center_mission.svg"
+                            alt=""
+                            aria-hidden="true"
+                            className="h-5 w-5 object-contain"
+                        />
+                    </MapControlButton>
+                    <MapControlButton onClick={handleZoomIn} aria-label="Zoom in">
+                        <span className="text-[24px] leading-none text-white">+</span>
+                    </MapControlButton>
+                </div>
+                <div className="mt-2">
+                    <MapControlButton onClick={handleZoomOut} aria-label="Zoom out">
+                        <span className="text-[24px] leading-none text-white">-</span>
+                    </MapControlButton>
+                </div>
+            </div>
         </div>
     );
 }

@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Circle, MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { Circle, MapContainer, Marker, Polyline, TileLayer, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import droneSingleIconImage from '../../../assets/images/icon_drone_single.svg';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -42,17 +41,20 @@ const dockIcon = new L.DivIcon({
     iconAnchor: [12, 12],
 });
 
-const DRONE_ICON_SIZE = 28;
+const DRONE_ICON_WIDTH = 68;
+const DRONE_ICON_HEIGHT = 96;
+const DRONE_ICON_CENTER_X = 34;
+const DRONE_ICON_CENTER_Y = 74;
 
-const droneIcon = new L.DivIcon({
+const createDroneIcon = (heading) => new L.DivIcon({
     className: 'custom-drone-icon',
     html: `
-        <div style="width:${DRONE_ICON_SIZE}px; height:${DRONE_ICON_SIZE}px; display:flex; align-items:center; justify-content:center;">
-            <img src="${droneSingleIconImage}" alt="Drone" style="width:${DRONE_ICON_SIZE}px; height:${DRONE_ICON_SIZE}px; display:block;" />
+        <div style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:flex; align-items:center; justify-content:center; transform: rotate(${heading || 0}deg); transform-origin: ${DRONE_ICON_CENTER_X}px ${DRONE_ICON_CENTER_Y}px; transition: transform 0.3s ease;">
+            <img src="/src/assets/images/icon_drone.svg" alt="Drone" style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:block;" />
         </div>
     `,
-    iconSize: [DRONE_ICON_SIZE, DRONE_ICON_SIZE],
-    iconAnchor: [DRONE_ICON_SIZE / 2, DRONE_ICON_SIZE / 2],
+    iconSize: [DRONE_ICON_WIDTH, DRONE_ICON_HEIGHT],
+    iconAnchor: [DRONE_ICON_CENTER_X, DRONE_ICON_CENTER_Y],
 });
 
 const roiIcon = new L.DivIcon({
@@ -167,29 +169,6 @@ function MapInteractionHandler({ onClickRef }) {
     return null;
 }
 
-function ZoomControls() {
-    const map = useMap();
-
-    return (
-        <div className="absolute right-6 top-1/2 z-30 flex -translate-y-1/2 transform flex-col gap-2">
-            <button
-                type="button"
-                onClick={() => map.zoomIn()}
-                className="h-10 w-10 rounded-md border border-[#2d3748] bg-[#1a202c]/90 text-xl font-bold text-white transition-colors hover:bg-[#2d3748]"
-            >
-                +
-            </button>
-            <button
-                type="button"
-                onClick={() => map.zoomOut()}
-                className="h-10 w-10 rounded-md border border-[#2d3748] bg-[#1a202c]/90 text-xl font-bold text-white transition-colors hover:bg-[#2d3748]"
-            >
-                -
-            </button>
-        </div>
-    );
-}
-
 function CoordinateField({ label, position, accentClass, onClear, emptyLabel }) {
     return (
         <div className="flex flex-col">
@@ -230,6 +209,7 @@ export default function QuickLaunchDialogForm({
     missionType,
     selectedDrone,
     telemetry,
+    telemetryStatus = null,
     onClose,
     onLaunch,
     isLaunching = false,
@@ -250,6 +230,7 @@ export default function QuickLaunchDialogForm({
     const spiralCenterRef = useRef(null);
     const spiralPhaseRef = useRef(spiralPhase);
     const mapInteractionRef = useRef(null);
+    const mapRef = useRef(null);
 
     const isLaunch = missionType === 'Launch';
     const isROI = missionType === 'ROI';
@@ -330,20 +311,30 @@ export default function QuickLaunchDialogForm({
         };
     }, [isLaunch, isROI, isSpiral]);
 
-    if (!isOpen) {
-        return null;
-    }
-
     const defaultCenter = [-6.2, 106.816666];
     const dockPosition = toLatLng(selectedDrone?.home_latitude, selectedDrone?.home_longitude);
-    const dronePosition = toLatLng(telemetry?.location?.latitude, telemetry?.location?.longitude) || dockPosition;
-    const center = dronePosition || dockPosition || defaultCenter;
-    const initialZoom = dronePosition ? 16 : 13;
+    const telemetryPosition = toLatLng(telemetry?.location?.latitude, telemetry?.location?.longitude);
+    const isLocationFresh = Boolean(telemetryStatus?.metrics?.location?.isFresh);
+    const dronePosition = isLocationFresh
+        ? telemetryPosition
+        : (telemetryPosition || dockPosition);
+    const droneYaw = Number.isFinite(Number(telemetry?.attitude?.yaw_deg))
+        ? Number(telemetry.attitude.yaw_deg)
+        : Number(telemetry?.location?.heading ?? 0);
+    const center = dockPosition || defaultCenter;
+    const initialZoom = dockPosition ? 16 : 13;
     const parsedFenceRadius = Number(selectedDrone?.max_range_meter);
     const fenceRadius = Number.isFinite(parsedFenceRadius) && parsedFenceRadius > 0 ? parsedFenceRadius : null;
     const launchWaypoint = dockPosition
         ? { lat: dockPosition[0], lng: dockPosition[1] }
         : null;
+    const spiralPathPositions = spiralWaypoints.length > 0
+        ? [
+            ...(launchWaypoint ? [[launchWaypoint.lat, launchWaypoint.lng]] : []),
+            ...spiralWaypoints.map((waypoint) => [waypoint.lat, waypoint.lng]),
+            ...(launchWaypoint ? [[launchWaypoint.lat, launchWaypoint.lng]] : []),
+        ]
+        : [];
 
     const isSpiralOutOfBounds = (() => {
         if (!spiralCenter || !dockPosition || fenceRadius == null) {
@@ -368,10 +359,19 @@ export default function QuickLaunchDialogForm({
     })();
 
     const displayRadius = spiralPhase === 'settingRadius' ? previewRadius : spiralRadiusMeters;
-    const waypointPositions = spiralWaypoints.length > 0
-        ? [...spiralWaypoints.map((waypoint) => [waypoint.lat, waypoint.lng]), [spiralWaypoints[0].lat, spiralWaypoints[0].lng]]
-        : [];
     const dialogTitle = isLaunch ? 'Configure Takeoff' : 'Choose a location';
+
+    useEffect(() => {
+        if (!isOpen || !mapRef.current) {
+            return;
+        }
+
+        mapRef.current.setView(center, initialZoom, { animate: true });
+    }, [isOpen, initialZoom, center[0], center[1]]);
+
+    if (!isOpen) {
+        return null;
+    }
 
     const getMapInstruction = () => {
         if (isLaunch) {
@@ -514,14 +514,18 @@ export default function QuickLaunchDialogForm({
                             <MapContainer
                                 center={center}
                                 zoom={initialZoom}
+                                ref={mapRef}
                                 style={{ height: '100%', width: '100%' }}
                                 attributionControl={false}
                                 zoomControl={false}
                                 scrollWheelZoom
+                                minZoom={3}
+                                maxZoom={18}
                             >
                                 <TileLayer
                                     url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                                     attribution='Tiles &copy; Esri'
+                                    maxNativeZoom={19}
                                 />
                                 <MapInteractionHandler onClickRef={mapInteractionRef} />
                                 {dockPosition && fenceRadius != null ? (
@@ -531,7 +535,7 @@ export default function QuickLaunchDialogForm({
                                     <Marker position={dockPosition} icon={dockIcon} />
                                 ) : null}
                                 {dronePosition ? (
-                                    <Marker position={dronePosition} icon={droneIcon} />
+                                    <Marker position={dronePosition} icon={createDroneIcon(droneYaw)} zIndexOffset={1000} />
                                 ) : null}
 
                                 {isROI && roiPosition ? (
@@ -572,7 +576,7 @@ export default function QuickLaunchDialogForm({
                                 {isSpiral && spiralWaypoints.length > 0 ? (
                                     <>
                                         <Polyline
-                                            positions={waypointPositions}
+                                            positions={spiralPathPositions}
                                             pathOptions={{ color: '#682F2F', weight: 2, dashArray: '4, 6' }}
                                         />
                                         {spiralWaypoints.map((waypoint, index) => (
@@ -585,8 +589,8 @@ export default function QuickLaunchDialogForm({
                                     </>
                                 ) : null}
 
-                                <ZoomControls />
                             </MapContainer>
+
                         </div>
 
                         <div className="pointer-events-none absolute left-0 right-0 top-4 text-center text-[13px] tracking-wide text-gray-200">

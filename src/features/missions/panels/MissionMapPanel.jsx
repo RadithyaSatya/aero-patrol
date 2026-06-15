@@ -1,8 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Circle, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import droneSingleIconImage from '../../../assets/images/icon_drone_single.svg';
 import useWeatherForecast from '../../../shared/hooks/useWeatherForecast';
 import {
     formatHumidity,
@@ -32,17 +31,20 @@ const dockIcon = new L.DivIcon({
     iconAnchor: [12, 12]
 });
 
-const DRONE_ICON_SIZE = 28;
+const DRONE_ICON_WIDTH = 68;
+const DRONE_ICON_HEIGHT = 96;
+const DRONE_ICON_CENTER_X = 34;
+const DRONE_ICON_CENTER_Y = 74;
 
-const droneIcon = new L.DivIcon({
+const createDroneIcon = (heading) => new L.DivIcon({
     className: 'custom-drone-icon',
     html: `
-        <div style="width:${DRONE_ICON_SIZE}px; height:${DRONE_ICON_SIZE}px; display:flex; align-items:center; justify-content:center;">
-            <img src="${droneSingleIconImage}" alt="Drone" style="width:${DRONE_ICON_SIZE}px; height:${DRONE_ICON_SIZE}px; display:block;" />
+        <div style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:flex; align-items:center; justify-content:center; transform: rotate(${heading || 0}deg); transform-origin: ${DRONE_ICON_CENTER_X}px ${DRONE_ICON_CENTER_Y}px; transition: transform 0.3s ease;">
+            <img src="/src/assets/images/icon_drone.svg" alt="Drone" style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:block;" />
         </div>
     `,
-    iconSize: [DRONE_ICON_SIZE, DRONE_ICON_SIZE],
-    iconAnchor: [DRONE_ICON_SIZE / 2, DRONE_ICON_SIZE / 2]
+    iconSize: [DRONE_ICON_WIDTH, DRONE_ICON_HEIGHT],
+    iconAnchor: [DRONE_ICON_CENTER_X, DRONE_ICON_CENTER_Y]
 });
 
 const createWaypointIcon = (number) => new L.DivIcon({
@@ -158,6 +160,7 @@ export default function MissionMapPanel({
     isViewMode = true,
     selectedDrone,
     telemetry = null,
+    telemetryStatus = null,
     missionRun,
     missionDetail,
     isMissionDetailLoading = false,
@@ -170,9 +173,16 @@ export default function MissionMapPanel({
     const homePosition = selectedDrone?.home_latitude != null && selectedDrone?.home_longitude != null
         ? { lat: Number(selectedDrone.home_latitude), lng: Number(selectedDrone.home_longitude) }
         : null;
-    const dronePosition = dockPosition;
-    const center = dronePosition || dockPosition || defaultCenter;
-    const initialZoom = dronePosition ? 16 : 13;
+    const telemetryPosition = toLatLng(telemetry?.location?.latitude, telemetry?.location?.longitude);
+    const isLocationFresh = Boolean(telemetryStatus?.metrics?.location?.isFresh);
+    const dronePosition = isLocationFresh
+        ? telemetryPosition
+        : (telemetryPosition || dockPosition);
+    const droneYaw = Number.isFinite(Number(telemetry?.attitude?.yaw_deg))
+        ? Number(telemetry.attitude.yaw_deg)
+        : Number(telemetry?.location?.heading ?? 0);
+    const center = dockPosition || defaultCenter;
+    const initialZoom = dockPosition ? 16 : 13;
     const parsedMaxRange = Number(selectedDrone?.max_range_meter);
     const maxRange = Number.isFinite(parsedMaxRange) && parsedMaxRange > 0 ? parsedMaxRange : null;
     const activeWaypoints = isViewMode
@@ -191,7 +201,7 @@ export default function MissionMapPanel({
         { label: 'Waypoints', value: `${activeWaypoints.length}` },
     ];
 
-    const rtlAnchorPosition = dronePosition || dockPosition;
+    const rtlAnchorPosition = dockPosition;
     const linePositions = activeWaypoints
         .map((wp) => toLatLng(wp.latitude ?? wp.lat, wp.longitude ?? wp.lng))
         .filter(Boolean);
@@ -240,6 +250,18 @@ export default function MissionMapPanel({
         mapRef.current?.zoomOut();
     };
 
+    useEffect(() => {
+        if (!mapRef.current) {
+            return;
+        }
+
+        mapRef.current.setView(center, initialZoom, { animate: true });
+    }, [
+        initialZoom,
+        center[0],
+        center[1],
+    ]);
+
     return (
         <div className="relative w-full h-full bg-[#181d25]">
             <MapContainer
@@ -259,8 +281,8 @@ export default function MissionMapPanel({
 
                 <MapClickHandler onAddWaypoint={onAddWaypoint} />
 
-                {dronePosition && maxRange != null ? (
-                    <Circle center={dronePosition} radius={maxRange} pathOptions={geofencePathOptions} />
+                {dockPosition && maxRange != null ? (
+                    <Circle center={dockPosition} radius={maxRange} pathOptions={geofencePathOptions} />
                 ) : null}
 
                 {allLines.length > 1 ? (
@@ -272,7 +294,7 @@ export default function MissionMapPanel({
                 )}
 
                 {dronePosition && (
-                    <Marker position={dronePosition} icon={droneIcon} zIndexOffset={1000} />
+                    <Marker position={dronePosition} icon={createDroneIcon(droneYaw)} zIndexOffset={1000} />
                 )}
 
                 {activeWaypoints.map((wp, index) => (

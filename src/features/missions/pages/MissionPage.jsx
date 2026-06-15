@@ -45,8 +45,9 @@ export default function MissionPage() {
     }, []);
 
     const uavIds = selectedDrone?.id ? [selectedDrone.id] : [];
-    const { telemetry } = useTelemetry(uavIds);
+    const { telemetry, telemetryStatus } = useTelemetry(uavIds);
     const selectedTelemetry = selectedDrone ? telemetry[selectedDrone.id] : null;
+    const selectedTelemetryStatus = selectedDrone ? telemetryStatus[selectedDrone.id] : null;
 
     useEffect(() => {
         let isCancelled = false;
@@ -234,6 +235,7 @@ export default function MissionPage() {
                             isViewMode={!isAddingMission}
                             selectedDrone={selectedDrone}
                             telemetry={selectedTelemetry}
+                            telemetryStatus={selectedTelemetryStatus}
                             missionRun={selectedMissionRun}
                             missionDetail={selectedMissionDetail}
                             isMissionDetailLoading={isMissionDetailLoading}

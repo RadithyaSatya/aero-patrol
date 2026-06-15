@@ -93,6 +93,16 @@ const normalizeOptionalNonNegativeInteger = (value) => {
     return Math.trunc(numericValue);
 };
 
+const normalizeWaypointAngle = (value, fallbackValue = 0) => {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+        return fallbackValue;
+    }
+
+    return numericValue;
+};
+
 const collectUniqueTimes = (...groups) => {
     const uniqueTimes = [];
 
@@ -259,6 +269,7 @@ const buildMissionPayload = ({
             const latitude = Number(waypoint.lat);
             const longitude = Number(waypoint.lng);
             const altitude = Number(waypoint.altitude);
+            const cameraTilt = normalizeWaypointAngle(waypoint.cameraTilt, 0);
             const isTakePicture = waypoint.action === 'take_picture';
 
             if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
@@ -270,6 +281,8 @@ const buildMissionPayload = ({
                 latitude,
                 longitude,
                 altitude: Number.isFinite(altitude) ? altitude : 25,
+                camera_tilt: cameraTilt,
+                camera_yaw: 0,
                 action: mapWaypointActionForApi(waypoint.action),
                 action_duration: isTakePicture
                     ? normalizeNonNegativeInteger(waypoint.action_duration, 0)

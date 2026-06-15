@@ -128,15 +128,6 @@ const normalizeTrackResponse = (response) => {
         ? dedupeTrackPoints(response.points.map(normalizeTrackPoint).filter(Boolean))
         : [];
 
-    if (historyId == null) {
-        return {
-            ...EMPTY_ACTIVE_TRACK,
-            missionId,
-            startedAt,
-            lastRecordedAt,
-        };
-    }
-
     return {
         historyId,
         missionId,
@@ -147,7 +138,14 @@ const normalizeTrackResponse = (response) => {
 };
 
 const mergeTrackState = (currentTrack, nextTrack) => {
-    if (!nextTrack || nextTrack.historyId == null) {
+    if (!nextTrack) {
+        return { ...EMPTY_ACTIVE_TRACK };
+    }
+
+    if (
+        nextTrack.historyId == null &&
+        (!Array.isArray(nextTrack.points) || nextTrack.points.length === 0)
+    ) {
         return { ...EMPTY_ACTIVE_TRACK };
     }
 
@@ -184,6 +182,7 @@ export default function DashboardPage() {
     const [isDroneLoading, setIsDroneLoading] = useState(true);
     const [droneError, setDroneError] = useState('');
     const trackRequestVersionRef = useRef(0);
+    const activeMissionKeyRef = useRef('');
 
     useEffect(() => {
         const fetchDrone = async () => {
@@ -216,8 +215,12 @@ export default function DashboardPage() {
     const droneStatus = selectedDrone?.status || {};
     const telemetryVehicleState = selectedTelemetry?.vehicle_state || {};
     const telemetryMissionEvent = selectedTelemetry?.mission_event || {};
+    const telemetryMissionStatus = selectedTelemetry?.mission_status || {};
     const isVehicleStateFresh = Boolean(selectedTelemetryStatus?.metrics?.vehicle_state?.isFresh);
     const telemetryHistoryId = telemetryMissionEvent.history_id ?? null;
+    const missionStatusHistoryId = telemetryMissionStatus.history_id ?? null;
+    const missionStatusMissionId = telemetryMissionStatus.mission_id ?? null;
+    const telemetryRuntimeStatus = telemetryMissionStatus.runtime_status ?? '';
     const isVehicleMissionActive = isVehicleStateFresh && typeof telemetryVehicleState.in_mission === 'boolean'
         ? telemetryVehicleState.in_mission
         : null;
@@ -226,15 +229,25 @@ export default function DashboardPage() {
         droneStatus.is_in_flight ??
         (telemetryVehicleState.armed && telemetryVehicleState.landed_state !== 'LANDED')
     );
+    const hasMissionRuntime = Boolean(
+        missionStatusHistoryId != null ||
+        missionStatusMissionId != null ||
+        telemetryHistoryId != null ||
+        telemetryRuntimeStatus
+    );
+    const canOpenStreamMode = telemetryRuntimeStatus
+        ? telemetryRuntimeStatus !== 'Waiting'
+        : (hasMissionRuntime || isDroneInMission);
     const selectedLocation = selectedTelemetry?.location || {};
     const selectedTrack = selectedDrone ? (droneTrailById[selectedDrone.id] || EMPTY_ACTIVE_TRACK) : EMPTY_ACTIVE_TRACK;
     const selectedTrail = selectedTrack.points.map((point) => [point.latitude, point.longitude]);
     const selectedDroneLabel = selectedDrone?.id ? `UAV #${selectedDrone.id}` : 'Selected UAV';
-    const streamStatusLabel = isDroneInMission
-        ? 'In Flight'
-        : droneStatus.is_docked
-            ? 'Docked'
-            : 'Standby';
+    const streamStatusLabel = telemetryRuntimeStatus
+        || (isDroneInMission
+            ? 'In Flight'
+            : droneStatus.is_docked
+                ? 'Docked'
+                : 'Standby');
 
     const refreshTrack = useCallback(async () => {
         if (!selectedDrone?.id) {
@@ -278,10 +291,59 @@ export default function DashboardPage() {
             return;
         }
 
-        if (telemetryHistoryId != null || isDroneInMission || selectedTrack.historyId != null) {
+        if (
+            telemetryHistoryId != null ||
+            missionStatusHistoryId != null ||
+            missionStatusMissionId != null ||
+            telemetryRuntimeStatus ||
+            isDroneInMission ||
+            selectedTrack.historyId != null
+        ) {
             refreshTrack();
         }
-    }, [refreshTrack, selectedDrone?.id, telemetryHistoryId, isDroneInMission, selectedTrack.historyId]);
+    }, [
+        refreshTrack,
+        selectedDrone?.id,
+        telemetryHistoryId,
+        missionStatusHistoryId,
+        missionStatusMissionId,
+        telemetryRuntimeStatus,
+        isDroneInMission,
+        selectedTrack.historyId
+    ]);
+
+    useEffect(() => {
+        if (!selectedDrone?.id) {
+            activeMissionKeyRef.current = '';
+            return;
+        }
+
+        const nextMissionKey = [
+            missionStatusMissionId ?? selectedTrack.missionId ?? 'none',
+            missionStatusHistoryId ?? telemetryHistoryId ?? selectedTrack.historyId ?? 'none',
+        ].join(':');
+
+        if (nextMissionKey === activeMissionKeyRef.current) {
+            return;
+        }
+
+        activeMissionKeyRef.current = nextMissionKey;
+
+        if (nextMissionKey === 'none:none') {
+            return;
+        }
+
+        refreshTrack();
+        setMissionListRefreshKey((current) => current + 1);
+    }, [
+        selectedDrone?.id,
+        missionStatusMissionId,
+        missionStatusHistoryId,
+        telemetryHistoryId,
+        selectedTrack.missionId,
+        selectedTrack.historyId,
+        refreshTrack,
+    ]);
 
     useEffect(() => {
         if (!selectedDrone?.id) {
@@ -350,13 +412,13 @@ export default function DashboardPage() {
     ]);
 
     useEffect(() => {
-        if (!isDroneInMission) {
+        if (!canOpenStreamMode) {
             setIsStreamMode(false);
         }
-    }, [isDroneInMission, selectedDrone?.id]);
+    }, [canOpenStreamMode, selectedDrone?.id]);
 
     const handleActionPanelClick = () => {
-        if (isDroneInMission) {
+        if (canOpenStreamMode) {
             setIsStreamMode((current) => !current);
             return;
         }
@@ -475,7 +537,7 @@ export default function DashboardPage() {
     const secondaryPanel = isMapPrimary
         ? <MainVideoFeedPanel compact />
         : <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} />;
-    const actionLabel = isDroneInMission ? 'Stream' : 'Quick Launch';
+    const actionLabel = canOpenStreamMode ? 'Stream' : 'Quick Launch';
 
     return (
         <div className="h-[calc(100vh-104px)] w-full overflow-hidden">
@@ -596,7 +658,7 @@ export default function DashboardPage() {
                                 <StreamButtonPanel
                                     label={actionLabel}
                                     onClick={handleActionPanelClick}
-                                    isActive={isDroneInMission}
+                                    isActive={canOpenStreamMode}
                                 />
                             </div>
                         </div>
@@ -624,6 +686,7 @@ export default function DashboardPage() {
                 missionType={selectedLaunchType}
                 selectedDrone={selectedDrone}
                 telemetry={selectedTelemetry}
+                telemetryStatus={selectedTelemetryStatus}
                 onClose={handleQuickLaunchBack}
                 onLaunch={handleQuickLaunchLaunch}
                 isLaunching={isCreatingQuickLaunch}

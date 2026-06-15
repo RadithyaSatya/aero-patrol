@@ -13,7 +13,7 @@ export const TELEMETRY_STALE_MS = 10000;
  *   "type": "publish",
  *   "uav_id": 2,
  *   "kind": "telemetry",
- *   "metric": "location" | "battery" | "vehicle_state" | "gps" | "gps2" | "attitude" | "link" | "mission_progress" | "mission_event",
+ *   "metric": "location" | "battery" | "vehicle_state" | "gps" | "gps2" | "attitude" | "link" | "mission_progress" | "mission_event" | "mission_status",
  *   "payload": { ... }
  * }
  *
@@ -28,7 +28,8 @@ export const TELEMETRY_STALE_MS = 10000;
  *     battery: { percent, voltage, current, power },
  *     mission_progress: { current_waypoint },
  *     link: { rssi, source },
- *     mission_event: { history_id, event, message }
+ *     mission_event: { history_id, event, message },
+ *     mission_status: { history_id, mission_id, runtime_status, mission_ready, schedule_time, updated_at }
  *   }
  * }
  *

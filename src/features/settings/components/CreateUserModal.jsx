@@ -154,6 +154,7 @@ export default function CreateUserModal({
                                 options={[
                                     { value: 'user', label: 'User' },
                                     { value: 'admin', label: 'Admin' },
+                                    { value: 'viewer', label: 'Viewer' },
                                 ]}
                                 required
                             />
