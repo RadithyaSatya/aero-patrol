@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 
-const modalStroke = '#FD575780';
-const modalBackground = '#222222';
+const modalStroke = '#FF383C';
+const modalBackground = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
 const dividerGradient = 'linear-gradient(90deg, rgba(253,87,87,0.05) 0%, rgba(253,87,87,0.5) 50%, rgba(253,87,87,0.05) 100%)';
-const cardStroke = '#5E0A0A';
-const actionStroke = '#FB55557A';
+const cardStroke = '#7A0A0C';
+const actionStroke = '#ED0000';
 const closeBackground = '#571414';
 
 const formatDateTime = (isoString) => {
@@ -26,9 +26,9 @@ const formatDateTime = (isoString) => {
 
 function InfoCard({ label, value }) {
     return (
-        <div className="border bg-[#1C1C1C] px-4 py-4" style={{ borderColor: cardStroke }}>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-gray-400">{label}</div>
-            <div className="mt-2 text-[14px] text-white">{value}</div>
+        <div className="border bg-[#D2D2D2] px-4 py-4" style={{ borderColor: '#929292' }}>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-[#5F5F5F]">{label}</div>
+            <div className="mt-2 text-[14px] text-[#1F1F1F]">{value}</div>
         </div>
     );
 }
@@ -60,7 +60,7 @@ export default function UserPreviewModal({
         >
             <div
                 className="relative flex max-h-[calc(100vh-48px)] w-full max-w-[720px] flex-col overflow-hidden border shadow-[0_28px_70px_rgba(0,0,0,0.58)]"
-                style={{ borderColor: modalStroke, backgroundColor: modalBackground }}
+                style={{ borderColor: modalStroke, background: modalBackground }}
                 onClick={(event) => event.stopPropagation()}
             >
                 <div className="pointer-events-none absolute left-0 top-0 h-px w-full" style={{ backgroundImage: dividerGradient }} />
@@ -69,8 +69,7 @@ export default function UserPreviewModal({
                 <div className="custom-scrollbar overflow-y-auto px-6 py-6 sm:px-7 sm:py-7">
                     <div className="mb-6 flex items-start justify-between gap-4">
                         <div>
-                            <h2 className="text-[22px] font-medium uppercase tracking-[0.18em] text-white">User Preview</h2>
-                            <div className="mt-2 text-[12px] text-gray-400">Selected user #{user.id ?? '-'}</div>
+                            <h2 className="text-[22px] font-medium uppercase tracking-[0.18em] text-[#000000]">User Preview</h2>
                         </div>
 
                         <button
@@ -87,9 +86,9 @@ export default function UserPreviewModal({
                         </button>
                     </div>
 
-                    <div className="border bg-[#1C1C1C] px-4 py-4" style={{ borderColor: cardStroke }}>
-                        <div className="text-[22px] font-medium text-white">{user.username || '-'}</div>
-                        <div className="mt-2 inline-flex items-center border border-[#FC4747]/40 bg-[#2B1616] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-[#FFD0D0]">
+                    <div className="border bg-[rgba(197,197,197,0.5)] px-4 py-4" style={{ borderColor: cardStroke }}>
+                        <div className="text-[22px] font-medium text-[#1F1F1F]">{user.username || '-'}</div>
+                        <div className="mt-2 inline-flex items-center border border-[#929292] bg-[#D2D2D2] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-[#000000]">
                             {user.role || 'user'}
                         </div>
                     </div>

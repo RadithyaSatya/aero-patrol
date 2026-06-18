@@ -10,9 +10,9 @@ import {
 } from '../../../shared/utils/weather';
 
 const WeatherBadge = ({ label, value }) => (
-    <div className="flex items-center justify-between rounded-[12px] border border-[#393F44] bg-[#222425] px-2 py-1 text-[11px]">
-        <span className="text-gray-400">{label}</span>
-        <span className="font-tomorrow text-gray-100">{value}</span>
+    <div className="flex items-center justify-between rounded-[12px] border border-[#A8A8A8] bg-[#EBEBEB] px-2 py-1 text-[11px]">
+        <span className="text-[#2A2A2A]">{label}</span>
+        <span className="font-tomorrow text-[#1F1F1F]">{value}</span>
     </div>
 );
 
@@ -54,26 +54,36 @@ export default function WeatherPanel({ className = '', variant = 'default', sele
             : 'Live drone weather';
 
     return (
-        <div className={`font-tomorrow relative flex h-full w-full flex-col overflow-hidden bg-[#222222] shadow-lg select-none ${isStream ? 'border border-[#D53535]' : 'border-l border-[#5E0A0A]'} ${isStream ? '' : 'gap-2 p-5'} ${className}`}>
+        <div
+            className={`font-tomorrow relative flex h-full w-full flex-col overflow-hidden shadow-lg select-none ${isStream ? 'border border-[#FF383C]' : 'border-l border-[#5E0A0A]'} ${isStream ? '' : 'gap-2 p-5'} ${className}`}
+            style={isStream ? { background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' } : undefined}
+        >
             {!isStream && <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />}
             {!isStream && <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />}
 
-            <div className={`flex flex-1 flex-col border border-[#393F44] bg-[rgba(50,50,50,0.5)] ${isStream ? 'h-full p-4' : 'p-4'}`}>
+            <div
+                className={`flex flex-1 flex-col ${isStream ? 'h-full border border-[#A8A8A8] p-4' : 'border border-[#393F44] bg-[rgba(50,50,50,0.5)] p-4'}`}
+                style={isStream ? { background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' } : undefined}
+            >
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
-                        <span className="text-[28px] leading-none text-white">{currentPresentation.icon}</span>
+                        <img
+                            src={currentPresentation.icon}
+                            alt={currentPresentation.label}
+                            className="h-10 w-10 shrink-0 object-contain"
+                        />
                         <div className="min-w-0">
-                            <div className="truncate font-tomorrow text-xl font-bold tracking-wide text-white">
+                            <div className={`truncate font-tomorrow text-xl font-bold tracking-wide ${isStream ? 'text-[#1F1F1F]' : 'text-white'}`}>
                                 {isLoading ? 'Loading...' : weatherError ? 'Weather Error' : currentPresentation.label}
                             </div>
-                            <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-gray-400">
+                            <div className={`mt-1 text-[10px] uppercase tracking-[0.16em] ${isStream ? 'text-[#5F5F5F]' : 'text-gray-400'}`}>
                                 {headerLabel}
                             </div>
                         </div>
                     </div>
 
                     <div className="flex flex-col items-end">
-                        <span className="font-tomorrow text-2xl uppercase tracking-wider text-white">
+                        <span className={`font-tomorrow text-2xl uppercase tracking-wider ${isStream ? 'text-[#1F1F1F]' : 'text-white'}`}>
                             {isLoading ? '--' : formatTemperature(currentWeather.temperature_2m)}
                         </span>
                     </div>
@@ -88,11 +98,11 @@ export default function WeatherPanel({ className = '', variant = 'default', sele
 
                 <div className="mt-2 flex-1">
                     {weatherError ? (
-                        <div className="flex h-full items-center justify-center px-3 text-center text-[12px] text-red-300">
+                        <div className={`flex h-full items-center justify-center px-3 text-center text-[12px] ${isStream ? 'text-[#B42323]' : 'text-red-300'}`}>
                             {weatherError}
                         </div>
                     ) : hourlyForecast.length === 0 ? (
-                        <div className="flex h-full items-center justify-center px-3 text-center text-[12px] text-gray-400">
+                        <div className={`flex h-full items-center justify-center px-3 text-center text-[12px] ${isStream ? 'text-[#5F5F5F]' : 'text-gray-400'}`}>
                             {isLoading ? 'Loading forecast...' : 'No hourly forecast available.'}
                         </div>
                     ) : (
@@ -105,9 +115,13 @@ export default function WeatherPanel({ className = '', variant = 'default', sele
                                         key={hour.time}
                                         className="flex flex-col items-center justify-center px-1 py-1"
                                     >
-                                        <span className="text-[10px] tracking-wide text-gray-400">{formatHour(hour.time)}</span>
-                                        <span className="mt-1 text-[16px] text-white">{presentation.icon}</span>
-                                        <span className="mt-1 text-[11px] font-medium tracking-wide text-white">
+                                        <span className={`text-[10px] tracking-wide ${isStream ? 'text-[#5F5F5F]' : 'text-gray-400'}`}>{formatHour(hour.time)}</span>
+                                        <img
+                                            src={presentation.icon}
+                                            alt={presentation.label}
+                                            className="mt-1 h-7 w-7 object-contain"
+                                        />
+                                        <span className={`mt-1 text-[11px] font-medium tracking-wide ${isStream ? 'text-[#1F1F1F]' : 'text-white'}`}>
                                             {formatTemperature(hour.temperature)}
                                         </span>
                                     </div>

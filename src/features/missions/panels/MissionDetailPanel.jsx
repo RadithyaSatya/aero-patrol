@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const panelStroke = '#D53535';
+const panelStroke = '#FF383C';
 const dividerStroke = 'linear-gradient(90deg, rgba(163,88,88,0.12) 0%, #A35858 50%, rgba(163,88,88,0.12) 100%)';
-const fieldBorder = '#333333';
-const fieldBg = '#1C1C1C';
-const recurrentPanelBg = '#252525';
-const recurrentPanelBorder = '#3C3C3C';
+const panelBackground = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
+const fieldBorder = '#9F9F9F';
+const fieldBg = '#D2D2D2';
+const fieldOuterBorder = '#7F3434';
+const dropdownBg = '#B6B6B6';
+const recurrentPanelBg = 'rgba(197, 197, 197, 0.5)';
+const recurrentPanelBorder = '#7F3434';
 const inputShellClass = 'border px-4 flex items-center transition-colors focus-within:border-[#7F3434]';
 const inputShellTallClass = `${inputShellClass} h-[40px]`;
 const inputShellSmallClass = `${inputShellClass} h-[38px] px-3`;
@@ -61,7 +64,7 @@ const CalendarIcon = () => (
 
 function FieldLabel({ children, className = '' }) {
     return (
-        <label className={`pl-1 text-[11px] font-medium text-gray-400 shadow-black drop-shadow-sm ${className}`}>
+        <label className={`pl-1 text-[11px] font-medium text-[#000000] ${className}`}>
             {children}
         </label>
     );
@@ -71,14 +74,14 @@ function TextField({ label, type = 'text', value, onChange, placeholder, classNa
     return (
         <div className={`flex flex-col ${className}`}>
             <FieldLabel>{label}</FieldLabel>
-            <div className={inputShellTallClass} style={{ backgroundColor: fieldBg, borderColor: fieldBorder }}>
+            <div className={inputShellTallClass} style={{ backgroundColor: fieldBg, borderColor: fieldOuterBorder }}>
                 <input
                     type={type}
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
-                    className="w-full bg-transparent text-[13px] text-gray-100 outline-none"
-                    style={type === 'date' || type === 'time' ? { colorScheme: 'dark' } : undefined}
+                    className="w-full bg-transparent text-[13px] text-[#000000] outline-none"
+                    style={type === 'date' || type === 'time' ? { colorScheme: 'light' } : undefined}
                 />
             </div>
         </div>
@@ -89,19 +92,19 @@ function SelectField({ label, value, onChange, options, className = '' }) {
     return (
         <div className={`flex flex-col ${className}`}>
             <FieldLabel>{label}</FieldLabel>
-            <div className={`${inputShellTallClass} relative`} style={{ backgroundColor: fieldBg, borderColor: fieldBorder }}>
+            <div className={`${inputShellTallClass} relative`} style={{ backgroundColor: dropdownBg, borderColor: fieldOuterBorder }}>
                 <select
                     value={value}
                     onChange={onChange}
-                    className="w-full appearance-none cursor-pointer bg-transparent text-[13px] text-gray-100 outline-none"
+                    className="w-full appearance-none cursor-pointer bg-transparent text-[13px] text-[#000000] outline-none"
                 >
                     {options.map((option) => (
-                        <option key={option.value} value={option.value} className="bg-[#1C1C1C]">
+                        <option key={option.value} value={option.value} className="bg-[#B6B6B6] text-[#000000]">
                             {option.label}
                         </option>
                     ))}
                 </select>
-                <div className="pointer-events-none absolute right-4 text-gray-400">
+                <div className="pointer-events-none absolute right-4 text-[#565656]">
                     <ChevronDownIcon />
                 </div>
             </div>
@@ -121,15 +124,15 @@ function InlineDurationField({ value, onChange, suffix, placeholder }) {
     };
 
     return (
-        <div className="flex h-[40px] min-w-0 items-center gap-2 text-[11px] text-gray-300">
+        <div className="flex h-[40px] min-w-0 items-center gap-2 text-[11px] text-[#565656]">
             <span className="shrink whitespace-nowrap">Ends After</span>
             <input
                 type="number"
                 value={value}
                 onChange={handleChange}
                 placeholder={placeholder}
-                className="h-[28px] w-[56px] shrink-0 border bg-[#181818] px-2 text-center text-[12px] text-white outline-none"
-                style={{ borderColor: recurrentPanelBorder }}
+                className="h-[28px] w-[56px] shrink-0 border px-2 text-center text-[12px] text-[#000000] outline-none"
+                style={{ borderColor: fieldBorder, backgroundColor: fieldBg }}
             />
             <span className="shrink whitespace-nowrap">{suffix}</span>
         </div>
@@ -157,7 +160,7 @@ function TimeInputField({ value, onChange, placeholder = 'Start Time' }) {
             style={{ backgroundColor: fieldBg, borderColor: fieldBorder }}
             onClick={handleOpenPicker}
         >
-            <span className="shrink-0 text-gray-500">
+            <span className="shrink-0 text-[#565656]">
                 <ClockIcon />
             </span>
             <input
@@ -166,8 +169,8 @@ function TimeInputField({ value, onChange, placeholder = 'Start Time' }) {
                 value={value}
                 onChange={onChange}
                 placeholder={placeholder}
-                className="mission-time-input w-full min-w-0 bg-transparent text-[13px] text-gray-100 outline-none"
-                style={{ colorScheme: 'dark' }}
+                className="mission-time-input w-full min-w-0 bg-transparent text-[13px] text-[#000000] outline-none"
+                style={{ colorScheme: 'light' }}
                 onClick={(event) => {
                     event.stopPropagation();
                     handleOpenPicker();
@@ -198,7 +201,7 @@ function DateInputField({ value, onChange, placeholder = 'Select Date' }) {
             style={{ backgroundColor: fieldBg, borderColor: fieldBorder }}
             onClick={handleOpenPicker}
         >
-            <span className="shrink-0 text-gray-500">
+            <span className="shrink-0 text-[#565656]">
                 <CalendarIcon />
             </span>
             <input
@@ -207,8 +210,8 @@ function DateInputField({ value, onChange, placeholder = 'Select Date' }) {
                 value={value}
                 onChange={onChange}
                 placeholder={placeholder}
-                className="w-full min-w-0 bg-transparent text-[13px] text-gray-100 outline-none"
-                style={{ colorScheme: 'dark' }}
+                className="w-full min-w-0 bg-transparent text-[13px] text-[#000000] outline-none"
+                style={{ colorScheme: 'light' }}
                 onClick={(event) => {
                     event.stopPropagation();
                     handleOpenPicker();
@@ -223,8 +226,8 @@ function AddTimeButton({ onClick }) {
         <button
             type="button"
             onClick={onClick}
-            className="flex h-[38px] w-fit items-center gap-2 border px-4 text-[11px] font-medium uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#2A2A2A]"
-            style={{ borderColor: recurrentPanelBorder, backgroundColor: fieldBg }}
+            className="flex h-[38px] w-fit items-center gap-2 border px-4 text-[11px] font-medium uppercase tracking-[0.16em] text-[#000000] transition-colors hover:bg-[#A8A8A8]"
+            style={{ borderColor: fieldBorder, backgroundColor: dropdownBg }}
         >
             <PlusIcon />
             Add Time
@@ -256,14 +259,14 @@ function TimeListEditor({ times, onChange, label = 'Times' }) {
                                 type="time"
                                 value={time}
                                 onChange={(event) => updateTime(index, event.target.value)}
-                                className="w-full bg-transparent text-[12px] text-gray-100 outline-none"
-                                style={{ colorScheme: 'dark' }}
+                                className="w-full bg-transparent text-[12px] text-[#000000] outline-none"
+                                style={{ colorScheme: 'light' }}
                             />
                         </div>
                         <button
                             type="button"
                             onClick={() => removeTime(index)}
-                            className="flex h-[38px] w-[38px] items-center justify-center border text-gray-300 transition-colors hover:bg-[#2E1B1B] hover:text-white"
+                            className="flex h-[38px] w-[38px] items-center justify-center border text-[#565656] transition-colors hover:bg-[#D7B1B1] hover:text-[#000000]"
                             style={{ borderColor: fieldBorder, backgroundColor: fieldBg }}
                         >
                             <TrashIcon />
@@ -282,19 +285,19 @@ function RecurrentPanel({ children, recurrentType, onTypeChange }) {
             style={{ backgroundColor: recurrentPanelBg, borderColor: recurrentPanelBorder }}
         >
             <div className="mb-4 grid grid-cols-[1fr_148px] items-center gap-4">
-                <span className="pl-1 text-[11px] font-medium text-gray-400">Type</span>
+                <span className="pl-1 text-[11px] font-medium text-[#000000]">Type</span>
                 <div className="relative">
-                    <div className="relative flex h-[36px] items-center border px-4" style={{ backgroundColor: fieldBg, borderColor: fieldBorder }}>
+                    <div className="relative flex h-[36px] items-center border px-4" style={{ backgroundColor: dropdownBg, borderColor: fieldBorder }}>
                         <select
                             value={recurrentType}
                             onChange={onTypeChange}
-                            className="w-full appearance-none cursor-pointer bg-transparent text-[13px] text-gray-100 outline-none"
+                            className="w-full appearance-none cursor-pointer bg-transparent text-[13px] text-[#000000] outline-none"
                         >
-                            <option value="daily" className="bg-[#1C1C1C]">Daily</option>
-                            <option value="weekly" className="bg-[#1C1C1C]">Weekly</option>
-                            <option value="monthly" className="bg-[#1C1C1C]">Monthly</option>
+                            <option value="daily" className="bg-[#B6B6B6] text-[#000000]">Daily</option>
+                            <option value="weekly" className="bg-[#B6B6B6] text-[#000000]">Weekly</option>
+                            <option value="monthly" className="bg-[#B6B6B6] text-[#000000]">Monthly</option>
                         </select>
-                        <div className="pointer-events-none absolute right-4 text-gray-400">
+                        <div className="pointer-events-none absolute right-4 text-[#565656]">
                             <ChevronDownIcon />
                         </div>
                     </div>
@@ -400,23 +403,14 @@ export default function MissionDetailPanel({
 
     return (
         <div
-            className="font-tomorrow relative flex h-full w-full flex-col overflow-hidden border bg-[#222222] p-5 shadow-lg select-none"
-            style={{ borderColor: panelStroke }}
+            className="font-tomorrow relative flex h-full w-full flex-col overflow-hidden border p-5 shadow-lg select-none"
+            style={{ borderColor: panelStroke, background: panelBackground }}
         >
             <div className="mb-4 flex shrink-0 items-start justify-between">
                 <div>
-                    <h2 className="text-[24px] font-medium tracking-wide text-white">Create Mission</h2>
-                    <p className="mt-[2px] text-[13px] text-gray-400">{waypointsCount} Pinpoint</p>
+                    <h2 className="text-[24px] font-medium tracking-wide text-[#000000]">Create Mission</h2>
+                    <p className="mt-[2px] text-[13px] text-[#565656]">{waypointsCount} Pinpoint</p>
                 </div>
-                <button
-                    type="button"
-                    onClick={onClearWaypoints}
-                    className="flex items-center border bg-[#7F3434] px-[18px] py-[10px] text-[13px] font-bold text-white shadow-md transition-colors hover:bg-[#914040] active:scale-[0.98]"
-                    style={{ borderColor: panelStroke }}
-                >
-                    <CloseIcon />
-                    Clear Mission
-                </button>
             </div>
 
             <div className="mb-6 h-px w-full shrink-0 bg-no-repeat" style={{ background: dividerStroke }} />
@@ -496,7 +490,7 @@ export default function MissionDetailPanel({
                         {recurrentType === 'weekly' ? (
                             <div className="flex flex-col gap-5">
                                 <div className="flex flex-col gap-2">
-                                    <div className="grid grid-cols-7 overflow-hidden border-[1.5px]" style={{ borderColor: '#333333' }}>
+                                    <div className="grid grid-cols-7 overflow-hidden border-[1.5px]" style={{ borderColor: fieldBorder }}>
                                         {weekDays.map((day, index) => {
                                             const isSelected = selectedWeekDays.includes(index);
 
@@ -507,11 +501,11 @@ export default function MissionDetailPanel({
                                                     onClick={() => toggleWeekDay(index)}
                                                     className={`h-[30px] border-r-[1.5px] px-1 text-[10px] font-medium tracking-[0.12em] transition-colors ${
                                                         isSelected
-                                                            ? 'border-[#7F3434] bg-[#7F3434] text-white'
-                                                            : 'text-gray-300 hover:bg-[#2D2D2D]'
+                                                            ? 'border-[#9F9F9F] bg-[#7F3434] text-white'
+                                                            : 'text-[#000000] hover:bg-[#C8C8C8]'
                                                     }`}
                                                     style={{
-                                                        borderColor: index === weekDays.length - 1 ? 'transparent' : '#333333',
+                                                        borderColor: index === weekDays.length - 1 ? 'transparent' : fieldBorder,
                                                         backgroundColor: isSelected ? '#7F3434' : fieldBg
                                                     }}
                                                 >
@@ -552,9 +546,9 @@ export default function MissionDetailPanel({
                             <div className="flex flex-col gap-5">
                                 <div
                                     className="flex flex-col border p-3"
-                                    style={{ backgroundColor: '#222222', borderColor: '#333333' }}
+                                    style={{ backgroundColor: recurrentPanelBg, borderColor: fieldBorder }}
                                 >
-                                    <span className="mb-4 mt-2 text-center text-[13px] font-medium uppercase tracking-[0.16em] text-white">Select Date</span>
+                                    <span className="mb-4 mt-2 text-center text-[13px] font-medium uppercase tracking-[0.16em] text-[#000000]">Select Date</span>
                                     <div className="grid grid-cols-7 gap-2">
                                         {monthDates.map((date) => {
                                             const isSelected = selectedMonthDates.includes(date);
@@ -567,7 +561,7 @@ export default function MissionDetailPanel({
                                                     className={`aspect-square w-full text-[11px] font-medium transition-colors ${
                                                         isSelected
                                                             ? 'rounded bg-[#ED2F2F] text-white'
-                                                            : 'text-gray-300 hover:text-white'
+                                                            : 'text-[#000000] hover:bg-[#D2D2D2]'
                                                     }`}
                                                 >
                                                     {date}
@@ -578,7 +572,7 @@ export default function MissionDetailPanel({
                                     <button
                                         type="button"
                                         onClick={() => setSelectedMonthDates([])}
-                                        className="mt-4 text-center text-[11px] font-medium uppercase tracking-[0.16em] text-white transition-opacity hover:opacity-80"
+                                        className="mt-4 text-center text-[11px] font-medium uppercase tracking-[0.16em] text-[#7F3434] transition-opacity hover:opacity-80"
                                     >
                                         Clear
                                     </button>

@@ -1,15 +1,15 @@
 import React, { useEffect } from 'react';
 
-const modalStroke = '#FD575780';
-const actionStroke = '#FB55557A';
-const modalBackground = '#222222';
+const modalStroke = '#FF383C';
+const actionStroke = '#ED0000';
+const modalBackground = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
 const cancelBackground = '#571414';
 const saveBackground = 'linear-gradient(135deg, #242424 0%, #343434 100%)';
 const dividerGradient = 'linear-gradient(90deg, rgba(253,87,87,0.05) 0%, rgba(253,87,87,0.5) 50%, rgba(253,87,87,0.05) 100%)';
 
 function InputLabel({ children, required = false }) {
     return (
-        <label className="mb-2 block text-[11px] font-medium uppercase tracking-[0.16em] text-[#F2D6D6]">
+        <label className="mb-2 block text-[11px] font-medium uppercase tracking-[0.16em] text-[#000000]">
             {children}
             {required ? <span className="ml-1 text-[#FD5757]">*</span> : null}
         </label>
@@ -35,8 +35,8 @@ function TextInput({
                 value={value}
                 onChange={onChange}
                 placeholder={placeholder}
-                className="h-[44px] w-full border bg-[#1B1B1B] px-4 py-2 text-[13px] text-white outline-none transition-colors placeholder:text-[#7F7F7F] focus:border-[#FD5757]"
-                style={{ borderColor: modalStroke, ...inputStyle }}
+                className="h-[44px] w-full border bg-[#D2D2D2] px-4 py-2 text-[13px] text-[#000000] outline-none transition-colors placeholder:text-[#565656] focus:border-[#929292]"
+                style={{ borderColor: '#929292', ...inputStyle }}
             />
         </div>
     );
@@ -58,17 +58,17 @@ function SelectInput({
                     name={name}
                     value={value}
                     onChange={onChange}
-                    className="h-[44px] w-full appearance-none border bg-[#1B1B1B] px-4 py-2 pr-10 text-[13px] text-white outline-none transition-colors focus:border-[#FD5757]"
-                    style={{ borderColor: modalStroke }}
+                    className="h-[44px] w-full appearance-none border bg-[#D2D2D2] px-4 py-2 pr-10 text-[13px] text-[#000000] outline-none transition-colors focus:border-[#929292]"
+                    style={{ borderColor: '#929292' }}
                 >
                     {options.map((option) => (
-                        <option key={option.value} value={option.value} className="bg-[#1B1B1B]">
+                        <option key={option.value} value={option.value} className="bg-[#D2D2D2] text-[#000000]">
                             {option.label}
                         </option>
                     ))}
                 </select>
                 <svg
-                    className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B7B7B7]"
+                    className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#565656]"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -116,7 +116,7 @@ export default function CreateUserModal({
         >
             <div
                 className="relative flex max-h-[calc(100vh-48px)] w-full max-w-[860px] flex-col overflow-hidden border shadow-[0_28px_70px_rgba(0,0,0,0.58)]"
-                style={{ borderColor: modalStroke, backgroundColor: modalBackground }}
+                style={{ borderColor: modalStroke, background: modalBackground }}
                 onClick={(event) => event.stopPropagation()}
             >
                 <div className="pointer-events-none absolute left-0 top-0 h-px w-full" style={{ backgroundImage: dividerGradient }} />
@@ -124,13 +124,13 @@ export default function CreateUserModal({
 
                 <div className="custom-scrollbar overflow-y-auto px-6 py-6 sm:px-7 sm:py-7">
                     <div className="mb-6">
-                        <h2 className="text-[22px] font-medium uppercase tracking-[0.18em] text-white">Create User</h2>
+                        <h2 className="text-[22px] font-medium uppercase tracking-[0.18em] text-[#000000]">Create User</h2>
                     </div>
 
                     {errorMsg ? (
                         <div
-                            className="mb-5 border px-4 py-3 text-[12px] text-[#FFD0D0]"
-                            style={{ borderColor: actionStroke, backgroundColor: 'rgba(87, 20, 20, 0.28)' }}
+                            className="mb-5 border px-4 py-3 text-[12px] text-[#B42323]"
+                            style={{ borderColor: '#7F3434', backgroundColor: '#EBDDDD' }}
                         >
                             {errorMsg}
                         </div>
@@ -175,7 +175,7 @@ export default function CreateUserModal({
                                 type="button"
                                 onClick={onClose}
                                 disabled={isSubmitting}
-                                className="h-[46px] min-w-[140px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="h-[46px] min-w-[140px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-[#FFFFFF] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                                 style={{ borderColor: actionStroke, backgroundColor: cancelBackground }}
                             >
                                 Cancel
@@ -183,7 +183,7 @@ export default function CreateUserModal({
                             <button
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="h-[46px] min-w-[160px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="h-[46px] min-w-[160px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-[#FFFFFF] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                                 style={{ borderColor: actionStroke, background: saveBackground }}
                             >
                                 {isSubmitting ? 'Saving...' : 'Save'}

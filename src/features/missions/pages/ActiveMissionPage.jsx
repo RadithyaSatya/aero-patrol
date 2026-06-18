@@ -2,6 +2,7 @@ import React from 'react';
 import MainVideoFeedPanel from '../../dashboard/panels/MainVideoFeedPanel';
 import MapViewPanel from '../../dashboard/panels/MapViewPanel';
 import dummyDockingCamImage from '../../../assets/images/image_dummy_docking_cam.png';
+import abortMissionButton from '../../../assets/btn_abort_mission.png';
 
 // Mock components for the right sidebar and controls
 const DockCamPanel = () => (
@@ -138,7 +139,7 @@ export default function ActiveMissionPage() {
 
                             {/* Abort Mission */}
                             <button className="w-full py-3.5 hover:from-red-500 hover:to-red-700 tracking-[0.05em] text-[14px] rounded-[10px] transition-all active:scale-[0.98]">
-                                <img src="/src/assets/btn_abort_mission.png" alt="Abort Mission" />
+                                <img src={abortMissionButton} alt="Abort Mission" />
                             </button>
                         </div>
 

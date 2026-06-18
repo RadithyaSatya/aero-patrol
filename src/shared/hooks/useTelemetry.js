@@ -68,17 +68,14 @@ export default function useTelemetry(uavIds = []) {
                 uav_ids: uavIds
             });
             wsRef.current.send(subscribeMsg);
-            console.log('[Telemetry] Re-subscribed with UAV IDs:', uavIds);
         }
     }, [JSON.stringify(uavIds)]);
 
     const connect = useCallback(async () => {
         // Don't connect if no UAV IDs
         if (!uavIdsRef.current || uavIdsRef.current.length === 0) {
-            console.log('[Telemetry] Skipping connect — no UAV IDs yet');
             return;
         }
-        console.log('[Telemetry] Starting connect flow with UAV IDs:', uavIdsRef.current);
 
         // Close existing connection
         if (wsRef.current) {
@@ -91,27 +88,21 @@ export default function useTelemetry(uavIds = []) {
             setError(null);
 
             // 1. Get WebSocket token via POST
-            console.log('[Telemetry] Fetching WS token...');
             const tokenData = await authService.getWsToken();
-            console.log('[Telemetry] WS token response:', tokenData);
             const wsToken = tokenData.token || tokenData.ws_token;
 
             if (!wsToken) {
-                console.error('[Telemetry] No token found in response. Keys:', Object.keys(tokenData));
                 throw new Error('Invalid WebSocket token received');
             }
-            console.log('[Telemetry] Got WS token:', wsToken.substring(0, 20) + '...');
 
             // 2. Connect to WebSocket
             const wsUrl = `${WS_BASE_URL}/ws/telemetry?token=${wsToken}`;
-            console.log('[Telemetry] Connecting to:', wsUrl);
 
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
 
             ws.onopen = () => {
                 if (!isMounted.current) return;
-                console.log('[Telemetry] Connected');
                 setIsConnected(true);
                 setError(null);
                 reconnectAttempts.current = 0;
@@ -122,23 +113,19 @@ export default function useTelemetry(uavIds = []) {
                     uav_ids: uavIdsRef.current
                 });
                 ws.send(subscribeMsg);
-                console.log('[Telemetry] Subscribed to UAV IDs:', uavIdsRef.current);
             };
 
             ws.onmessage = (event) => {
                 if (!isMounted.current) return;
                 try {
                     const msg = JSON.parse(event.data);
-                    console.log('[Telemetry] Raw message:', msg);
 
                     // Handle messages with uav_id + metric (kind: telemetry)
                     if (!msg.uav_id || !msg.metric) {
-                        console.log('[Telemetry] Skipping message — uav_id:', msg.uav_id, 'metric:', msg.metric);
                         return;
                     }
 
                     const { uav_id, metric, payload } = msg;
-                    console.log(`[Telemetry] Updating uav_id=${uav_id} metric=${metric}`, payload);
 
                     setTelemetry(prev => ({
                         ...prev,
@@ -155,19 +142,17 @@ export default function useTelemetry(uavIds = []) {
                         },
                     }));
                 } catch (parseErr) {
-                    console.warn('[Telemetry] Failed to parse message:', event.data, parseErr);
+                    void parseErr;
                 }
             };
 
-            ws.onerror = (event) => {
-                console.error('[Telemetry] WebSocket error:', event);
+            ws.onerror = () => {
                 if (!isMounted.current) return;
                 setError('WebSocket connection error');
             };
 
             ws.onclose = (event) => {
                 if (!isMounted.current) return;
-                console.log('[Telemetry] Disconnected. Code:', event.code, 'Reason:', event.reason);
                 setIsConnected(false);
                 wsRef.current = null;
 
@@ -175,7 +160,6 @@ export default function useTelemetry(uavIds = []) {
                 if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
                     reconnectAttempts.current += 1;
                     const delay = RECONNECT_DELAY_MS * Math.min(reconnectAttempts.current, 5);
-                    console.log(`[Telemetry] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current}/${MAX_RECONNECT_ATTEMPTS})`);
                     reconnectTimeout.current = setTimeout(connect, delay);
                 } else {
                     setError('Max reconnection attempts reached');
@@ -183,7 +167,6 @@ export default function useTelemetry(uavIds = []) {
             };
 
         } catch (err) {
-            console.error('[Telemetry] Connection setup failed:', err);
             if (!isMounted.current) return;
             setError(err.message);
             setIsConnected(false);
@@ -199,12 +182,9 @@ export default function useTelemetry(uavIds = []) {
     // Connect/disconnect lifecycle
     useEffect(() => {
         isMounted.current = true;
-        console.log('[Telemetry] useEffect triggered — uavIds:', uavIds);
 
         if (uavIds && uavIds.length > 0) {
             connect();
-        } else {
-            console.log('[Telemetry] useEffect — uavIds empty, not connecting');
         }
 
         return () => {

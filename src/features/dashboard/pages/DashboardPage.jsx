@@ -15,7 +15,7 @@ import { buildMissionPayload } from '../../missions/utils/missionPayload';
 import MissionScheduleConflictModal from '../../missions/components/MissionScheduleConflictModal';
 import MissionRecentHistoryGuardModal from '../../missions/components/MissionRecentHistoryGuardModal';
 import useTelemetry from '../../../shared/hooks/useTelemetry';
-import cameraPanelBorder from '../../../assets/images/image_border_campanel_dashboard.png';
+import cameraPanelBorder from '../../../assets/images/image_border_campanel_dashboard_white.png';
 import switchButtonImage from '../../../assets/images/btn_switch.png';
 
 const EMPTY_ACTIVE_TRACK = Object.freeze({
@@ -241,6 +241,10 @@ export default function DashboardPage() {
     const selectedLocation = selectedTelemetry?.location || {};
     const selectedTrack = selectedDrone ? (droneTrailById[selectedDrone.id] || EMPTY_ACTIVE_TRACK) : EMPTY_ACTIVE_TRACK;
     const selectedTrail = selectedTrack.points.map((point) => [point.latitude, point.longitude]);
+    const lastTrackedPoint = selectedTrack.points[selectedTrack.points.length - 1] || null;
+    const fallbackMapPosition = lastTrackedPoint
+        ? [lastTrackedPoint.latitude, lastTrackedPoint.longitude]
+        : null;
     const selectedDroneLabel = selectedDrone?.id ? `UAV #${selectedDrone.id}` : 'Selected UAV';
     const streamStatusLabel = telemetryRuntimeStatus
         || (isDroneInMission
@@ -532,11 +536,11 @@ export default function DashboardPage() {
     };
 
     const primaryPanel = isMapPrimary
-        ? <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} />
-        : <MainVideoFeedPanel />;
+        ? <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} fallbackPosition={fallbackMapPosition} showCompass />
+        : <MainVideoFeedPanel showCompass />;
     const secondaryPanel = isMapPrimary
-        ? <MainVideoFeedPanel compact />
-        : <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} />;
+        ? <MainVideoFeedPanel compact lightShell />
+        : <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} fallbackPosition={fallbackMapPosition} lightShell />;
     const actionLabel = canOpenStreamMode ? 'Stream' : 'Quick Launch';
 
     return (
@@ -565,13 +569,10 @@ export default function DashboardPage() {
                                 <button
                                     type="button"
                                     onClick={() => setIsStreamMode(false)}
-                                    className="rounded-[12px] border border-[#374151] bg-black/55 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] text-gray-200 transition-colors hover:bg-black/70"
+                                    className="rounded-[10px] border border-[#929292] bg-[#D2D2D2] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[#000000] transition-colors hover:bg-[#C7C7C7]"
                                 >
                                     Overview
                                 </button>
-                                <span className="bg-black/55 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#FD5757]">
-                                    {selectedDroneLabel}
-                                </span>
                             </div>
                             <div className="absolute right-6 top-6 z-[500] rounded-[12px] border border-[#1ab394]/35 bg-black/55 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[#1ab394]">
                                 {streamStatusLabel}
@@ -612,13 +613,16 @@ export default function DashboardPage() {
                             />
                         </div>
 
-                        <div className={`relative aspect-square w-full shrink-0 overflow-hidden border-l border-[#5E0A0A] bg-[#222222] p-3 ${(isLaunchDialogOpen || isLaunchFormOpen) ? 'invisible' : ''}`}>
-                            <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
-                            <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
-                            <div className="relative h-full w-full overflow-hidden border-b border-[#5E0A0A] p-px">
-                                <div className="pointer-events-none absolute bottom-0 left-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
-                                <div className="pointer-events-none absolute bottom-0 right-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
-                                <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#ED0000]" />
+                        <div
+                            className={`relative aspect-square w-full shrink-0 overflow-hidden border-l border-[#FF383C] p-3 ${(isLaunchDialogOpen || isLaunchFormOpen) ? 'invisible' : ''}`}
+                            style={{ background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
+                        >
+                            <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#FF383C] via-[#FF383C]/45 to-transparent" />
+                            <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#FF383C] via-[#FF383C]/45 to-transparent" />
+                            <div className="relative h-full w-full overflow-hidden border-b border-[#FF383C] p-px">
+                                <div className="pointer-events-none absolute bottom-0 left-0 h-full w-px bg-gradient-to-t from-[#FF383C] via-[#FF383C]/45 to-transparent" />
+                                <div className="pointer-events-none absolute bottom-0 right-0 h-full w-px bg-gradient-to-t from-[#FF383C] via-[#FF383C]/45 to-transparent" />
+                                <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#FF383C]" />
                                 {secondaryPanel}
                                 <button
                                     type="button"

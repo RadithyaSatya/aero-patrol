@@ -1,40 +1,46 @@
+import clearSunnyIcon from '../../assets/images/ic_weather/clear_sunny.svg';
+import lightRainIcon from '../../assets/images/ic_weather/light_rain.svg';
+import partlyCloudyIcon from '../../assets/images/ic_weather/partly_cloudy.svg';
+import thunderstormIcon from '../../assets/images/ic_weather/thunderstorm.svg';
+
 export const WEATHER_CODE_MAP = {
-    0: { label: 'Clear', iconDay: '☀', iconNight: '☾' },
-    1: { label: 'Mostly Clear', iconDay: '🌤', iconNight: '☾' },
-    2: { label: 'Partly Cloudy', iconDay: '⛅', iconNight: '☁' },
-    3: { label: 'Cloudy', iconDay: '☁', iconNight: '☁' },
-    45: { label: 'Fog', iconDay: '🌫', iconNight: '🌫' },
-    48: { label: 'Fog', iconDay: '🌫', iconNight: '🌫' },
-    51: { label: 'Drizzle', iconDay: '🌦', iconNight: '🌧' },
-    53: { label: 'Drizzle', iconDay: '🌦', iconNight: '🌧' },
-    55: { label: 'Heavy Drizzle', iconDay: '🌧', iconNight: '🌧' },
-    56: { label: 'Freezing Drizzle', iconDay: '🌧', iconNight: '🌧' },
-    57: { label: 'Freezing Drizzle', iconDay: '🌧', iconNight: '🌧' },
-    61: { label: 'Rain', iconDay: '🌧', iconNight: '🌧' },
-    63: { label: 'Rain', iconDay: '🌧', iconNight: '🌧' },
-    65: { label: 'Heavy Rain', iconDay: '⛈', iconNight: '⛈' },
-    66: { label: 'Freezing Rain', iconDay: '🌧', iconNight: '🌧' },
-    67: { label: 'Freezing Rain', iconDay: '🌧', iconNight: '🌧' },
-    71: { label: 'Snow', iconDay: '🌨', iconNight: '🌨' },
-    73: { label: 'Snow', iconDay: '🌨', iconNight: '🌨' },
-    75: { label: 'Heavy Snow', iconDay: '❄', iconNight: '❄' },
-    77: { label: 'Snow Grains', iconDay: '🌨', iconNight: '🌨' },
-    80: { label: 'Rain Shower', iconDay: '🌦', iconNight: '🌧' },
-    81: { label: 'Rain Shower', iconDay: '🌦', iconNight: '🌧' },
-    82: { label: 'Heavy Shower', iconDay: '⛈', iconNight: '⛈' },
-    85: { label: 'Snow Shower', iconDay: '🌨', iconNight: '🌨' },
-    86: { label: 'Snow Shower', iconDay: '🌨', iconNight: '🌨' },
-    95: { label: 'Thunderstorm', iconDay: '⛈', iconNight: '⛈' },
-    96: { label: 'Storm Hail', iconDay: '⛈', iconNight: '⛈' },
-    99: { label: 'Storm Hail', iconDay: '⛈', iconNight: '⛈' },
+    0: { label: 'Clear', icon: clearSunnyIcon },
+    1: { label: 'Mostly Clear', icon: clearSunnyIcon },
+    2: { label: 'Partly Cloudy', icon: partlyCloudyIcon },
+    3: { label: 'Cloudy', icon: partlyCloudyIcon },
+    45: { label: 'Fog', icon: partlyCloudyIcon },
+    48: { label: 'Fog', icon: partlyCloudyIcon },
+    51: { label: 'Drizzle', icon: lightRainIcon },
+    53: { label: 'Drizzle', icon: lightRainIcon },
+    55: { label: 'Heavy Drizzle', icon: lightRainIcon },
+    56: { label: 'Freezing Drizzle', icon: lightRainIcon },
+    57: { label: 'Freezing Drizzle', icon: lightRainIcon },
+    61: { label: 'Rain', icon: lightRainIcon },
+    63: { label: 'Rain', icon: lightRainIcon },
+    65: { label: 'Heavy Rain', icon: thunderstormIcon },
+    66: { label: 'Freezing Rain', icon: lightRainIcon },
+    67: { label: 'Freezing Rain', icon: lightRainIcon },
+    71: { label: 'Snow', icon: lightRainIcon },
+    73: { label: 'Snow', icon: lightRainIcon },
+    75: { label: 'Heavy Snow', icon: thunderstormIcon },
+    77: { label: 'Snow Grains', icon: lightRainIcon },
+    80: { label: 'Rain Shower', icon: lightRainIcon },
+    81: { label: 'Rain Shower', icon: lightRainIcon },
+    82: { label: 'Heavy Shower', icon: thunderstormIcon },
+    85: { label: 'Snow Shower', icon: lightRainIcon },
+    86: { label: 'Snow Shower', icon: lightRainIcon },
+    95: { label: 'Thunderstorm', icon: thunderstormIcon },
+    96: { label: 'Storm Hail', icon: thunderstormIcon },
+    99: { label: 'Storm Hail', icon: thunderstormIcon },
 };
 
 export const getWeatherPresentation = (weatherCode, isDay) => {
-    const entry = WEATHER_CODE_MAP[weatherCode] || { label: 'Unknown', iconDay: '☁', iconNight: '☁' };
+    const entry = WEATHER_CODE_MAP[weatherCode] || { label: 'Unknown', icon: partlyCloudyIcon };
 
     return {
         label: entry.label,
-        icon: isDay === 0 ? entry.iconNight : entry.iconDay,
+        icon: entry.icon,
+        isNight: isDay === 0,
     };
 };
 

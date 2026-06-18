@@ -2,14 +2,15 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Circle, MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import filterHistoryIcon from '../../../assets/images/icon_filter_history.svg';
-import downloadHistoryIcon from '../../../assets/images/icon_white_download_history.svg';
+import filterHistoryIcon from '../../../assets/images/icon_filter_history_white.svg';
+import downloadHistoryIcon from '../../../assets/images/icon_white_download_history_white.svg';
+import droneIconImage from '../../../assets/images/icon_drone.svg';
 import mediaPreviewImage from '../../../assets/img_dummy_active.png';
 import { historyService, uavService } from '../../../services/api';
 
 const PAGE_LIMIT = 20;
-const panelStroke = '#FC4747';
-const tableStroke = '#5E0A0A';
+const panelStroke = '#FF383C';
+const panelBackground = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
 const overlayDividerStroke = 'linear-gradient(90deg, rgba(252,71,71,0.12) 0%, #FC4747 50%, rgba(252,71,71,0.12) 100%)';
 const geofencePathOptions = {
     color: '#E1BA95',
@@ -40,7 +41,7 @@ const droneIcon = new L.DivIcon({
     className: 'custom-drone-icon',
     html: `
         <div style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:flex; align-items:center; justify-content:center; transform-origin:${DRONE_ICON_CENTER_X}px ${DRONE_ICON_CENTER_Y}px;">
-            <img src="/src/assets/images/icon_drone.svg" alt="Drone" style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:block;" />
+            <img src="${droneIconImage}" alt="Drone" style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:block;" />
         </div>
     `,
     iconSize: [DRONE_ICON_WIDTH, DRONE_ICON_HEIGHT],
@@ -56,8 +57,8 @@ const createWaypointIcon = (number) => new L.DivIcon({
 
 const PanelShell = ({ children, className = '' }) => (
     <div
-        className={`font-tomorrow relative min-h-0 overflow-hidden border bg-[#222222] p-4 shadow-lg select-none ${className}`}
-        style={{ borderColor: panelStroke }}
+        className={`font-tomorrow relative min-h-0 overflow-hidden border p-4 shadow-lg select-none ${className}`}
+        style={{ borderColor: panelStroke, background: panelBackground }}
     >
         <div className="pointer-events-none absolute left-0 top-0 h-px w-full" style={{ backgroundImage: overlayDividerStroke }} />
         <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full" style={{ backgroundImage: overlayDividerStroke }} />
@@ -69,8 +70,8 @@ const PanelTitleBlock = ({ title, subtitle }) => (
     <div className="flex items-start gap-3">
         <span className="w-[5px] shrink-0 self-stretch bg-[#FC4747]" />
         <div className="min-w-0">
-            <p className="text-left text-[16px] font-medium tracking-wide text-white">{title}</p>
-            {subtitle ? <p className="mt-1 text-[11px] tracking-[0.08em] text-gray-400">{subtitle}</p> : null}
+            <p className="text-left text-[16px] font-medium tracking-wide text-[#1F1F1F]">{title}</p>
+            {subtitle ? <p className="mt-1 text-[11px] tracking-[0.08em] text-[#5F5F5F]">{subtitle}</p> : null}
         </div>
     </div>
 );
@@ -78,7 +79,7 @@ const PanelTitleBlock = ({ title, subtitle }) => (
 function HistoryTableState({ children, tone = 'default' }) {
     if (tone === 'error') {
         return (
-            <div className="flex h-full flex-col items-center justify-center px-3 py-4 text-center text-xs text-red-400">
+            <div className="flex h-full flex-col items-center justify-center px-3 py-4 text-center text-xs text-[#B42323]">
                 <div className="max-w-[340px] leading-6">{children}</div>
             </div>
         );
@@ -86,14 +87,14 @@ function HistoryTableState({ children, tone = 'default' }) {
 
     if (tone === 'empty') {
         return (
-            <div className="flex h-full items-center justify-center px-3 py-4 text-xs italic text-gray-400">
+            <div className="flex h-full items-center justify-center px-3 py-4 text-xs italic text-[#5F5F5F]">
                 {children}
             </div>
         );
     }
 
     return (
-        <div className="flex h-full items-center justify-center px-3 py-4 text-center text-xs text-gray-400">
+        <div className="flex h-full items-center justify-center px-3 py-4 text-center text-xs text-[#5F5F5F]">
             {children}
         </div>
     );
@@ -108,7 +109,7 @@ const DownloadCell = ({ title, subtitle, onClick, disabled = false }) => (
         }}
         disabled={disabled}
         className={`flex items-center gap-2 text-left transition-opacity ${
-            disabled ? 'cursor-not-allowed text-gray-500 opacity-60' : 'text-[#3B82F6] hover:opacity-80'
+            disabled ? 'cursor-not-allowed text-[#8C8C8C] opacity-60' : 'text-[#3B82F6] hover:opacity-80'
         }`}
     >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="h-4 w-4 shrink-0">
@@ -118,8 +119,8 @@ const DownloadCell = ({ title, subtitle, onClick, disabled = false }) => (
             />
         </svg>
         <div className="flex flex-col leading-tight">
-            <span className={`text-[11px] font-medium ${disabled ? 'text-gray-500' : 'text-[#3B82F6]'}`}>{title}</span>
-            <span className="mt-1 text-[10px] text-gray-400">{subtitle}</span>
+            <span className={`text-[11px] font-medium ${disabled ? 'text-[#8C8C8C]' : 'text-[#3B82F6]'}`}>{title}</span>
+            <span className="mt-1 text-[10px] text-[#5F5F5F]">{subtitle}</span>
         </div>
     </button>
 );
@@ -223,11 +224,11 @@ const PaginationBox = ({ active = false, disabled = false, children, onClick }) 
         onClick={onClick}
         disabled={disabled}
         className={`flex h-9 min-w-9 items-center justify-center border px-3 text-[12px] font-medium transition-colors ${
-            active ? 'text-[#FC4747]' : 'text-white'
-        } ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-[#383838]'}`}
+            active ? 'text-[#FFFFFF]' : 'text-[#1F1F1F]'
+        } ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-[#DCDCDC]'}`}
         style={{
-            backgroundColor: '#2F2F2F',
-            borderColor: active ? '#FC4747' : '#484848',
+            backgroundColor: active ? '#951616' : '#E3E3E3',
+            borderColor: active ? '#951616' : '#3B3B3B',
         }}
     >
         {children}
@@ -537,7 +538,7 @@ export default function HistoryPage() {
                     <div className="flex items-center gap-3">
                         <div className="relative">
                             <svg
-                                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#565656]"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
@@ -553,7 +554,7 @@ export default function HistoryPage() {
                                 value={missionNameInput}
                                 onChange={(event) => setMissionNameInput(event.target.value)}
                                 placeholder="Search mission name"
-                                className="h-[42px] w-[300px] border border-[#FC4747] bg-[#1C1C1C] pl-10 pr-4 text-[12px] text-white outline-none transition-colors placeholder:text-gray-500 focus:border-[#FC4747]"
+                                className="h-[42px] w-[300px] border border-[#FD5757] bg-[#EDEDED] pl-10 pr-4 text-[12px] text-[#000000] outline-none transition-colors placeholder:text-[#565656] focus:border-[#FD5757]"
                             />
                         </div>
 
@@ -561,7 +562,7 @@ export default function HistoryPage() {
                             <button
                                 type="button"
                                 onClick={() => setIsLimitMenuOpen((current) => !current)}
-                                className="flex h-[42px] w-[42px] items-center justify-center border border-[#FC4747] bg-[#1C1C1C] transition-colors hover:border-[#FC4747] hover:bg-[#262626]"
+                                className="flex h-[42px] w-[42px] items-center justify-center border border-[#FD5757] bg-[#EDEDED] transition-colors hover:bg-[#E3E3E3]"
                                 aria-label="Open page limit filter"
                                 aria-expanded={isLimitMenuOpen}
                             >
@@ -569,8 +570,8 @@ export default function HistoryPage() {
                             </button>
 
                             {isLimitMenuOpen ? (
-                                <div className="absolute left-0 top-[calc(100%+8px)] z-20 w-[180px] overflow-hidden border border-[#FC4747] bg-[#1C1C1C] shadow-lg">
-                                    <div className="border-b border-[#5E0A0A] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-gray-400">
+                                <div className="absolute left-0 top-[calc(100%+8px)] z-20 w-[180px] overflow-hidden border border-[#FF383C] bg-[#F5F5F5] shadow-lg">
+                                    <div className="border-b border-[#7A0A0C] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[#5F5F5F]">
                                         Limit per page
                                     </div>
                                     {PAGE_LIMIT_OPTIONS.map((option) => (
@@ -579,7 +580,7 @@ export default function HistoryPage() {
                                             type="button"
                                             onClick={() => handleSelectPageLimit(option)}
                                             className={`flex w-full items-center justify-between px-3 py-2 text-left text-[12px] transition-colors ${
-                                                pagination.limit === option ? 'bg-[#311818] text-white' : 'text-gray-300 hover:bg-[#262626]'
+                                                pagination.limit === option ? 'bg-[#F3D9D9] text-[#951616]' : 'text-[#1F1F1F] hover:bg-[#E9E9E9]'
                                             }`}
                                         >
                                             <span>{option} items</span>
@@ -593,7 +594,7 @@ export default function HistoryPage() {
 
                     <button
                         type="button"
-                        className="flex h-[42px] items-center gap-2 border border-[#FC4747] bg-[#222222] px-4 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2B2B2B]"
+                        className="flex h-[42px] items-center gap-2 border border-[#FD5757] bg-[#EDEDED] px-4 text-[11px] font-medium uppercase tracking-[0.18em] text-[#000000] transition-colors hover:bg-[#E3E3E3]"
                     >
                         <img src={downloadHistoryIcon} alt="" aria-hidden="true" className="h-4 w-4 object-contain" />
                         Export as CSV
@@ -603,7 +604,7 @@ export default function HistoryPage() {
                 <div className="h-px w-full" style={{ backgroundImage: overlayDividerStroke }} />
 
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                    <div className="grid grid-cols-[1.2fr_1fr_0.8fr_1.2fr_0.9fr_1.1fr_1.1fr] bg-[#5E0A0A] px-4 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-[#ffffff]">
+                    <div className="grid grid-cols-[1.2fr_1fr_0.8fr_1.2fr_0.9fr_1.1fr_1.1fr] border-t-[0.5px] border-b border-[#7A0A0C] bg-[#5E0A0A] px-4 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-[#ffffff]">
                         <div>Mission</div>
                         <div>Schedule</div>
                         <div>Pin Point</div>
@@ -628,7 +629,7 @@ export default function HistoryPage() {
                                 No mission history found for this filter.
                             </HistoryTableState>
                         ) : (
-                            historyItems.map((row, index) => (
+                            historyItems.map((row) => (
                                 <div
                                     key={row.id}
                                     role="button"
@@ -641,22 +642,18 @@ export default function HistoryPage() {
                                             setSelectedHistoryId(row.id);
                                         }
                                     }}
-                                    className={`relative grid grid-cols-[1.2fr_1fr_0.8fr_1.2fr_0.9fr_1.1fr_1.1fr] items-center gap-4 px-4 py-3 text-[11px] transition-colors ${
-                                        row.id === selectedHistoryId ? 'bg-[#311818]' : 'hover:bg-[#292929]'
-                                    } cursor-pointer focus:outline-none focus-visible:bg-[#311818]`}
+                                    className={`relative grid grid-cols-[1.2fr_1fr_0.8fr_1.2fr_0.9fr_1.1fr_1.1fr] items-center gap-4 border-t-[0.5px] border-b border-[#7A0A0C] px-4 py-3 text-[11px] transition-colors ${
+                                        row.id === selectedHistoryId ? 'bg-[#F3D9D9]' : 'bg-[#F8F8F8] hover:bg-[#EFEFEF]'
+                                    } cursor-pointer focus:outline-none focus-visible:bg-[#F3D9D9]`}
                                 >
-                                    {index === 0 ? (
-                                        <div className="pointer-events-none absolute left-0 right-0 top-0 h-px" style={{ backgroundColor: tableStroke }} />
-                                    ) : null}
-                                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px" style={{ backgroundColor: tableStroke }} />
                                     {row.id === selectedHistoryId ? <div className="pointer-events-none absolute bottom-0 left-0 top-0 w-[3px] bg-[#FC4747]" /> : null}
-                                    <div className="font-medium text-white">{row.mission_name || row.mission_snapshot?.mission_name || `Mission ${row.mission_id}`}</div>
-                                    <div className="whitespace-pre-line leading-tight text-gray-300">
+                                    <div className={`font-medium ${row.id === selectedHistoryId ? 'text-[#951616]' : 'text-[#1F1F1F]'}`}>{row.mission_name || row.mission_snapshot?.mission_name || `Mission ${row.mission_id}`}</div>
+                                    <div className="whitespace-pre-line leading-tight text-[#454545]">
                                         {formatScheduleCell(row.mission_snapshot?.schedule || row.started_at || row.created_at)}
                                     </div>
-                                    <div className="text-gray-300">{row.waypoint_count} Pin point</div>
-                                    <div className="text-gray-300">{row.task_summary || '-'}</div>
-                                    <div className="text-gray-300">{getHistoryDuration(row)}</div>
+                                    <div className="text-[#454545]">{row.waypoint_count} Pin point</div>
+                                    <div className="text-[#454545]">{row.task_summary || '-'}</div>
+                                    <div className="text-[#454545]">{getHistoryDuration(row)}</div>
                                     <DownloadCell
                                         title={activeDownloadKey === `full-video-${row.id}` ? 'Downloading...' : `${row.mission_name || row.mission_snapshot?.mission_name || `Mission ${row.mission_id}`}.mp4`}
                                         subtitle={row.has_full_video ? 'Full Video' : 'Full video unavailable'}
@@ -718,7 +715,7 @@ export default function HistoryPage() {
                 <PanelShell className="flex flex-1 flex-col gap-4">
                     <PanelTitleBlock title="Trajectory" subtitle="Drone trajectory in one event" />
 
-                    <div className="relative min-h-0 flex-1 overflow-hidden border border-[#5E0A0A] bg-[#181d25]">
+                    <div className="relative min-h-0 flex-1 overflow-hidden border border-[#7A0A0C] bg-[#DADADA]">
                         {highlightedHistory ? (
                             <HistoryTrajectoryMap
                                 historyItem={highlightedHistory}
@@ -726,7 +723,7 @@ export default function HistoryPage() {
                                 maxRange={maxRange}
                             />
                         ) : (
-                            <div className="flex h-full items-center justify-center text-[12px] text-gray-400">
+                            <div className="flex h-full items-center justify-center text-[12px] text-[#5F5F5F]">
                                 No trajectory selected
                             </div>
                         )}
@@ -734,9 +731,9 @@ export default function HistoryPage() {
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[350] h-24 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
                         {highlightedHistory ? (
-                            <div className="absolute bottom-4 left-4 right-4 z-[400] border border-[#5E0A0A] bg-[#221111]/90 px-4 py-3 backdrop-blur-sm">
-                                <div className="text-[14px] font-medium text-white">{highlightedMissionName}</div>
-                                <div className="mt-1 text-[11px] text-gray-400">
+                            <div className="absolute bottom-4 left-4 right-4 z-[400] border border-[#7A0A0C] bg-[rgba(245,245,245,0.92)] px-4 py-3 backdrop-blur-sm">
+                                <div className="text-[14px] font-medium text-[#1F1F1F]">{highlightedMissionName}</div>
+                                <div className="mt-1 text-[11px] text-[#5F5F5F]">
                                     Schedule {formatDateTime(highlightedHistory.mission_snapshot?.schedule || highlightedHistory.started_at || highlightedHistory.created_at)}
                                 </div>
                             </div>
@@ -747,9 +744,9 @@ export default function HistoryPage() {
                 <PanelShell className="flex flex-1 flex-col gap-4">
                     <PanelTitleBlock title="Media" subtitle={highlightedScheduleLabel} />
 
-                    <div className="h-px w-full bg-[#FB5555]" />
+                    <div className="h-px w-full" style={{ backgroundImage: overlayDividerStroke }} />
 
-                    <div className="relative min-h-0 flex-1 overflow-hidden border border-[#5E0A0A] bg-black">
+                    <div className="relative min-h-0 flex-1 overflow-hidden border border-[#7A0A0C] bg-[#DADADA]">
                         {mediaPreviewUrl && !hasMediaPreviewPlaybackError ? (
                             <video
                                 src={mediaPreviewUrl}
@@ -772,7 +769,7 @@ export default function HistoryPage() {
 
                         {!mediaPreviewUrl || hasMediaPreviewPlaybackError ? (
                             <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
-                                <div className="max-w-[280px] rounded border border-[#5E0A0A] bg-[#140b0b]/85 px-5 py-4 text-[12px] text-gray-300 backdrop-blur-sm">
+                                <div className="max-w-[280px] rounded border border-[#7A0A0C] bg-[rgba(245,245,245,0.92)] px-5 py-4 text-[12px] text-[#454545] backdrop-blur-sm">
                                     {isMediaPreviewLoading
                                         ? 'Loading full video preview...'
                                         : mediaPreviewError
@@ -785,7 +782,7 @@ export default function HistoryPage() {
                         ) : null}
 
                         <div className="pointer-events-none absolute bottom-5 left-5 right-5">
-                            <div className="mb-2 flex items-center justify-between text-[11px] text-white">
+                            <div className="mb-2 flex items-center justify-between text-[11px] text-[#1F1F1F]">
                                 <span>{mediaPreviewName || `${highlightedMissionName}.mp4`}</span>
                                 <span>{getHistoryDuration(highlightedHistory)}</span>
                             </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import deleteMissionIcon from '../../../assets/images/icon_trash_mission.svg';
 import {
     formatFlightDuration,
     formatMissionDistance,
@@ -6,8 +7,14 @@ import {
     getMissionProfileLengthMeters,
 } from '../utils/missionMetrics';
 
-const panelStroke = '#D53535';
+const panelStroke = '#FF383C';
 const dividerStroke = 'linear-gradient(90deg, rgba(163,88,88,0.12) 0%, #A35858 50%, rgba(163,88,88,0.12) 100%)';
+const panelBackground = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
+const cardBackground = 'rgba(197, 197, 197, 0.5)';
+const cardStroke = '#7F3434';
+const takeoffInputStroke = '#7F3434';
+const inputBackground = '#D2D2D2';
+const inputStroke = '#9F9F9F';
 
 const defaultWaypointValues = {
     altitude: 25,
@@ -164,16 +171,19 @@ export default function WaypointSelectionPanel({
     }, [takeoffHoldDuration]);
 
     return (
-        <div className="font-tomorrow relative grid h-full w-full min-h-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden border bg-[#222222] p-5 select-none" style={{ borderColor: panelStroke }}>
+        <div
+            className="font-tomorrow relative grid h-full w-full min-h-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden border p-5 select-none"
+            style={{ borderColor: panelStroke, background: panelBackground }}
+        >
             {/* Header */}
             <div className="mb-6 flex shrink-0 items-start justify-between">
                 <div>
-                    <h2 className="text-white text-[18px] font-medium tracking-wide">Waypoint Selection</h2>
-                    <p className="text-gray-400 text-[11px] mt-1">Mission length: {formatMissionDistance(missionLengthMeters)}</p>
+                    <h2 className="text-[#000000] text-[18px] font-medium tracking-wide">Waypoint Selection</h2>
+                    <p className="text-[#565656] text-[11px] mt-1">Mission length: {formatMissionDistance(missionLengthMeters)}</p>
                 </div>
                 <div className="flex flex-col items-end">
                     <div className="flex items-center gap-2">
-                        <div className="w-7 h-3.5 border-[1.5px] border-gray-400 rounded-[2px] p-[1.5px] relative flex">
+                        <div className="w-7 h-3.5 border-[1.5px] border-[#9F9F9F] rounded-[2px] p-[1.5px] relative flex">
                             <div
                                 className="h-full rounded-[1px]"
                                 style={{
@@ -182,9 +192,9 @@ export default function WaypointSelectionPanel({
                                 }}
                             ></div>
                         </div>
-                        <span className="text-white text-sm font-medium tracking-wider">{batteryPercent != null ? `${batteryPercent}%` : '--'}</span>
+                        <span className="text-[#000000] text-sm font-medium tracking-wider">{batteryPercent != null ? `${batteryPercent}%` : '--'}</span>
                     </div>
-                    <span className="text-gray-400 text-[10px] mt-1">Estimated Mission Time: {formatFlightDuration(estimatedFlightDurationSeconds)}</span>
+                    <span className="text-[#565656] text-[10px] mt-1">Estimated Mission Time: {formatFlightDuration(estimatedFlightDurationSeconds)}</span>
                 </div>
             </div>
 
@@ -193,11 +203,11 @@ export default function WaypointSelectionPanel({
             {/* Global Takeoff Altitude Settings */}
             <div className="mb-4 shrink-0 grid grid-cols-2 gap-3">
                 <div>
-                    <label className="mb-1 block text-[10px] tracking-wide text-gray-400 uppercase">Takeoff Altitude</label>
-                    <div className="flex h-[32px] w-full items-center justify-between border border-[#333333] bg-[#1C1C1C] px-3">
+                    <label className="mb-1 block text-[10px] tracking-wide text-[#000000] uppercase">Takeoff Altitude</label>
+                    <div className="flex h-[32px] w-full items-center justify-between border px-3" style={{ borderColor: takeoffInputStroke, backgroundColor: inputBackground }}>
                         <input
                             type="number"
-                            className="w-full bg-transparent text-xs text-white outline-none"
+                            className="w-full bg-transparent text-xs text-[#000000] outline-none"
                             value={takeoffAltitudeDraft}
                             onChange={(e) => handleTakeoffAltitudeDraftChange(e.target.value)}
                             onFocus={handleNumericFocus}
@@ -206,12 +216,12 @@ export default function WaypointSelectionPanel({
                     </div>
                 </div>
                 <div>
-                    <label className="mb-1 block text-[10px] tracking-wide text-gray-400 uppercase">Takeoff Hold (S)</label>
-                    <div className="flex h-[32px] w-full items-center justify-between border border-[#333333] bg-[#1C1C1C] px-3">
+                    <label className="mb-1 block text-[10px] tracking-wide text-[#000000] uppercase">Takeoff Hold (S)</label>
+                    <div className="flex h-[32px] w-full items-center justify-between border px-3" style={{ borderColor: takeoffInputStroke, backgroundColor: inputBackground }}>
                         <input
                             type="number"
                             min="0"
-                            className="w-full bg-transparent text-xs text-white outline-none"
+                            className="w-full bg-transparent text-xs text-[#000000] outline-none"
                             value={takeoffHoldDurationDraft}
                             onChange={(e) => handleTakeoffHoldDurationDraftChange(e.target.value)}
                             onFocus={handleNumericFocus}
@@ -224,7 +234,7 @@ export default function WaypointSelectionPanel({
             {/* Waypoints List */}
             <div className="custom-scrollbar min-h-0 overflow-y-auto space-y-4 pr-1 pb-2">
                 {waypoints.length === 0 ? (
-                    <p className="text-gray-500 text-xs italic text-center mt-10">Click on the map to add waypoints</p>
+                    <p className="text-[#565656] text-xs italic text-center mt-10">Click on the map to add waypoints</p>
                 ) : (
                     waypoints.map((wp, i) => {
                         const data = {
@@ -232,7 +242,11 @@ export default function WaypointSelectionPanel({
                             ...wp,
                         };
                         return (
-                            <div key={wp.id} className="bg-[#222222] border p-3 relative" style={{ borderColor: panelStroke }}>
+                            <div
+                                key={wp.id}
+                                className="border p-3 relative"
+                                style={{ borderColor: cardStroke, backgroundColor: cardBackground }}
+                            >
                                 <button
                                     type="button"
                                     onClick={() => onDeleteWaypoint?.(wp.id)}
@@ -240,20 +254,20 @@ export default function WaypointSelectionPanel({
                                     aria-label={`Delete Point ${i + 1}`}
                                 >
                                     <img
-                                        src="/src/assets/images/icon_trash_mission.svg"
+                                        src={deleteMissionIcon}
                                         alt=""
                                         aria-hidden="true"
                                         className="h-4 w-4 object-contain"
                                     />
                                 </button>
-                                <h3 className="text-white text-xs font-medium mb-3 tracking-wide">Point {i + 1}</h3>
+                                <h3 className="text-[#000000] text-xs font-medium mb-3 tracking-wide">Point {i + 1}</h3>
                                 <div className="grid grid-cols-3 gap-3">
                                     <div className="flex flex-col gap-1">
-                                        <span className="text-gray-400 text-[9px] uppercase">Altitude (M)</span>
-                                        <div className="h-[28px] bg-[#1C1C1C] border border-[#333333] px-2 flex items-center">
+                                        <span className="text-[#000000] text-[9px] uppercase">Altitude (M)</span>
+                                        <div className="h-[28px] border px-2 flex items-center" style={{ borderColor: inputStroke, backgroundColor: inputBackground }}>
                                             <input
                                                 type="number"
-                                                className="bg-transparent text-white text-[11px] outline-none w-full"
+                                                className="bg-transparent text-[#000000] text-[11px] outline-none w-full"
                                                 value={getFieldValue(wp.id, 'altitude', data.altitude)}
                                                 onChange={(e) => handleDraftChange(wp.id, 'altitude', e.target.value)}
                                                 onBlur={() => handleDraftBlur(wp.id, 'altitude', data.altitude)}
@@ -263,11 +277,11 @@ export default function WaypointSelectionPanel({
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-1">
-                                        <span className="text-gray-400 text-[9px] uppercase">Camera Tilt</span>
-                                        <div className="h-[28px] bg-[#1C1C1C] border border-[#333333] px-2 flex items-center">
+                                        <span className="text-[#000000] text-[9px] uppercase">Camera Tilt</span>
+                                        <div className="h-[28px] border px-2 flex items-center" style={{ borderColor: inputStroke, backgroundColor: inputBackground }}>
                                             <input
                                                 type="number"
-                                                className="bg-transparent text-white text-[11px] outline-none w-full"
+                                                className="bg-transparent text-[#000000] text-[11px] outline-none w-full"
                                                 value={getFieldValue(wp.id, 'cameraTilt', data.cameraTilt)}
                                                 onChange={(e) => handleDraftChange(wp.id, 'cameraTilt', e.target.value)}
                                                 onBlur={() => handleDraftBlur(wp.id, 'cameraTilt', data.cameraTilt)}
@@ -277,31 +291,31 @@ export default function WaypointSelectionPanel({
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-1">
-                                        <span className="text-gray-400 text-[9px] uppercase">Action</span>
+                                        <span className="text-[#000000] text-[9px] uppercase">Action</span>
                                         <div className="flex flex-col gap-2">
-                                            <div className="relative h-[28px] bg-[#1C1C1C] border border-[#333333] px-2 flex items-center">
+                                            <div className="relative h-[28px] border px-2 flex items-center" style={{ borderColor: inputStroke, backgroundColor: inputBackground }}>
                                                 <select
-                                                    className="bg-transparent text-white text-[11px] outline-none w-full appearance-none cursor-pointer"
+                                                    className="bg-transparent text-[#000000] text-[11px] outline-none w-full appearance-none cursor-pointer"
                                                     value={data.action}
                                                     onChange={(e) => handleActionChange(wp.id, e.target.value)}
                                                 >
                                                     {actionOptions.map((option) => (
-                                                        <option key={option.value} value={option.value} className="bg-[#222222]">
+                                                        <option key={option.value} value={option.value} className="bg-[#D2D2D2] text-[#000000]">
                                                             {option.label}
                                                         </option>
                                                     ))}
                                                 </select>
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 pointer-events-none absolute right-4">
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#565656] pointer-events-none absolute right-4">
                                                     <path d="M6 9l6 6 6-6" />
                                                 </svg>
                                             </div>
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-gray-400 text-[9px] uppercase">Hold (S)</span>
-                                                <div className="h-[28px] bg-[#1C1C1C] border border-[#333333] px-2 flex items-center">
+                                                <span className="text-[#000000] text-[9px] uppercase">Hold (S)</span>
+                                                <div className="h-[28px] border px-2 flex items-center" style={{ borderColor: inputStroke, backgroundColor: inputBackground }}>
                                                     <input
                                                         type="number"
                                                         min="0"
-                                                        className="bg-transparent text-white text-[11px] outline-none w-full"
+                                                        className="bg-transparent text-[#000000] text-[11px] outline-none w-full"
                                                         value={getFieldValue(wp.id, 'action_duration', data.action_duration)}
                                                         onChange={(e) => handleDraftChange(wp.id, 'action_duration', e.target.value)}
                                                         onBlur={() => handleDraftBlur(wp.id, 'action_duration', data.action_duration)}

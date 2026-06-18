@@ -2,15 +2,15 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { missionService } from '../../../services/api';
 
 const PAGE_LIMIT = 20;
+const PANEL_STROKE_RED = '#FF383C';
 
 const StatBox = ({ count, label }) => (
-    <div className="font-tomorrow relative flex h-[72px] w-full flex-col items-center justify-center overflow-hidden">
-        <div className="pointer-events-none absolute bottom-0 left-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#ED0000]/35 to-transparent" />
-        <div className="pointer-events-none absolute bottom-0 right-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#ED0000]/35 to-transparent" />
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#ED0000]" />
-        <div className="pointer-events-none absolute inset-x-3 bottom-0 h-6 bg-gradient-to-t from-[#ED0000]/12 to-transparent" />
-        <span className="text-[28px] font-bold leading-none tracking-wider text-white">{count}</span>
-        <span className="mt-1 text-[14px] text-white">{label}</span>
+    <div className="font-tomorrow relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-[rgba(197,197,197,0.5)]">
+        <div className="pointer-events-none absolute bottom-0 left-0 h-[52%] w-px bg-gradient-to-t from-[#FF383C] via-[#FF383C]/45 to-transparent" />
+        <div className="pointer-events-none absolute bottom-0 right-0 h-[52%] w-px bg-gradient-to-t from-[#FF383C] via-[#FF383C]/45 to-transparent" />
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#FF383C]" />
+        <span className="text-[28px] font-bold leading-none tracking-wider text-[#1F1F1F]">{count}</span>
+        <span className="mt-1 text-[14px] text-[#3A3A3A]">{label}</span>
     </div>
 );
 
@@ -230,15 +230,24 @@ export default function MissionListPanel({ uavId, refreshKey = 0 }) {
     }, [missions, pagination.total]);
 
     return (
-        <div className="font-tomorrow flex h-full w-full gap-4 select-none border border-[#D53535] bg-[#222222] p-4 shadow-lg">
-            <div className="mt-4 flex w-[200px] flex-col justify-start gap-3">
-                <StatBox count={stats.total} label="Today Mission" />
-                <StatBox count={stats.waiting} label="Waiting" />
-                <StatBox count={stats.completed} label="Completed" />
+        <div
+            className="font-tomorrow flex h-full w-full gap-4 select-none border border-[#FF383C] p-4 shadow-lg"
+            style={{ background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
+        >
+            <div className="flex h-full w-[200px] flex-col gap-3">
+                <div className="min-h-0 flex-1">
+                    <StatBox count={stats.total} label="Today Mission" />
+                </div>
+                <div className="min-h-0 flex-1">
+                    <StatBox count={stats.waiting} label="Waiting" />
+                </div>
+                <div className="min-h-0 flex-1">
+                    <StatBox count={stats.completed} label="Completed" />
+                </div>
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                <div className="grid grid-cols-[1fr_1.7fr_1fr_1.4fr] bg-[#5E0A0A] px-2 py-2 text-[10px] uppercase tracking-[0.12em] text-white">
+                <div className="grid grid-cols-[1fr_1.7fr_1fr_1.4fr] border-t-[0.5px] border-b border-[#7A0A0C] bg-[#5E0A0A] px-2 py-2 text-[10px] uppercase tracking-[0.12em] text-white">
                     <div className="font-medium">Date</div>
                     <div className="font-medium">Mission</div>
                     <div className="font-medium">Status</div>
@@ -271,27 +280,27 @@ export default function MissionListPanel({ uavId, refreshKey = 0 }) {
                                 return (
                                     <div
                                         key={`${mission.mission_id}-${mission.run_at}`}
-                                        className="grid grid-cols-[1fr_1.7fr_1fr_1.4fr] items-center border-y border-[#5E0A0A] px-1 py-3 text-xs"
+                                        className="grid grid-cols-[1fr_1.7fr_1fr_1.4fr] items-center border-t-[0.5px] border-b border-[#7A0A0C] px-1 py-2.5 text-xs"
                                     >
-                                        <div className="flex flex-col leading-tight">
-                                            <span className="text-[14px] text-white">
+                                        <div className="flex flex-col leading-[1.1]">
+                                            <span className="text-[14px] text-[#1F1F1F]">
                                                 {formattedSchedule.date}
                                             </span>
-                                            <span className="mt-1 text-[12px] text-gray-400">
+                                            <span className="mt-0.5 text-[11px] text-[#5F5F5F]">
                                                 {formattedSchedule.time}
                                             </span>
                                         </div>
-                                        <div className={`mr-2 truncate text-[14px] ${active ? 'w-max border-b border-[#5E0A0A] text-white' : 'text-gray-200'}`}>
+                                        <div className={`mr-2 truncate text-[14px] ${active ? 'w-max border-b border-[#7A0A0C] text-[#1F1F1F]' : 'text-[#2A2A2A]'}`}>
                                             {mission.mission_name}
                                         </div>
-                                        <div className={`text-[14px] ${active ? 'text-white' : 'text-gray-300'}`}>
+                                        <div className={`text-[14px] ${active ? 'text-[#1F1F1F]' : 'text-[#2A2A2A]'}`}>
                                             {mission.status}
                                         </div>
-                                        <div className="flex flex-col leading-tight">
-                                            <span className="text-[12px] text-gray-200">
+                                        <div className="flex flex-col leading-[1.1]">
+                                            <span className="text-[11px] text-[#2A2A2A]">
                                                 {scheduleInfo.typeLabel}
                                             </span>
-                                            <span className="mt-1 text-[12px] text-gray-400">
+                                            <span className="mt-0.5 text-[11px] text-[#5F5F5F]">
                                                 {scheduleInfo.timeLabel}
                                             </span>
                                         </div>

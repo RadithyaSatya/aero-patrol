@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import headerBackground from '../../assets/images/image_background_navbar.png';
-import headerLogo from '../../assets/images/icon_app.svg';
-import { dockingService, uavService } from '../../services/api';
+import headerLogo from '../../assets/images/icon_app_white.svg';
+import { clearAuthStorage, dockingService, uavService } from '../../services/api';
 import useTelemetry from '../hooks/useTelemetry';
 
 const SatelliteIcon = () => (
@@ -173,18 +173,14 @@ export default function AppHeader() {
     }, [selectedDrone?.id]);
 
     const handleLogout = () => {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('authUsername');
-        localStorage.removeItem('authUserId');
-        localStorage.removeItem('authRole');
-        localStorage.removeItem('deviceToken');
+        clearAuthStorage();
         setIsSettingsOpen(false);
         navigate('/login');
     };
 
     return (
         <header
-            className="relative z-[1000] grid h-[104px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center overflow-visible px-3 py-2 shadow-sm select-none md:px-4 xl:px-6"
+            className="relative z-[1000] grid h-[104px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center overflow-visible px-3 py-2 select-none md:px-4 xl:px-6"
         >
             <img
                 src={headerBackground}
@@ -197,10 +193,18 @@ export default function AppHeader() {
             <div className="relative z-10 mb-2 flex min-w-0 items-center justify-start md:mx-10 xl:mx-12">
                 <div className="flex min-w-0 items-center gap-2 md:gap-3 xl:gap-4">
                     <img src={headerLogo} alt="Logo" className="h-[42px] w-auto shrink-0 object-contain md:h-[48px] xl:h-[56px]" />
-                    <div className="flex items-center">
-                        <span className="font-orbitron whitespace-nowrap text-[20px] md:text-[26px] xl:text-[34px] font-black leading-none tracking-[0.05em] md:tracking-[0.06em] xl:tracking-[0.08em] text-[#FD5757]">
-                            Aero Patrol
+                    <div className="flex items-center gap-3 md:gap-4">
+                        <span className="font-orbitron whitespace-nowrap text-[20px] md:text-[26px] xl:text-[34px] font-black leading-none tracking-[0.05em] md:tracking-[0.06em] xl:tracking-[0.08em] text-[#FD0202]">
+                            ICCS
                         </span>
+                        <div className="flex flex-col justify-center text-left leading-none">
+                            <span className="font-orbitron text-[11px] font-medium uppercase tracking-[0.16em] text-white md:text-[12px] xl:text-[13px]">
+                                Perimeter
+                            </span>
+                            <span className="mt-1 font-orbitron text-[11px] font-medium uppercase tracking-[0.16em] text-white md:text-[12px] xl:text-[13px]">
+                                Guard SF
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>

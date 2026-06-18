@@ -1,6 +1,36 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://api-xflight.kumalabs.tech';
 export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://api-xflight.kumalabs.tech';
 
+export const clearAuthStorage = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('authUsername');
+    localStorage.removeItem('authUserId');
+    localStorage.removeItem('authRole');
+    localStorage.removeItem('deviceToken');
+};
+
+export const persistAuthProfile = (profile = {}) => {
+    if (profile.username) {
+        localStorage.setItem('authUsername', profile.username);
+    } else {
+        localStorage.removeItem('authUsername');
+    }
+
+    if (profile.id != null) {
+        localStorage.setItem('authUserId', String(profile.id));
+    } else if (profile.user_id != null) {
+        localStorage.setItem('authUserId', String(profile.user_id));
+    } else {
+        localStorage.removeItem('authUserId');
+    }
+
+    if (profile.role) {
+        localStorage.setItem('authRole', profile.role);
+    } else {
+        localStorage.removeItem('authRole');
+    }
+};
+
 const getAuthHeaders = () => {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('No authentication token found');
@@ -65,6 +95,21 @@ export const authService = {
         if (!response.ok) {
             throw new Error(data.error || 'Login failed');
         }
+        return data;
+    },
+
+    getMe: async () => {
+        const response = await fetch(`${API_BASE_URL}/users/me`, {
+            headers: getAuthHeaders(),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const error = new Error(data.error || data.message || 'Failed to fetch current user');
+            error.status = response.status;
+            throw error;
+        }
+
         return data;
     },
 

@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Circle, MapContainer, Marker, Polyline, TileLayer, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import droneIconImage from '../../../assets/images/icon_drone.svg';
+import cancelQuickLaunchButton from '../../../assets/images/btn_cancel_quicklaunch_white.svg';
+import launchQuickLaunchButton from '../../../assets/images/btn_launch_quicklaunch_white.svg';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -50,7 +53,7 @@ const createDroneIcon = (heading) => new L.DivIcon({
     className: 'custom-drone-icon',
     html: `
         <div style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:flex; align-items:center; justify-content:center; transform: rotate(${heading || 0}deg); transform-origin: ${DRONE_ICON_CENTER_X}px ${DRONE_ICON_CENTER_Y}px; transition: transform 0.3s ease;">
-            <img src="/src/assets/images/icon_drone.svg" alt="Drone" style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:block;" />
+            <img src="${droneIconImage}" alt="Drone" style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:block;" />
         </div>
     `,
     iconSize: [DRONE_ICON_WIDTH, DRONE_ICON_HEIGHT],
@@ -169,23 +172,35 @@ function MapInteractionHandler({ onClickRef }) {
     return null;
 }
 
+function GradientFieldFrame({ children, className = '' }) {
+    return (
+        <div className={`relative overflow-hidden bg-[#D2D2D2] ${className}`}>
+            <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[rgba(251,85,85,0.2)] to-[#ED0000]" />
+            <div className="pointer-events-none absolute left-0 top-0 h-full w-px bg-gradient-to-b from-[#ED0000] via-[rgba(251,85,85,0.2)] to-transparent" />
+            <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#ED0000]" />
+            <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[rgba(251,85,85,0.2)] via-[rgba(251,85,85,0.2)] to-[#ED0000]" />
+            {children}
+        </div>
+    );
+}
+
 function CoordinateField({ label, position, accentClass, onClear, emptyLabel }) {
     return (
         <div className="flex flex-col">
-            <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">{label}</label>
-            <div className="flex h-[32px] min-w-[240px] items-center gap-3 rounded border border-[#2d3748] bg-[#1a202c]/90 px-3">
+            <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">{label}</label>
+            <GradientFieldFrame className="flex h-[32px] min-w-[240px] items-center gap-3 px-3">
                 {position ? (
                     <>
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-medium text-gray-500">LAT</span>
+                            <span className="text-[10px] font-medium text-[#565656]">LAT</span>
                             <span className={`font-mono text-[12px] ${accentClass}`}>{position.lat.toFixed(6)}</span>
                         </div>
-                        <div className="h-4 w-px bg-[#2d3748]" />
+                        <div className="h-4 w-px bg-[#929292]" />
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-medium text-gray-500">LNG</span>
+                            <span className="text-[10px] font-medium text-[#565656]">LNG</span>
                             <span className={`font-mono text-[12px] ${accentClass}`}>{position.lng.toFixed(6)}</span>
                         </div>
-                        <div className="h-4 w-px bg-[#2d3748]" />
+                        <div className="h-4 w-px bg-[#929292]" />
                         <button
                             type="button"
                             onClick={onClear}
@@ -197,9 +212,9 @@ function CoordinateField({ label, position, accentClass, onClear, emptyLabel }) 
                         </button>
                     </>
                 ) : (
-                    <span className="text-[11px] italic text-gray-500">{emptyLabel}</span>
+                    <span className="text-[11px] italic text-[#565656]">{emptyLabel}</span>
                 )}
-            </div>
+            </GradientFieldFrame>
         </div>
     );
 }
@@ -446,12 +461,7 @@ export default function QuickLaunchDialogForm({
         let roi = undefined;
 
         if (isLaunch) {
-            if (!launchWaypoint) {
-                setLocalError('Home position is unavailable for quick launch.');
-                return;
-            }
-
-            rawWaypoints = [launchWaypoint];
+            rawWaypoints = [];
         } else if (isROI) {
             if (!roiPosition) {
                 setLocalError('Select an ROI point on the map first.');
@@ -496,19 +506,22 @@ export default function QuickLaunchDialogForm({
 
     return (
         <div className="fixed inset-0 z-[2000] flex select-none items-center justify-center bg-[#0a0f18]/80 p-4 backdrop-blur-sm">
-            <div className="relative flex w-[840px] flex-col overflow-hidden border-l border-[#ED0000] bg-[#222222] p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-md">
-                <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#ED0000]/45 to-transparent" />
-                <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#ED0000]/45 to-transparent" />
+            <div
+                className="relative flex w-[840px] flex-col overflow-hidden border p-6 shadow-[0_0_50px_rgba(0,0,0,0.35)] backdrop-blur-md"
+                style={{ borderColor: '#FF383C', background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
+            >
+                <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#FF383C] via-[#FF383C]/45 to-transparent" />
+                <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#FF383C] via-[#FF383C]/45 to-transparent" />
 
                 <div className="relative flex w-full flex-col gap-6">
-                    <h2 className="text-center font-tomorrow text-[18px] tracking-widest text-white">
+                    <h2 className="text-center font-tomorrow text-[18px] tracking-widest text-[#000000]">
                         {dialogTitle}
                     </h2>
 
-                    <div className={`relative z-10 h-[400px] w-full overflow-hidden border-b border-[#ED0000] p-px ${isROI || isSpiral ? 'cursor-crosshair' : ''}`}>
-                        <div className="pointer-events-none absolute bottom-0 left-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#ED0000]/35 to-transparent" />
-                        <div className="pointer-events-none absolute bottom-0 right-0 h-full w-px bg-gradient-to-t from-[#ED0000] via-[#ED0000]/35 to-transparent" />
-                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#ED0000]" />
+                    <div className={`relative z-10 h-[400px] w-full overflow-hidden border border-[#FF383C] p-px ${isROI || isSpiral ? 'cursor-crosshair' : ''}`}>
+                        <div className="pointer-events-none absolute bottom-0 left-0 h-full w-px bg-gradient-to-t from-[#FF383C] via-[#FF383C]/35 to-transparent" />
+                        <div className="pointer-events-none absolute bottom-0 right-0 h-full w-px bg-gradient-to-t from-[#FF383C] via-[#FF383C]/35 to-transparent" />
+                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#FF383C]" />
 
                         <div className="relative h-full w-full overflow-hidden">
                             <MapContainer
@@ -593,13 +606,13 @@ export default function QuickLaunchDialogForm({
 
                         </div>
 
-                        <div className="pointer-events-none absolute left-0 right-0 top-4 text-center text-[13px] tracking-wide text-gray-200">
+                        <div className="pointer-events-none absolute left-0 right-0 top-4 text-center text-[13px] tracking-wide text-[#1F1F1F]">
                             {getMapInstruction()}
                         </div>
 
                         {isSpiral && spiralPhase === 'settingRadius' && previewRadius > 0 ? (
                             <div className="pointer-events-none absolute left-1/2 top-10 z-[500] -translate-x-1/2 transform">
-                                <div className={`flex items-center gap-1.5 rounded-full border bg-[#1a202c]/90 px-3 py-1 font-mono text-[11px] ${isSpiralOutOfBounds ? 'border-red-500/60 text-red-400' : 'border-purple-500/40 text-purple-300'}`}>
+                                <div className={`flex items-center gap-1.5 rounded-full border bg-[#EBEBEB] px-3 py-1 font-mono text-[11px] ${isSpiralOutOfBounds ? 'border-[#ED0000] text-[#B42323]' : 'border-[#7A0A0C] text-[#682F2F]'}`}>
                                     {isSpiralOutOfBounds ? (
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -616,7 +629,7 @@ export default function QuickLaunchDialogForm({
                         {isSpiral && spiralPhase === 'complete' ? (
                             <div className="absolute right-16 top-4 z-[500] flex flex-col gap-2">
                                 {isSpiralOutOfBounds ? (
-                                    <div className="flex items-center gap-2 rounded border border-red-500/50 bg-red-900/80 px-3 py-2 text-[11px] font-medium text-red-200 shadow-lg backdrop-blur-sm">
+                                    <div className="flex items-center gap-2 rounded border border-[#ED0000] bg-[#EBDDDD] px-3 py-2 text-[11px] font-medium text-[#B42323] shadow-lg backdrop-blur-sm">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-red-400">
                                             <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                                             <line x1="12" y1="9" x2="12" y2="13" />
@@ -631,7 +644,7 @@ export default function QuickLaunchDialogForm({
                                         type="button"
                                         onClick={handleGenerateWaypoints}
                                         disabled={isSpiralOutOfBounds}
-                                        className={`flex items-center gap-2 rounded border px-3 py-1.5 text-[11px] font-medium text-white shadow-lg transition-all ${isSpiralOutOfBounds ? 'cursor-not-allowed border-gray-600/30 bg-gray-700/80 opacity-50' : 'border-purple-400/30 bg-purple-600/90 hover:bg-purple-500 hover:shadow-xl hover:shadow-purple-500/30'}`}
+                                        className={`flex items-center gap-2 rounded border px-3 py-1.5 text-[11px] font-medium shadow-lg transition-all ${isSpiralOutOfBounds ? 'cursor-not-allowed border-[#929292] bg-[#D2D2D2] text-[#8C8C8C] opacity-50' : 'border-[#FF383C] bg-[#EBEBEB] text-[#000000] hover:bg-[#E3E3E3]'}`}
                                     >
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -639,7 +652,7 @@ export default function QuickLaunchDialogForm({
                                         Generate Waypoints
                                     </button>
                                 ) : (
-                                    <div className="flex items-center gap-1.5 rounded border border-emerald-400/30 bg-emerald-600/80 px-3 py-1.5 text-[11px] font-medium text-white shadow-lg">
+                                    <div className="flex items-center gap-1.5 rounded border border-[#7A0A0C] bg-[#EBEBEB] px-3 py-1.5 text-[11px] font-medium text-[#000000] shadow-lg">
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                             <polyline points="20 6 9 17 4 12" />
                                         </svg>
@@ -650,7 +663,7 @@ export default function QuickLaunchDialogForm({
                                 <button
                                     type="button"
                                     onClick={handleClearSpiral}
-                                    className="flex items-center gap-2 rounded border border-red-400/30 bg-red-600/70 px-3 py-1.5 text-[11px] font-medium text-white shadow-lg transition-all hover:bg-red-500"
+                                    className="flex items-center gap-2 rounded border border-[#ED0000] bg-[#571414] px-3 py-1.5 text-[11px] font-medium text-white shadow-lg transition-all hover:opacity-90"
                                 >
                                     <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                                         <path d="M2 2L8 8M8 2L2 8" />
@@ -661,37 +674,41 @@ export default function QuickLaunchDialogForm({
                         ) : null}
 
                         <svg className="pointer-events-none absolute inset-4 z-10 h-[calc(100%-32px)] w-[calc(100%-32px)]">
-                            <path d="M 12 0 L 6 0 Q 0 0 0 6 L 0 12" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                            <path d="M calc(100% - 12px) 0 L calc(100% - 6px) 0 Q 100% 0 100% 6 L 100% 12" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                            <path d="M 0 calc(100% - 12px) L 0 calc(100% - 6px) Q 0 100% 6 100% L 12 100%" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                            <path d="M 100% calc(100% - 12px) L 100% calc(100% - 6px) Q 100% 100% calc(100% - 6px) 100% L calc(100% - 12px) 100%" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M 12 0 L 6 0 Q 0 0 0 6 L 0 12" fill="none" stroke="#FF383C" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M calc(100% - 12px) 0 L calc(100% - 6px) 0 Q 100% 0 100% 6 L 100% 12" fill="none" stroke="#FF383C" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M 0 calc(100% - 12px) L 0 calc(100% - 6px) Q 0 100% 6 100% L 12 100%" fill="none" stroke="#FF383C" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M 100% calc(100% - 12px) L 100% calc(100% - 6px) Q 100% 100% calc(100% - 6px) 100% L calc(100% - 12px) 100%" fill="none" stroke="#FF383C" strokeWidth="2" strokeLinecap="round" />
                         </svg>
 
                         <div className="pointer-events-auto absolute bottom-8 left-1/2 z-[400] -translate-x-1/2 transform">
                             <div className="flex items-end justify-center gap-4">
                                 <div className="flex flex-col">
-                                    <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">Takeoff Altitude (M)</label>
+                                    <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">Takeoff Altitude (M)</label>
+                                    <GradientFieldFrame className="h-[32px] w-[160px]">
                                         <input
                                             type="number"
-                                            className="h-[32px] w-[160px] rounded border border-[#2d3748] bg-[#1a202c]/90 px-3 text-left text-[12px] text-white outline-none transition-colors placeholder-gray-500 focus:border-gray-400"
+                                            className="h-full w-full bg-transparent px-3 text-left text-[12px] text-[#000000] outline-none placeholder:text-[#565656]"
                                             value={takeoffAltitude}
                                             onChange={(event) => setTakeoffAltitude(normalizeNumericInputValue(event.target.value))}
                                             onFocus={handleNumericFocus}
                                             onClick={handleNumericClick}
                                         />
+                                    </GradientFieldFrame>
                                 </div>
 
                                 {isSpiral ? (
                                     <div className="flex flex-col">
-                                        <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">Flight Altitude (M)</label>
-                                        <input
-                                            type="number"
-                                            className="h-[32px] w-[160px] rounded border border-[#2d3748] bg-[#1a202c]/90 px-3 text-left text-[12px] text-white outline-none transition-colors placeholder-gray-500 focus:border-gray-400"
-                                            value={flightAltitude}
-                                            onChange={(event) => setFlightAltitude(normalizeNumericInputValue(event.target.value))}
-                                            onFocus={handleNumericFocus}
-                                            onClick={handleNumericClick}
-                                        />
+                                        <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">Flight Altitude (M)</label>
+                                        <GradientFieldFrame className="h-[32px] w-[160px]">
+                                            <input
+                                                type="number"
+                                                className="h-full w-full bg-transparent px-3 text-left text-[12px] text-[#000000] outline-none placeholder:text-[#565656]"
+                                                value={flightAltitude}
+                                                onChange={(event) => setFlightAltitude(normalizeNumericInputValue(event.target.value))}
+                                                onFocus={handleNumericFocus}
+                                                onClick={handleNumericClick}
+                                            />
+                                        </GradientFieldFrame>
                                     </div>
                                 ) : null}
 
@@ -707,37 +724,41 @@ export default function QuickLaunchDialogForm({
 
                                 {isLaunch || isROI ? (
                                     <div className="flex flex-col">
-                                        <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">Takeoff Hold Duration (S)</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            className="h-[32px] w-[160px] rounded border border-[#2d3748] bg-[#1a202c]/90 px-3 text-left text-[12px] text-white outline-none transition-colors placeholder-gray-500 focus:border-gray-400"
-                                            value={takeoffHoldDuration}
-                                            onChange={(event) => setTakeoffHoldDuration(normalizeNumericInputValue(event.target.value))}
-                                            onFocus={handleNumericFocus}
-                                            onClick={handleNumericClick}
-                                        />
+                                        <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">Takeoff Hold Duration (S)</label>
+                                        <GradientFieldFrame className="h-[32px] w-[160px]">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                className="h-full w-full bg-transparent px-3 text-left text-[12px] text-[#000000] outline-none placeholder:text-[#565656]"
+                                                value={takeoffHoldDuration}
+                                                onChange={(event) => setTakeoffHoldDuration(normalizeNumericInputValue(event.target.value))}
+                                                onFocus={handleNumericFocus}
+                                                onClick={handleNumericClick}
+                                            />
+                                        </GradientFieldFrame>
                                     </div>
                                 ) : null}
 
                                 {isSpiral ? (
                                     <>
                                         <div className="flex flex-col">
-                                            <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">Radius (M)</label>
-                                            <div className="flex h-[32px] min-w-[100px] items-center rounded border border-[#2d3748] bg-[#1a202c]/90 px-3">
-                                                <span className={`font-mono text-[12px] ${displayRadius > 0 ? 'text-purple-400' : 'text-[11px] italic text-gray-500'}`}>
+                                            <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">Radius (M)</label>
+                                            <GradientFieldFrame className="flex h-[32px] min-w-[100px] items-center px-3">
+                                                <span className={`font-mono text-[12px] ${displayRadius > 0 ? 'text-[#682F2F]' : 'text-[11px] italic text-[#565656]'}`}>
                                                     {displayRadius > 0 ? `${displayRadius}` : 'Draw...'}
                                                 </span>
-                                            </div>
+                                            </GradientFieldFrame>
                                         </div>
                                         <div className="flex flex-col">
-                                            <label className="mb-2 px-2 text-center text-[10px] text-gray-400 shadow-black drop-shadow-md">Waypoints</label>
-                                            <input
-                                                type="number"
-                                                className="h-[32px] w-[80px] cursor-not-allowed rounded border border-[#2d3748] bg-[#1a202c]/90 px-3 text-center text-[12px] text-gray-400 opacity-60 outline-none"
-                                                value={waypointCount}
-                                                disabled
-                                            />
+                                            <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">Waypoints</label>
+                                            <GradientFieldFrame className="h-[32px] w-[80px]">
+                                                <input
+                                                    type="number"
+                                                    className="h-full w-full cursor-not-allowed bg-transparent px-3 text-center text-[12px] text-[#565656] opacity-60 outline-none"
+                                                    value={waypointCount}
+                                                    disabled
+                                                />
+                                            </GradientFieldFrame>
                                         </div>
                                     </>
                                 ) : null}
@@ -746,7 +767,7 @@ export default function QuickLaunchDialogForm({
                     </div>
 
                     {effectiveError ? (
-                        <div className="rounded border border-red-500/40 bg-red-950/40 px-4 py-3 text-[12px] text-red-300">
+                        <div className="rounded border border-[#7F3434] bg-[#EBDDDD] px-4 py-3 text-[12px] text-[#B42323]">
                             {effectiveError}
                         </div>
                     ) : null}
@@ -758,7 +779,7 @@ export default function QuickLaunchDialogForm({
                             className="w-full bg-transparent active:scale-[0.98]"
                         >
                             <img
-                                src="/src/assets/images/btn_cancel_quicklaunch.png"
+                                src={cancelQuickLaunchButton}
                                 alt="Cancel"
                                 className="aspect-[418/76] w-full object-contain transition duration-150 hover:brightness-110 hover:contrast-110"
                             />
@@ -771,7 +792,7 @@ export default function QuickLaunchDialogForm({
                             className={`w-full bg-transparent active:scale-[0.98] ${isLaunching ? 'cursor-not-allowed opacity-70' : ''}`}
                         >
                             <img
-                                src="/src/assets/images/btn_launch_quicklaunch.png"
+                                src={launchQuickLaunchButton}
                                 alt="Launch"
                                 className="aspect-[418/76] w-full object-contain transition duration-150 hover:brightness-110 hover:contrast-110"
                             />

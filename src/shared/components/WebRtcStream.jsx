@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import disconnectIcon from '../../assets/images/icon_disconnect.svg';
 
 const STREAM_PROBE_TIMEOUT_MS = 4000;
 const readerScriptPromises = new Map();
@@ -90,6 +91,10 @@ export default function WebRtcStream({
     playsInline = true,
     controls = false,
     unavailableMessage = 'Stream not available',
+    fallbackClassName = '',
+    fallbackStyle = undefined,
+    fallbackTextClassName = 'text-[#E5E5E5]',
+    onStatusChange,
 }) {
     const [status, setStatus] = useState(src ? 'checking' : 'empty');
     const [errorMessage, setErrorMessage] = useState('');
@@ -100,7 +105,7 @@ export default function WebRtcStream({
 
         if (!src) {
             setStatus('empty');
-            setErrorMessage('');
+            setErrorMessage('Stream not configured');
             return () => {
                 isCancelled = true;
             };
@@ -131,6 +136,10 @@ export default function WebRtcStream({
             isCancelled = true;
         };
     }, [src, unavailableMessage]);
+
+    useEffect(() => {
+        onStatusChange?.(status);
+    }, [onStatusChange, status]);
 
     useEffect(() => {
         let isCancelled = false;
@@ -205,10 +214,6 @@ export default function WebRtcStream({
         };
     }, [src, status, autoPlay, muted, playsInline, controls, unavailableMessage]);
 
-    if (!src) {
-        return null;
-    }
-
     return (
         <div className={`relative ${className}`}>
             {status === 'ready' ? (
@@ -222,9 +227,20 @@ export default function WebRtcStream({
                     controls={controls}
                 />
             ) : (
-                <div className="flex h-full w-full items-center justify-center bg-black/70 px-6 text-center">
-                    <div className="max-w-[260px] rounded border border-[#5E0A0A] bg-[#140b0b]/85 px-4 py-3 text-[12px] text-gray-300 backdrop-blur-sm">
-                        {status === 'checking' ? 'Checking stream...' : errorMessage || unavailableMessage}
+                <div
+                    className={`flex h-full w-full items-center justify-center px-6 text-center ${fallbackClassName || 'bg-[#474747]'}`}
+                    style={fallbackStyle}
+                >
+                    <div className="flex max-w-[260px] flex-col items-center">
+                        <img
+                            src={disconnectIcon}
+                            alt=""
+                            aria-hidden="true"
+                            className="mb-4 h-10 w-10 object-contain"
+                        />
+                        <div className={`text-[12px] ${fallbackTextClassName}`}>
+                            {status === 'checking' ? 'Checking stream...' : errorMessage || unavailableMessage}
+                        </div>
                     </div>
                 </div>
             )}

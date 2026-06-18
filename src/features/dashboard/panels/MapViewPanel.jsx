@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import navUpIcon from '../../../assets/images/icon_nav_up.svg';
+import droneIconImage from '../../../assets/images/icon_drone.svg';
+import droneCenterMissionIcon from '../../../assets/images/icon_drone_center_mission.svg';
 
 // Fix Leaflet's default icon path issues
 delete L.Icon.Default.prototype._getIconUrl;
@@ -28,7 +31,7 @@ const createDroneIcon = (heading) => new L.DivIcon({
     className: 'custom-drone-icon',
     html: `
         <div style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:flex; align-items:center; justify-content:center; transform: rotate(${heading || 0}deg); transform-origin: ${DRONE_ICON_CENTER_X}px ${DRONE_ICON_CENTER_Y}px; transition: transform 0.3s ease;">
-            <img src="/src/assets/images/icon_drone.svg" alt="Drone" style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:block;" />
+            <img src="${droneIconImage}" alt="Drone" style="width:${DRONE_ICON_WIDTH}px; height:${DRONE_ICON_HEIGHT}px; display:block;" />
         </div>
     `,
     iconSize: [DRONE_ICON_WIDTH, DRONE_ICON_HEIGHT],
@@ -129,7 +132,43 @@ function MapControlButton({ children, className = '', ...props }) {
     );
 }
 
-export default function MapViewPanel({ telemetry, telemetryStatus = null, selectedDrone, trailPositions = [] }) {
+function CompassOverlay() {
+    return (
+        <div className="pointer-events-none absolute bottom-6 right-6 z-[450] flex h-32 w-32 items-center justify-center rounded-full bg-black/40">
+            <div className="relative flex h-full w-full items-center justify-center rounded-full border border-gray-400/50">
+                <span className="absolute top-2 z-[100] text-[11px] font-bold uppercase tracking-widest text-gray-200">N</span>
+                <span className="absolute right-2 z-[100] text-[11px] font-bold uppercase tracking-widest text-gray-200">E</span>
+                <span className="absolute bottom-2 z-[100] text-[11px] font-bold uppercase tracking-widest text-gray-200">S</span>
+                <span className="absolute left-2 z-[100] text-[11px] font-bold uppercase tracking-widest text-gray-200">W</span>
+                <div className="absolute h-[1px] w-full bg-gray-500/50" />
+                <div className="absolute h-full w-[1px] bg-gray-500/50" />
+                <img src={navUpIcon} alt="" aria-hidden="true" className="absolute z-[100] h-8 w-8 object-contain" />
+                <div className="absolute h-[60%] w-[60%] rounded-full border border-gray-500/50" />
+                <div className="absolute h-[30%] w-[30%] rounded-full border border-gray-500/50" />
+                {[...Array(12)].map((_, index) => (
+                    <div
+                        key={index}
+                        className="absolute flex h-[2px] w-full justify-between px-1"
+                        style={{ transform: `rotate(${index * 30}deg)` }}
+                    >
+                        <div className="h-full w-1.5 bg-gray-400" />
+                        <div className="h-full w-1.5 bg-gray-400" />
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+export default function MapViewPanel({
+    telemetry,
+    telemetryStatus = null,
+    selectedDrone,
+    trailPositions = [],
+    fallbackPosition = null,
+    showCompass = false,
+    lightShell = false,
+}) {
     const mapRef = useRef(null);
     const defaultCenter = [-6.200000, 106.816666]; // Jakarta fallback
     const [isFollowEnabled, setIsFollowEnabled] = useState(true);
@@ -139,9 +178,10 @@ export default function MapViewPanel({ telemetry, telemetryStatus = null, select
     const location = telemetry?.location || {};
     const isLocationFresh = Boolean(telemetryStatus?.metrics?.location?.isFresh);
     const hasLocation = isLocationFresh && location.latitude != null && location.longitude != null;
-    const dronePosition = hasLocation
+    const liveDronePosition = hasLocation
         ? [location.latitude, location.longitude]
         : null;
+    const dronePosition = liveDronePosition || fallbackPosition;
     const heading = location.heading ?? 0;
 
     // Home position from the selected drone detail
@@ -182,7 +222,12 @@ export default function MapViewPanel({ telemetry, telemetryStatus = null, select
     };
 
     return (
-        <div className="relative h-full w-full overflow-hidden bg-[#181d25] select-none">
+        <div
+            className={`relative h-full w-full overflow-hidden select-none ${lightShell ? '' : 'bg-[#181d25]'}`}
+            style={lightShell
+                ? { background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }
+                : undefined}
+        >
             {/* Telemetry HUD overlay */}
             {hasLocation && (
                 <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1 z-[400] text-[9px] font-mono text-gray-300 flex gap-3">
@@ -206,7 +251,7 @@ export default function MapViewPanel({ telemetry, telemetryStatus = null, select
                 center={center}
                 zoom={hasLocation ? 16 : 13}
                 ref={mapRef}
-                style={{ height: '100%', width: '100%' }}
+                style={{ height: '100%', width: '100%', padding: 0 }}
                 attributionControl={false}
                 zoomControl={false}
                 scrollWheelZoom={true}
@@ -225,7 +270,7 @@ export default function MapViewPanel({ telemetry, telemetryStatus = null, select
                 {/* Follow drone position */}
                 <MapFollower
                     position={dronePosition}
-                    shouldFollow={hasLocation && isFollowEnabled}
+                    shouldFollow={Boolean(liveDronePosition) && isFollowEnabled}
                     recenterRequest={recenterRequest}
                 />
 
@@ -264,7 +309,7 @@ export default function MapViewPanel({ telemetry, telemetryStatus = null, select
                 <div className="flex flex-col gap-1">
                     <MapControlButton onClick={handleRecenter} disabled={!dronePosition} aria-label="Center drone on map">
                         <img
-                            src="/src/assets/images/icon_drone_center_mission.svg"
+                            src={droneCenterMissionIcon}
                             alt=""
                             aria-hidden="true"
                             className="h-5 w-5 object-contain"
@@ -280,6 +325,8 @@ export default function MapViewPanel({ telemetry, telemetryStatus = null, select
                     </MapControlButton>
                 </div>
             </div>
+
+            {showCompass ? <CompassOverlay /> : null}
         </div>
     );
 }

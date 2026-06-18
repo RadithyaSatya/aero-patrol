@@ -1,5 +1,5 @@
 import React from 'react';
-import batteryBorderImage from '../../../assets/images/image_border_battery_dashboard.png';
+import batteryBorderImage from '../../../assets/images/image_border_battery_dashboard_white.png';
 import droneImage from '../../../assets/images/image_drone.png';
 import useWeatherForecast from '../../../shared/hooks/useWeatherForecast';
 import {
@@ -12,9 +12,9 @@ import {
 } from '../../../shared/utils/weather';
 
 const WeatherBadge = ({ label, value }) => (
-    <div className="flex items-center justify-between border border-[#393F44] rounded-[12px] bg-[#222425] px-3 py-2 text-[10px]">
-        <span className="text-gray-400">{label}</span>
-        <span className="font-tomorrow text-gray-100">{value}</span>
+    <div className="flex items-center justify-between rounded-[12px] border border-[#A8A8A8] bg-[#EBEBEB] px-3 py-2 text-[10px]">
+        <span className="text-[#555555]">{label}</span>
+        <span className="font-tomorrow text-[#1F1F1F]">{value}</span>
     </div>
 );
 
@@ -82,21 +82,24 @@ export default function DroneInfoPanel({
     const connectionLabel = isRealtimeOnline ? 'Online' : 'Disconnected';
     const connectionColorClass = isRealtimeOnline ? 'text-[#32BA87]' : 'text-red-500';
     return (
-        <div className="font-tomorrow relative flex h-full w-full flex-col gap-4 overflow-hidden border-l border-[#5E0A0A] bg-[#222222] p-5 shadow-lg select-none">
-            <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
-            <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#ED0000] via-[#5E0A0A]/45 to-transparent" />
+        <div
+            className="font-tomorrow relative grid h-full w-full grid-rows-[auto_auto_1fr] gap-4 overflow-hidden border-l border-[#FF383C] px-5 py-5 shadow-lg select-none"
+            style={{ background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
+        >
+            <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#FF383C] via-[#FF383C]/45 to-transparent" />
+            <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#FF383C] via-[#FF383C]/45 to-transparent" />
 
 
             {/* Header Section */}
             <div className="flex justify-between items-start">
                 <div className="flex min-w-0 flex-col text-left">
                     {isLoading ? (
-                        <h2 className="text-white text-[18px] font-bold tracking-wide">Loading...</h2>
+                        <h2 className="text-[#1F1F1F] text-[18px] font-bold tracking-wide">Loading...</h2>
                     ) : errorMsg ? (
                         <h2 className="text-red-400 text-[18px] font-bold tracking-wide text-sm">{errorMsg}</h2>
                     ) : (
                         <>
-                            <h2 className="truncate text-white text-[18px] font-bold tracking-wide">
+                            <h2 className="truncate text-[#1F1F1F] text-[18px] font-bold tracking-wide">
                                 {droneLabel}
                             </h2>
                             <span className={`mt-[2px] text-[10px] tracking-wider ${connectionColorClass}`}>
@@ -109,10 +112,10 @@ export default function DroneInfoPanel({
             </div>
 
             {/* Battery Section */}
-            <div className="flex flex-col gap-2 pt-3 text-left">
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-[#ED0000] to-transparent" />
-                <h3 className="text-gray-200 text-xs font-semibold tracking-wide">Battery</h3>
-                <div className="relative flex min-h-[74px] items-center justify-between px-4 py-3">
+            <div className="flex flex-col gap-2 pt-1 text-left">
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-[#FF383C] to-transparent" />
+                <h3 className="text-[#000000] text-xs font-semibold tracking-wide">Battery</h3>
+                <div className="relative flex min-h-[72px] items-center justify-between px-4 py-3">
                     <img
                         src={batteryBorderImage}
                         alt=""
@@ -127,7 +130,7 @@ export default function DroneInfoPanel({
                             ></div>
                             <div className="absolute right-[-4px] top-1/2 -translate-y-1/2 w-[2px] h-2 bg-gray-400 rounded-r-[1px]"></div>
                         </div>
-                        <span className="text-white text-sm font-bold tracking-wider font-mono">{batteryStatus.text}</span>
+                        <span className="text-[#000000] text-sm font-bold tracking-wider font-mono">{batteryStatus.text}</span>
                     </div>
                     <div className="relative z-10 flex flex-col items-end">
                         <span className={`text-[11px] font-bold tracking-wide ${batteryStatus.color}`}>
@@ -141,21 +144,25 @@ export default function DroneInfoPanel({
             </div>
 
             {/* Weather Section */}
-            <div className="flex flex-col gap-2 text-left">
-                <h3 className="text-gray-200 text-xs font-semibold tracking-wide">Weather</h3>
-                <div className="flex flex-col border border-[#393F44] bg-[rgba(50,50,50,0.5)] p-4">
+            <div className="flex min-h-0 flex-col gap-2 text-left">
+                <h3 className="text-[#2A2A2A] text-xs font-semibold tracking-wide">Weather</h3>
+                <div className="flex min-h-0 flex-1 flex-col justify-between border border-[#A8A8A8] bg-[rgba(197,197,197,0.5)] p-4">
                     <div className="flex justify-between items-start">
                         <div className="flex items-center gap-3">
-                            <span className="text-[28px] leading-none text-white">{currentWeatherPresentation.icon}</span>
-                            <span className="text-white text-2xl font-bold tracking-wider font-sans">
+                            <img
+                                src={currentWeatherPresentation.icon}
+                                alt={currentWeatherPresentation.label}
+                                className="h-[52px] w-[52px] shrink-0 object-contain"
+                            />
+                            <span className="text-[#1F1F1F] text-2xl font-bold tracking-wider font-sans">
                                 {isWeatherLoading ? '--' : formatTemperature(currentWeather.temperature_2m)}
                             </span>
                         </div>
                         <div className="flex flex-col items-end">
-                            <span className="text-white text-[13px] font-bold tracking-wide leading-tight">
+                            <span className="text-[#1F1F1F] text-[13px] font-bold tracking-wide leading-tight">
                                 {isWeatherLoading ? 'Loading...' : weatherError ? 'Weather Error' : currentWeatherPresentation.label}
                             </span>
-                            <span className="text-gray-300 text-[10px] font-mono tracking-wide mt-[2px]">
+                            <span className="mt-[2px] text-[10px] font-mono tracking-wide text-[#555555]">
                                 {formatHour(currentWeather.time)}
                             </span>
                         </div>
@@ -168,7 +175,7 @@ export default function DroneInfoPanel({
                         <WeatherBadge label="Visibility" value={isWeatherLoading ? '--' : formatVisibility(currentWeather.visibility)} />
                     </div>
 
-                    <div className="flex justify-center mt-2">
+                    <div className="mt-2 flex justify-center">
                         <span className={`text-[10px] font-medium tracking-wide ${weatherError ? 'text-red-300' : 'text-[#1ab394]'}`}>
                             {weatherError || (isWeatherLoading ? 'Loading weather...' : 'Live drone weather')}
                         </span>
@@ -178,8 +185,8 @@ export default function DroneInfoPanel({
 
             {/* Telemetry Stats Section */}
             <div className="flex flex-col gap-2 flex-1 text-left" style={{ display: 'none' }}>
-                <h3 className="text-gray-200 text-xs font-semibold tracking-wide">Telemetry</h3>
-                <div className="flex flex-1 flex-col justify-between border border-[#5E0A0A] bg-transparent p-4">
+                <h3 className="text-[#2A2A2A] text-xs font-semibold tracking-wide">Telemetry</h3>
+                <div className="flex flex-1 flex-col justify-between border border-[#FF383C] bg-transparent p-4">
 
                     {/* Flight Info Grid */}
                     <div className="flex flex-col text-[10px] text-gray-400">

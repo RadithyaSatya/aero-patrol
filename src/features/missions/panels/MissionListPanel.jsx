@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { missionService } from '../../../services/api';
 import DeleteMissionModal from '../components/DeleteMissionModal';
-import addMissionButton from '../../../assets/images/btn_add_mission.png';
+import addMissionButton from '../../../assets/images/btn_add_mission_white.svg';
 import deleteMissionIcon from '../../../assets/images/icon_trash_mission.svg';
 
 const PAGE_LIMIT = 20;
@@ -263,11 +263,14 @@ export default function MissionListPanel({
 
     return (
         <>
-            <div className="font-tomorrow relative flex h-full w-full flex-col overflow-hidden border-[0.5px] border-[#FC4747] bg-[#222222] p-4 shadow-lg select-none">
+            <div
+                className="font-tomorrow relative flex h-full w-full flex-col overflow-hidden border border-[#FF383C] p-4 shadow-lg select-none"
+                style={{ background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
+            >
                 <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                        <h2 className="text-[18px] tracking-wide text-white">Mission List</h2>
-                        <span className="mt-1 text-[11px] font-medium text-gray-400">{listSubtitle}</span>
+                        <h2 className="text-[18px] tracking-wide text-[#1F1F1F]">Mission List</h2>
+                        <span className="mt-1 text-[11px] font-medium text-[#5F5F5F]">{listSubtitle}</span>
                     </div>
                     <button
                         type="button"
@@ -286,8 +289,8 @@ export default function MissionListPanel({
                         onClick={() => setActiveFilter('today')}
                         className={`min-w-[74px] border px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] transition-colors ${
                             activeFilter === 'today'
-                                ? 'border-[#951616] bg-[#951616] text-white'
-                                : 'border-[#3B3B3B] bg-[#222222] text-gray-300 hover:bg-[#272727]'
+                                ? 'border-[#951616] bg-[#951616] text-[#FFFFFF]'
+                                : 'border-[#3B3B3B] bg-[#E3E3E3] text-[#000000] hover:bg-[#D9D9D9]'
                         }`}
                     >
                         Today
@@ -297,8 +300,8 @@ export default function MissionListPanel({
                         onClick={() => setActiveFilter('later')}
                         className={`min-w-[74px] border px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] transition-colors ${
                             activeFilter === 'later'
-                                ? 'border-[#951616] bg-[#951616] text-white'
-                                : 'border-[#3B3B3B] bg-[#222222] text-gray-300 hover:bg-[#272727]'
+                                ? 'border-[#951616] bg-[#951616] text-[#FFFFFF]'
+                                : 'border-[#3B3B3B] bg-[#E3E3E3] text-[#000000] hover:bg-[#D9D9D9]'
                         }`}
                     >
                         Later
@@ -311,7 +314,7 @@ export default function MissionListPanel({
                     className="custom-scrollbar mt-2 flex-1 min-h-0 overflow-auto"
                 >
                     <div className="inline-block min-w-full align-top">
-                        <div className={`${tableLayoutClass} w-full items-center border-b border-[#7A1A1A] bg-[#5E0A0A] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#FFFFFF]`}>
+                        <div className={`${tableLayoutClass} w-full items-center border-t-[0.5px] border-b border-x border-[#7A0A0C] bg-[#5E0A0A] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#FFFFFF]`}>
                             <div className="whitespace-nowrap">Date</div>
                             <div className="min-w-0">Mission Name</div>
                             <div className="whitespace-nowrap">Status</div>
@@ -320,14 +323,14 @@ export default function MissionListPanel({
                         </div>
 
                         {isInitialLoading ? (
-                            <div className="px-2 py-3 text-xs text-gray-400">Loading missions...</div>
+                            <div className="px-2 py-3 text-xs text-[#5F5F5F]">Loading missions...</div>
                         ) : errorMsg && missionRuns.length === 0 ? (
-                            <div className="flex h-full flex-col items-center justify-center px-3 py-4 text-center text-xs text-red-400">
+                            <div className="flex h-full flex-col items-center justify-center px-3 py-4 text-center text-xs text-[#B42323]">
                                 <span>Oops, error loading missions:</span>
                                 <span className="mt-1 opacity-80">{errorMsg}</span>
                             </div>
                         ) : missionRuns.length === 0 ? (
-                            <div className="flex h-full items-center justify-center px-3 py-4 text-xs italic text-gray-400">
+                            <div className="flex h-full items-center justify-center px-3 py-4 text-xs italic text-[#5F5F5F]">
                                 No missions found for this filter.
                             </div>
                         ) : (
@@ -349,26 +352,26 @@ export default function MissionListPanel({
                                                     onSelectMission?.(missionRun);
                                                 }
                                             }}
-                                            className={`${tableLayoutClass} w-full items-center border-b border-[#323232] px-3 py-[10px] text-xs transition-colors ${
+                                            className={`${tableLayoutClass} w-full items-center border-t-[0.5px] border-b border-x border-[#7A0A0C] px-3 py-[10px] text-xs transition-colors ${
                                                 isSelected
-                                                    ? 'bg-[#2D1C1C] shadow-[inset_0_0_0_1px_rgba(253,87,87,0.55)]'
-                                                    : 'bg-[#282828] hover:bg-[#303030]'
+                                                    ? 'bg-[#F3D9D9] shadow-[inset_0_0_0_1px_rgba(149,22,22,0.35)]'
+                                                    : 'bg-[#F8F8F8] hover:bg-[#EFEFEF]'
                                             }`}
                                         >
-                                            <div className="min-w-0 whitespace-nowrap leading-tight text-[10px] text-gray-300">
+                                            <div className="min-w-0 whitespace-nowrap leading-tight text-[10px] text-[#454545]">
                                                 <div>{formattedRunAt.date}</div>
                                                 <div className="mt-1">{formattedRunAt.time}</div>
                                             </div>
-                                            <div className={`min-w-0 pr-3 text-[11px] font-medium ${isSelected ? 'text-white' : 'text-gray-200'}`}>
+                                            <div className={`min-w-0 pr-3 text-[11px] font-medium ${isSelected ? 'text-[#951616]' : 'text-[#1F1F1F]'}`}>
                                                 <div className="truncate">{missionRun.mission_name}</div>
-                                                <div className="mt-1 truncate text-[10px] text-gray-500">Mission ID {missionRun.mission_id}</div>
+                                                {/* <div className="mt-1 truncate text-[10px] text-[#5F5F5F]">Mission ID {missionRun.mission_id}</div> */}
                                             </div>
-                                            <div className="min-w-0 pr-2 text-[11px] text-gray-300">
+                                            <div className="min-w-0 pr-2 text-[11px] text-[#454545]">
                                                 <div className="truncate">{missionRun.status}</div>
                                             </div>
-                                            <div className="min-w-0 pr-2 text-[10px] text-gray-300">
+                                            <div className="min-w-0 pr-2 text-[10px] text-[#454545]">
                                                 <div className="truncate">{getScheduleLabel(missionRun.schedule_type)}</div>
-                                                <div className="mt-1 whitespace-nowrap text-gray-500">{formattedRunAt.time}</div>
+                                                <div className="mt-1 whitespace-nowrap text-[#5F5F5F]">{formattedRunAt.time}</div>
                                             </div>
                                             <div className="flex w-full justify-center">
                                                 <button
@@ -379,7 +382,7 @@ export default function MissionListPanel({
                                                         setDeleteErrorMsg('');
                                                         setDeleteTarget(missionRun);
                                                     }}
-                                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-transparent transition hover:border-[#FD5757]/40 hover:bg-[#351d1d]"
+                                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-transparent transition hover:border-[#7A0A0C] hover:bg-[#F1DCDC]"
                                                 >
                                                     <img src={deleteMissionIcon} alt="" aria-hidden="true" className="h-4 w-4 object-contain" />
                                                 </button>
@@ -389,15 +392,15 @@ export default function MissionListPanel({
                                 })}
 
                                 {isLoadingMore ? (
-                                    <div className="px-2 py-3 text-center text-xs text-gray-400">Loading more missions...</div>
+                                    <div className="px-2 py-3 text-center text-xs text-[#5F5F5F]">Loading more missions...</div>
                                 ) : null}
 
                                 {!pagination.hasNext ? (
-                                    <div className="px-2 py-3 text-center text-[11px] text-gray-500">End of missions</div>
+                                    <div className="px-2 py-3 text-center text-[11px] text-[#5F5F5F]">End of missions</div>
                                 ) : null}
 
                                 {errorMsg && missionRuns.length > 0 ? (
-                                    <div className="px-2 py-3 text-center text-xs text-red-400">{errorMsg}</div>
+                                    <div className="px-2 py-3 text-center text-xs text-[#B42323]">{errorMsg}</div>
                                 ) : null}
                             </>
                         )}

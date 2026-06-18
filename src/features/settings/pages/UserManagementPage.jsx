@@ -7,8 +7,8 @@ import UserPreviewModal from '../components/UserPreviewModal';
 
 const PAGE_LIMIT = 20;
 const PAGE_LIMIT_OPTIONS = [10, 20, 50, 100];
-const panelStroke = '#FC4747';
-const tableStroke = '#5E0A0A';
+const panelStroke = '#FF383C';
+const panelBackground = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
 const overlayDividerStroke = 'linear-gradient(90deg, rgba(252,71,71,0.12) 0%, #FC4747 50%, rgba(252,71,71,0.12) 100%)';
 const initialCreateUserForm = {
     username: '',
@@ -44,7 +44,7 @@ const ViewIcon = () => (
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="text-gray-300 transition-colors hover:text-white"
+        className="text-[#565656] transition-colors hover:text-[#000000]"
     >
         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
         <circle cx="12" cy="12" r="3" />
@@ -53,8 +53,8 @@ const ViewIcon = () => (
 
 const PanelShell = ({ children, className = '', showBottomDivider = true }) => (
     <div
-        className={`font-tomorrow relative min-h-0 overflow-hidden border bg-[#222222] p-4 shadow-lg select-none ${className}`}
-        style={{ borderColor: panelStroke }}
+        className={`font-tomorrow relative min-h-0 overflow-hidden border p-4 shadow-lg select-none ${className}`}
+        style={{ borderColor: panelStroke, background: panelBackground }}
     >
         <div className="pointer-events-none absolute left-0 top-0 h-px w-full" style={{ backgroundImage: overlayDividerStroke }} />
         {showBottomDivider ? <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full" style={{ backgroundImage: overlayDividerStroke }} /> : null}
@@ -65,7 +65,7 @@ const PanelShell = ({ children, className = '', showBottomDivider = true }) => (
 function UserTableState({ children, tone = 'default' }) {
     if (tone === 'error') {
         return (
-            <div className="flex h-full flex-col items-center justify-center px-3 py-4 text-center text-xs text-red-400">
+            <div className="flex h-full flex-col items-center justify-center px-3 py-4 text-center text-xs text-[#B42323]">
                 <div className="max-w-[340px] leading-6">{children}</div>
             </div>
         );
@@ -73,14 +73,14 @@ function UserTableState({ children, tone = 'default' }) {
 
     if (tone === 'empty') {
         return (
-            <div className="flex h-full items-center justify-center px-3 py-4 text-xs italic text-gray-400">
+            <div className="flex h-full items-center justify-center px-3 py-4 text-xs italic text-[#5F5F5F]">
                 {children}
             </div>
         );
     }
 
     return (
-        <div className="flex h-full items-center justify-center px-3 py-4 text-center text-xs text-gray-400">
+        <div className="flex h-full items-center justify-center px-3 py-4 text-center text-xs text-[#5F5F5F]">
             {children}
         </div>
     );
@@ -119,11 +119,11 @@ const PaginationBox = ({ active = false, disabled = false, children, onClick }) 
         onClick={onClick}
         disabled={disabled}
         className={`flex h-9 min-w-9 items-center justify-center border px-3 text-[12px] font-medium transition-colors ${
-            active ? 'text-[#FC4747]' : 'text-white'
-        } ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-[#383838]'}`}
+            active ? 'text-[#FFFFFF]' : 'text-[#1F1F1F]'
+        } ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-[#DCDCDC]'}`}
         style={{
-            backgroundColor: '#2F2F2F',
-            borderColor: active ? '#FC4747' : '#484848',
+            backgroundColor: active ? '#951616' : '#E3E3E3',
+            borderColor: active ? '#951616' : '#3B3B3B',
         }}
     >
         {children}
@@ -379,7 +379,7 @@ export default function UserManagementPage() {
                     <div className="flex items-center gap-3">
                         <div className="relative">
                             <svg
-                                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#565656]"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
@@ -395,7 +395,7 @@ export default function UserManagementPage() {
                                 value={usernameInput}
                                 onChange={(event) => setUsernameInput(event.target.value)}
                                 placeholder="Search username"
-                                className="h-[42px] w-[300px] border border-[#FC4747] bg-[#1C1C1C] pl-10 pr-4 text-[12px] text-white outline-none transition-colors placeholder:text-gray-500 focus:border-[#FC4747]"
+                                className="h-[42px] w-[300px] border border-[#929292] bg-[#D2D2D2] pl-10 pr-4 text-[12px] text-[#000000] outline-none transition-colors placeholder:text-[#565656] focus:border-[#929292]"
                             />
                         </div>
 
@@ -403,7 +403,7 @@ export default function UserManagementPage() {
                             <button
                                 type="button"
                                 onClick={() => setIsLimitMenuOpen((current) => !current)}
-                                className="flex h-[42px] w-[42px] items-center justify-center border border-[#FC4747] bg-[#1C1C1C] transition-colors hover:border-[#FC4747] hover:bg-[#262626]"
+                                className="flex h-[42px] w-[42px] items-center justify-center border border-[#929292] bg-[#D2D2D2] transition-colors hover:bg-[#C7C7C7]"
                                 aria-label="Open page limit filter"
                                 aria-expanded={isLimitMenuOpen}
                             >
@@ -411,8 +411,8 @@ export default function UserManagementPage() {
                             </button>
 
                             {isLimitMenuOpen ? (
-                                <div className="absolute left-0 top-[calc(100%+8px)] z-20 w-[180px] overflow-hidden border border-[#FC4747] bg-[#1C1C1C] shadow-lg">
-                                    <div className="border-b border-[#5E0A0A] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-gray-400">
+                                <div className="absolute left-0 top-[calc(100%+8px)] z-20 w-[180px] overflow-hidden border border-[#FF383C] bg-[#F5F5F5] shadow-lg">
+                                    <div className="border-b border-[#7A0A0C] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[#5F5F5F]">
                                         Limit per page
                                     </div>
                                     {PAGE_LIMIT_OPTIONS.map((option) => (
@@ -421,7 +421,7 @@ export default function UserManagementPage() {
                                             type="button"
                                             onClick={() => handleSelectPageLimit(option)}
                                             className={`flex w-full items-center justify-between px-3 py-2 text-left text-[12px] transition-colors ${
-                                                pagination.limit === option ? 'bg-[#311818] text-white' : 'text-gray-300 hover:bg-[#262626]'
+                                                pagination.limit === option ? 'bg-[#F3D9D9] text-[#951616]' : 'text-[#1F1F1F] hover:bg-[#E9E9E9]'
                                             }`}
                                         >
                                             <span>{option} items</span>
@@ -437,7 +437,7 @@ export default function UserManagementPage() {
                         <button
                             type="button"
                             onClick={handleOpenCreateModal}
-                            className="flex h-[42px] items-center gap-2 border border-[#FC4747] bg-[#222222] px-4 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2B2B2B]"
+                            className="flex h-[42px] items-center gap-2 border border-[#929292] bg-[#D2D2D2] px-4 text-[11px] font-medium uppercase tracking-[0.18em] text-[#000000] transition-colors hover:bg-[#C7C7C7]"
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <line x1="12" x2="12" y1="5" y2="19" />
@@ -445,29 +445,17 @@ export default function UserManagementPage() {
                             </svg>
                             Add User
                         </button>
-
-                        <button
-                            type="button"
-                            className="flex h-[42px] items-center gap-2 border border-[#FC4747] bg-[#222222] px-4 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2B2B2B]"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <polyline points="7 10 12 15 17 10" />
-                                <line x1="12" x2="12" y1="15" y2="3" />
-                            </svg>
-                            Export as CSV
-                        </button>
                     </div>
                 </div>
 
                 {successMsg ? (
-                    <div className="border border-[#2F6F4F] bg-[#11251B] px-4 py-3 text-[12px] text-[#C8F7DA]">
+                    <div className="border border-[#7F3434] bg-[#EBDDDD] px-4 py-3 text-[12px] text-[#951616]">
                         {successMsg}
                     </div>
                 ) : null}
 
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-[#5E0A0A]">
-                    <div className="relative grid grid-cols-[1.5fr_1fr_1.3fr_0.8fr] bg-[#5E0A0A] px-4 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-white">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                    <div className="relative grid grid-cols-[1.5fr_1fr_1.3fr_0.8fr] border-t-[0.5px] border-b border-[#7A0A0C] bg-[#5E0A0A] px-4 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-white">
                         <div>Username</div>
                         <div>Role</div>
                         <div>Created At</div>
@@ -489,7 +477,7 @@ export default function UserManagementPage() {
                                 No users found for this filter.
                             </UserTableState>
                         ) : (
-                            users.map((user, index) => (
+                            users.map((user) => (
                                 <div
                                     key={user.id}
                                     role="button"
@@ -502,19 +490,15 @@ export default function UserManagementPage() {
                                             setSelectedUserId(user.id);
                                         }
                                     }}
-                                    className={`relative grid cursor-pointer grid-cols-[1.5fr_1fr_1.3fr_0.8fr] items-center gap-4 px-4 py-3 text-[11px] transition-colors ${
-                                        user.id === selectedUserId ? 'bg-[#311818]' : 'hover:bg-[#292929]'
-                                    } focus:outline-none focus-visible:bg-[#311818]`}
+                                    className={`relative grid cursor-pointer grid-cols-[1.5fr_1fr_1.3fr_0.8fr] items-center gap-4 border-t-[0.5px] border-b border-[#7A0A0C] px-4 py-3 text-[11px] transition-colors ${
+                                        user.id === selectedUserId ? 'bg-[#F3D9D9]' : 'bg-[#F8F8F8] hover:bg-[#EFEFEF]'
+                                    } focus:outline-none focus-visible:bg-[#F3D9D9]`}
                                 >
-                                    {index === 0 ? (
-                                        <div className="pointer-events-none absolute left-0 right-0 top-0 h-px" style={{ backgroundColor: tableStroke }} />
-                                    ) : null}
-                                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px" style={{ backgroundColor: tableStroke }} />
                                     {user.id === selectedUserId ? <div className="pointer-events-none absolute bottom-0 left-0 top-0 w-[3px] bg-[#FC4747]" /> : null}
 
-                                    <div className="truncate font-medium text-white">{user.username || '-'}</div>
-                                    <div className="truncate text-gray-300">{resolveUserRole(user)}</div>
-                                    <div className="text-gray-300">{formatDateTime(user.created_at)}</div>
+                                    <div className={`truncate font-medium ${user.id === selectedUserId ? 'text-[#951616]' : 'text-[#1F1F1F]'}`}>{user.username || '-'}</div>
+                                    <div className="truncate text-[#454545]">{resolveUserRole(user)}</div>
+                                    <div className="text-[#454545]">{formatDateTime(user.created_at)}</div>
                                     <div className="flex items-center justify-center gap-4">
                                         <button
                                             type="button"
