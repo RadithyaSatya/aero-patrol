@@ -612,8 +612,8 @@ export default function MissionDetailPanel({
             <div className="mt-5 shrink-0">
                 {submitError ? (
                     <div
-                        className="mb-4 border px-4 py-3 text-[12px] text-[#FFD0D0]"
-                        style={{ borderColor: '#FB55557A', backgroundColor: 'rgba(87, 20, 20, 0.28)' }}
+                        className="mb-4 border px-4 py-3 text-[12px] font-medium tracking-[0.04em] text-[#FFFFFF]"
+                        style={{ borderColor: '#ED0000', backgroundColor: 'rgba(87, 20, 20, 0.88)' }}
                     >
                         {submitError}
                     </div>

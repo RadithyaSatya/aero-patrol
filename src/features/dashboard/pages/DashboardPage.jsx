@@ -18,6 +18,21 @@ import useTelemetry from '../../../shared/hooks/useTelemetry';
 import cameraPanelBorder from '../../../assets/images/image_border_campanel_dashboard_white.png';
 import switchButtonImage from '../../../assets/images/btn_switch.png';
 
+const DASHBOARD_TELEMETRY_METRICS = [
+    'vehicle_state',
+    'location',
+    'attitude',
+    'battery',
+    'gps',
+    'link',
+    'mission_progress',
+    'mission_event',
+    'mission_status',
+    'camera_state',
+];
+const STREAM_ELIGIBLE_RUNTIME_STATUSES = new Set(['preparingdock', 'safetofly', 'takeoff']);
+const STREAM_BLOCKED_RUNTIME_STATUSES = new Set(['landed', 'dockconfirmed', 'completed', 'failed', 'aborted']);
+
 const EMPTY_ACTIVE_TRACK = Object.freeze({
     historyId: null,
     missionId: null,
@@ -34,6 +49,8 @@ const toFiniteNumber = (value) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
 };
+
+const normalizeRuntimeStatus = (value = '') => String(value).replace(/[\s_-]+/g, '').toLowerCase();
 
 const normalizeRecordedAt = (value) => {
     if (value == null || value === '') {
@@ -177,6 +194,13 @@ export default function DashboardPage() {
     const [missionListRefreshKey, setMissionListRefreshKey] = useState(0);
     const [quickLaunchScheduleConflictState, setQuickLaunchScheduleConflictState] = useState(null);
     const [quickLaunchRecentHistoryGuardState, setQuickLaunchRecentHistoryGuardState] = useState(null);
+    const [isAbortingMission, setIsAbortingMission] = useState(false);
+    const [abortMissionError, setAbortMissionError] = useState('');
+    const [isCameraRecordingCommandPending, setIsCameraRecordingCommandPending] = useState(false);
+    const [isCaptureCommandPending, setIsCaptureCommandPending] = useState(false);
+    const [isZoomInCommandPending, setIsZoomInCommandPending] = useState(false);
+    const [isZoomOutCommandPending, setIsZoomOutCommandPending] = useState(false);
+    const [cameraCommandError, setCameraCommandError] = useState('');
 
     const [selectedDrone, setSelectedDrone] = useState(null);
     const [isDroneLoading, setIsDroneLoading] = useState(true);
@@ -208,7 +232,7 @@ export default function DashboardPage() {
     }, []);
 
     const uavIds = selectedDrone?.id ? [selectedDrone.id] : [];
-    const { telemetry, telemetryStatus, isConnected: isTelemetryConnected } = useTelemetry(uavIds);
+    const { telemetry, telemetryStatus, isConnected: isTelemetryConnected } = useTelemetry(uavIds, DASHBOARD_TELEMETRY_METRICS);
 
     const selectedTelemetry = selectedDrone ? telemetry[selectedDrone.id] : null;
     const selectedTelemetryStatus = selectedDrone ? telemetryStatus[selectedDrone.id] : null;
@@ -216,11 +240,14 @@ export default function DashboardPage() {
     const telemetryVehicleState = selectedTelemetry?.vehicle_state || {};
     const telemetryMissionEvent = selectedTelemetry?.mission_event || {};
     const telemetryMissionStatus = selectedTelemetry?.mission_status || {};
+    const telemetryCameraState = selectedTelemetry?.camera_state || {};
     const isVehicleStateFresh = Boolean(selectedTelemetryStatus?.metrics?.vehicle_state?.isFresh);
+    const isCameraStateFresh = Boolean(selectedTelemetryStatus?.metrics?.camera_state?.isFresh);
     const telemetryHistoryId = telemetryMissionEvent.history_id ?? null;
     const missionStatusHistoryId = telemetryMissionStatus.history_id ?? null;
     const missionStatusMissionId = telemetryMissionStatus.mission_id ?? null;
     const telemetryRuntimeStatus = telemetryMissionStatus.runtime_status ?? '';
+    const normalizedRuntimeStatus = normalizeRuntimeStatus(telemetryRuntimeStatus);
     const isVehicleMissionActive = isVehicleStateFresh && typeof telemetryVehicleState.in_mission === 'boolean'
         ? telemetryVehicleState.in_mission
         : null;
@@ -235,11 +262,24 @@ export default function DashboardPage() {
         telemetryHistoryId != null ||
         telemetryRuntimeStatus
     );
-    const canOpenStreamMode = telemetryRuntimeStatus
-        ? telemetryRuntimeStatus !== 'Waiting'
-        : (hasMissionRuntime || isDroneInMission);
+    const hasMissionTelemetrySignal = Boolean(
+        missionStatusHistoryId != null ||
+        missionStatusMissionId != null ||
+        telemetryHistoryId != null ||
+        telemetryRuntimeStatus
+    );
+    const isStreamBlockedByRuntimeStatus = STREAM_BLOCKED_RUNTIME_STATUSES.has(normalizedRuntimeStatus);
+    const isStreamAllowedByRuntimeStatus = STREAM_ELIGIBLE_RUNTIME_STATUSES.has(normalizedRuntimeStatus);
+    const canOpenStreamMode = !isStreamBlockedByRuntimeStatus && (
+        isStreamAllowedByRuntimeStatus ||
+        isDroneInMission ||
+        (hasMissionTelemetrySignal && !telemetryRuntimeStatus)
+    );
     const selectedLocation = selectedTelemetry?.location || {};
+    const isLocationFresh = Boolean(selectedTelemetryStatus?.metrics?.location?.isFresh);
+    const selectedHeading = isLocationFresh && selectedLocation.heading != null ? Number(selectedLocation.heading) : 0;
     const selectedTrack = selectedDrone ? (droneTrailById[selectedDrone.id] || EMPTY_ACTIVE_TRACK) : EMPTY_ACTIVE_TRACK;
+    const activeMissionHistoryId = missionStatusHistoryId ?? telemetryHistoryId ?? selectedTrack.historyId ?? null;
     const selectedTrail = selectedTrack.points.map((point) => [point.latitude, point.longitude]);
     const lastTrackedPoint = selectedTrack.points[selectedTrack.points.length - 1] || null;
     const fallbackMapPosition = lastTrackedPoint
@@ -252,6 +292,18 @@ export default function DashboardPage() {
             : droneStatus.is_docked
                 ? 'Docked'
                 : 'Standby');
+    const canAbortMission = Boolean(
+        selectedDrone?.id &&
+        activeMissionHistoryId != null &&
+        !STREAM_BLOCKED_RUNTIME_STATUSES.has(normalizedRuntimeStatus)
+    );
+    const currentCameraZoomLevel = Number(telemetryCameraState.zoom_level);
+    const hasCameraZoomLevel = isCameraStateFresh && Number.isFinite(currentCameraZoomLevel);
+    const isCameraConnected = isCameraStateFresh && telemetryCameraState.connected === true;
+    const isCameraRecording = isCameraStateFresh && (
+        telemetryCameraState.recording_state === 1
+        || String(telemetryCameraState.recording_label || '').toLowerCase() === 'on'
+    );
 
     const refreshTrack = useCallback(async () => {
         if (!selectedDrone?.id) {
@@ -325,6 +377,7 @@ export default function DashboardPage() {
         const nextMissionKey = [
             missionStatusMissionId ?? selectedTrack.missionId ?? 'none',
             missionStatusHistoryId ?? telemetryHistoryId ?? selectedTrack.historyId ?? 'none',
+            telemetryRuntimeStatus || 'none',
         ].join(':');
 
         if (nextMissionKey === activeMissionKeyRef.current) {
@@ -433,6 +486,123 @@ export default function DashboardPage() {
         setIsLaunchDialogOpen(true);
     };
 
+    const handleAbortMission = useCallback(async () => {
+        if (!selectedDrone?.id) {
+            setAbortMissionError('No UAV available for abort.');
+            return;
+        }
+
+        if (activeMissionHistoryId == null) {
+            setAbortMissionError('Active mission history is not available yet.');
+            return;
+        }
+
+        if (!window.confirm(`Abort mission for UAV #${selectedDrone.id}?`)) {
+            return;
+        }
+
+        setAbortMissionError('');
+        setIsAbortingMission(true);
+
+        try {
+            await telemetryService.publishMetric({
+                uavId: selectedDrone.id,
+                metric: 'mission_event',
+                payload: {
+                    history_id: activeMissionHistoryId,
+                    event: 'mission_aborted',
+                    message: 'frontend_abort_request',
+                },
+            });
+
+            setMissionListRefreshKey((current) => current + 1);
+            refreshTrack();
+        } catch (error) {
+            console.error('Error aborting mission:', error);
+            setAbortMissionError(error.message || 'Failed to abort mission');
+        } finally {
+            setIsAbortingMission(false);
+        }
+    }, [activeMissionHistoryId, refreshTrack, selectedDrone?.id]);
+
+    const publishCameraCommand = useCallback(async (payload) => {
+        if (!selectedDrone?.id) {
+            throw new Error('No UAV available for camera command.');
+        }
+
+        await telemetryService.publishMetric({
+            uavId: selectedDrone.id,
+            metric: 'camera_command',
+            payload,
+        });
+    }, [selectedDrone?.id]);
+
+    const handleTakePicture = useCallback(async () => {
+        setCameraCommandError('');
+        setIsCaptureCommandPending(true);
+
+        try {
+            await publishCameraCommand({
+                command: 'take_photo',
+            });
+        } catch (error) {
+            console.error('Error taking photo:', error);
+            setCameraCommandError(error.message || 'Failed to take picture');
+        } finally {
+            setIsCaptureCommandPending(false);
+        }
+    }, [publishCameraCommand]);
+
+    const handleStartRecording = useCallback(async () => {
+        if (isCameraRecording) {
+            return;
+        }
+
+        setCameraCommandError('');
+        setIsCameraRecordingCommandPending(true);
+
+        try {
+            await publishCameraCommand({
+                command: 'set_recording',
+                enabled: true,
+            });
+        } catch (error) {
+            console.error('Error starting recording:', error);
+            setCameraCommandError(error.message || 'Failed to start recording');
+        } finally {
+            setIsCameraRecordingCommandPending(false);
+        }
+    }, [isCameraRecording, publishCameraCommand]);
+
+    const handleZoomStep = useCallback(async (direction) => {
+        if (!hasCameraZoomLevel) {
+            setCameraCommandError('Camera zoom level is not available yet.');
+            return;
+        }
+
+        const nextZoomLevel = direction === 'in'
+            ? currentCameraZoomLevel + 1
+            : Math.max(0, currentCameraZoomLevel - 1);
+        const setPending = direction === 'in'
+            ? setIsZoomInCommandPending
+            : setIsZoomOutCommandPending;
+
+        setCameraCommandError('');
+        setPending(true);
+
+        try {
+            await publishCameraCommand({
+                command: 'set_zoom_level',
+                zoom_level: Number(nextZoomLevel.toFixed(1)),
+            });
+        } catch (error) {
+            console.error(`Error zooming ${direction}:`, error);
+            setCameraCommandError(error.message || `Failed to zoom ${direction}`);
+        } finally {
+            setPending(false);
+        }
+    }, [currentCameraZoomLevel, hasCameraZoomLevel, publishCameraCommand]);
+
     const handleQuickLaunchTypeConfirm = (launchType) => {
         setSelectedLaunchType(launchType);
         setQuickLaunchSubmitError('');
@@ -537,9 +707,9 @@ export default function DashboardPage() {
 
     const primaryPanel = isMapPrimary
         ? <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} fallbackPosition={fallbackMapPosition} showCompass />
-        : <MainVideoFeedPanel showCompass />;
+        : <MainVideoFeedPanel showCompass heading={selectedHeading} />;
     const secondaryPanel = isMapPrimary
-        ? <MainVideoFeedPanel compact lightShell />
+        ? <MainVideoFeedPanel compact lightShell heading={selectedHeading} />
         : <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} fallbackPosition={fallbackMapPosition} lightShell />;
     const actionLabel = canOpenStreamMode ? 'Stream' : 'Quick Launch';
 
@@ -592,10 +762,25 @@ export default function DashboardPage() {
                                     telemetry={selectedTelemetry}
                                     telemetryStatus={selectedTelemetryStatus}
                                     isTelemetryConnected={isTelemetryConnected}
+                                    onAbortMission={handleAbortMission}
+                                    isAbortDisabled={!canAbortMission}
+                                    isAbortingMission={isAbortingMission}
+                                    abortMissionError={abortMissionError}
+                                    onTakePicture={handleTakePicture}
+                                    onStartRecording={handleStartRecording}
+                                    isCaptureDisabled={!isCameraConnected || isCaptureCommandPending}
+                                    isRecordDisabled={!isCameraConnected || isCameraRecording || isCameraRecordingCommandPending}
+                                    cameraCommandError={cameraCommandError}
                                 />
                         </div>
                         <div className="min-h-0">
-                            <CameraJoystickPanel />
+                            <CameraJoystickPanel
+                                uavId={selectedDrone?.id ?? null}
+                                onZoomIn={() => handleZoomStep('in')}
+                                onZoomOut={() => handleZoomStep('out')}
+                                isZoomInDisabled={!isCameraConnected || !hasCameraZoomLevel || isZoomInCommandPending}
+                                isZoomOutDisabled={!isCameraConnected || !hasCameraZoomLevel || isZoomOutCommandPending}
+                            />
                         </div>
                     </div>
                 </div>

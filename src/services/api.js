@@ -275,7 +275,15 @@ export const missionService = {
         return response.json();
     },
 
-    getMissionRuns: async ({ page = 1, limit = 20, uavId = '', upcoming = 'today', days } = {}) => {
+    getMissionRuns: async ({
+        page = 1,
+        limit = 20,
+        uavId = '',
+        upcoming = 'today',
+        days,
+        sortBy,
+        sortOrder,
+    } = {}) => {
         const token = localStorage.getItem('authToken');
         if (!token) throw new Error('No authentication token found');
 
@@ -291,6 +299,14 @@ export const missionService = {
 
         if (upcoming === 'later' && Number.isInteger(days) && days > 0) {
             params.set('days', String(days));
+        }
+
+        if (sortBy) {
+            params.set('sort_by', String(sortBy));
+        }
+
+        if (sortOrder) {
+            params.set('sort_order', String(sortOrder));
         }
 
         const response = await fetch(`${API_BASE_URL}/mission-runs?${params.toString()}`, {
@@ -486,7 +502,68 @@ export const telemetryService = {
         }
 
         return response.json();
-    }
+    },
+
+    publishMetric: async ({ uavId, metric, payload, kind = 'telemetry', timeoutMs = 5000 }) => {
+        if (!uavId) {
+            throw new Error('UAV ID is required');
+        }
+
+        if (!metric) {
+            throw new Error('Metric is required');
+        }
+
+        const tokenData = await authService.getWsToken();
+        const wsToken = tokenData?.token || tokenData?.ws_token;
+
+        if (!wsToken) {
+            throw new Error('Invalid WebSocket token received');
+        }
+
+        await new Promise((resolve, reject) => {
+            const ws = new WebSocket(`${WS_BASE_URL}/ws/telemetry?token=${wsToken}`);
+            const timeoutId = setTimeout(() => {
+                ws.close();
+                reject(new Error('Timed out while publishing realtime event'));
+            }, timeoutMs);
+
+            const cleanup = () => {
+                clearTimeout(timeoutId);
+                ws.onopen = null;
+                ws.onerror = null;
+                ws.onclose = null;
+            };
+
+            ws.onopen = () => {
+                try {
+                    ws.send(JSON.stringify({
+                        type: 'publish',
+                        uav_id: uavId,
+                        kind,
+                        metric,
+                        payload,
+                    }));
+                    cleanup();
+                    ws.close();
+                    resolve();
+                } catch (error) {
+                    cleanup();
+                    ws.close();
+                    reject(error);
+                }
+            };
+
+            ws.onerror = () => {
+                cleanup();
+                ws.close();
+                reject(new Error('Failed to publish realtime event'));
+            };
+
+            ws.onclose = () => {
+                cleanup();
+            };
+        });
+    },
 };
 
 export const weatherService = {

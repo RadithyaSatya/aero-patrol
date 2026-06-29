@@ -56,10 +56,10 @@ export default function AboutPage() {
                                         <span className="text-[#000000] font-medium tracking-wider text-[15px]">2345-2345-2452-3452</span>
                                     </div>
 
-                                    <div className="rounded-[8px] border border-[#9F9F9F] bg-[#D0D0D0] px-6 py-4 flex items-center justify-between transition-colors hover:bg-[#C6C6C6]">
+                                    {/* <div className="rounded-[8px] border border-[#9F9F9F] bg-[#D0D0D0] px-6 py-4 flex items-center justify-between transition-colors hover:bg-[#C6C6C6]">
                                         <span className="text-[#000000] font-medium text-[15px]">Drone AI</span>
                                         <span className="text-[#000000] font-medium tracking-wider text-[15px]">2345-2345-2452-3452</span>
-                                    </div>
+                                    </div> */}
 
                                     <div className="rounded-[8px] border border-[#9F9F9F] bg-[#D0D0D0] px-6 py-4 flex items-center justify-between transition-colors hover:bg-[#C6C6C6]">
                                         <span className="text-[#000000] font-medium text-[15px]">Drone</span>

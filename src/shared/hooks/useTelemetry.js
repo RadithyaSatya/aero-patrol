@@ -4,6 +4,19 @@ import { authService, WS_BASE_URL } from '../../services/api';
 const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
 export const TELEMETRY_STALE_MS = 10000;
+export const DEFAULT_TELEMETRY_METRICS = [
+    'vehicle_state',
+    'location',
+    'gps',
+    'gps2',
+    'attitude',
+    'battery',
+    'mission_progress',
+    'link',
+    'mission_event',
+    'mission_status',
+    'camera_state',
+];
 
 /**
  * Custom hook to manage a telemetry WebSocket connection.
@@ -34,9 +47,10 @@ export const TELEMETRY_STALE_MS = 10000;
  * }
  *
  * @param {number[]} uavIds - Array of UAV IDs to subscribe to.
+ * @param {string[]} requestedMetrics - Metrics to subscribe explicitly.
  * @returns {{ telemetry: object, isConnected: boolean, error: string|null }}
  */
-export default function useTelemetry(uavIds = []) {
+export default function useTelemetry(uavIds = [], requestedMetrics = DEFAULT_TELEMETRY_METRICS) {
     const [telemetry, setTelemetry] = useState({});
     const [isConnected, setIsConnected] = useState(false);
     const [error, setError] = useState(null);
@@ -47,7 +61,16 @@ export default function useTelemetry(uavIds = []) {
     const reconnectAttempts = useRef(0);
     const reconnectTimeout = useRef(null);
     const uavIdsRef = useRef(uavIds);
+    const metrics = Array.isArray(requestedMetrics) && requestedMetrics.length > 0
+        ? [...new Set(requestedMetrics)]
+        : DEFAULT_TELEMETRY_METRICS;
+    const metricsRef = useRef(metrics);
     const isMounted = useRef(true);
+    const buildSubscribeMessage = useCallback(() => JSON.stringify({
+        type: 'subscribe',
+        uav_ids: uavIdsRef.current,
+        metrics: metricsRef.current,
+    }), []);
 
     useEffect(() => {
         const intervalId = setInterval(() => {
@@ -60,16 +83,13 @@ export default function useTelemetry(uavIds = []) {
     // Keep uavIdsRef in sync
     useEffect(() => {
         uavIdsRef.current = uavIds;
+        metricsRef.current = metrics;
 
         // If already connected, re-subscribe with new IDs
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && uavIds.length > 0) {
-            const subscribeMsg = JSON.stringify({
-                type: 'subscribe',
-                uav_ids: uavIds
-            });
-            wsRef.current.send(subscribeMsg);
+            wsRef.current.send(buildSubscribeMessage());
         }
-    }, [JSON.stringify(uavIds)]);
+    }, [buildSubscribeMessage, JSON.stringify(uavIds), JSON.stringify(metrics)]);
 
     const connect = useCallback(async () => {
         // Don't connect if no UAV IDs
@@ -108,11 +128,7 @@ export default function useTelemetry(uavIds = []) {
                 reconnectAttempts.current = 0;
 
                 // 3. Subscribe to UAV IDs
-                const subscribeMsg = JSON.stringify({
-                    type: 'subscribe',
-                    uav_ids: uavIdsRef.current
-                });
-                ws.send(subscribeMsg);
+                ws.send(buildSubscribeMessage());
             };
 
             ws.onmessage = (event) => {
@@ -177,7 +193,7 @@ export default function useTelemetry(uavIds = []) {
                 reconnectTimeout.current = setTimeout(connect, delay);
             }
         }
-    }, []);
+    }, [buildSubscribeMessage]);
 
     // Connect/disconnect lifecycle
     useEffect(() => {
@@ -196,7 +212,7 @@ export default function useTelemetry(uavIds = []) {
                 wsRef.current = null;
             }
         };
-    }, [connect, JSON.stringify(uavIds)]);
+    }, [connect, JSON.stringify(uavIds), JSON.stringify(metrics)]);
 
     const telemetryStatus = Object.entries(metricUpdatedAtByUav).reduce((accumulator, [uavId, metrics]) => {
         const metricStatus = Object.entries(metrics || {}).reduce((metricAccumulator, [metric, updatedAt]) => {

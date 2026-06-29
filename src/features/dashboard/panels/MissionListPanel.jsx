@@ -56,6 +56,25 @@ const getScheduleInfo = (mission) => {
     };
 };
 
+const sortMissionRunsByLatestSchedule = (items = []) => [...items].sort((left, right) => {
+    const leftTime = new Date(left?.run_at || 0).getTime();
+    const rightTime = new Date(right?.run_at || 0).getTime();
+
+    if (Number.isNaN(leftTime) && Number.isNaN(rightTime)) {
+        return 0;
+    }
+
+    if (Number.isNaN(leftTime)) {
+        return 1;
+    }
+
+    if (Number.isNaN(rightTime)) {
+        return -1;
+    }
+
+    return rightTime - leftTime;
+});
+
 export default function MissionListPanel({ uavId, refreshKey = 0 }) {
     const [missions, setMissions] = useState([]);
     const [pagination, setPagination] = useState({
@@ -120,7 +139,7 @@ export default function MissionListPanel({ uavId, refreshKey = 0 }) {
                     return;
                 }
 
-                setMissions(Array.isArray(data?.items) ? data.items : []);
+                setMissions(sortMissionRunsByLatestSchedule(Array.isArray(data?.items) ? data.items : []));
                 setPagination({
                     page: data?.page ?? 1,
                     total: data?.total ?? 0,
@@ -175,10 +194,10 @@ export default function MissionListPanel({ uavId, refreshKey = 0 }) {
                 return;
             }
 
-            setMissions((currentItems) => [
+            setMissions((currentItems) => sortMissionRunsByLatestSchedule([
                 ...currentItems,
                 ...(Array.isArray(data?.items) ? data.items : []),
-            ]);
+            ]));
             setPagination({
                 page: data?.page ?? nextPage,
                 total: data?.total ?? paginationRef.current.total,

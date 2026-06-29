@@ -14,6 +14,8 @@ import {
     buildMissionPayload,
 } from '../utils/missionPayload';
 
+const MISSION_TELEMETRY_METRICS = ['location', 'attitude'];
+
 export default function MissionPage() {
     const [isAddingMission, setIsAddingMission] = useState(false);
     const [waypoints, setWaypoints] = useState([]);
@@ -45,7 +47,7 @@ export default function MissionPage() {
     }, []);
 
     const uavIds = selectedDrone?.id ? [selectedDrone.id] : [];
-    const { telemetry, telemetryStatus } = useTelemetry(uavIds);
+    const { telemetry, telemetryStatus } = useTelemetry(uavIds, MISSION_TELEMETRY_METRICS);
     const selectedTelemetry = selectedDrone ? telemetry[selectedDrone.id] : null;
     const selectedTelemetryStatus = selectedDrone ? telemetryStatus[selectedDrone.id] : null;
 

@@ -76,7 +76,16 @@ export default function FlightStreamControlPanel({
     switchButtonImage,
     telemetry = null,
     telemetryStatus = null,
-    isTelemetryConnected = false
+    isTelemetryConnected = false,
+    onAbortMission = null,
+    isAbortDisabled = false,
+    isAbortingMission = false,
+    abortMissionError = '',
+    onTakePicture = null,
+    onStartRecording = null,
+    isCaptureDisabled = false,
+    isRecordDisabled = false,
+    cameraCommandError = '',
 }) {
     const location = telemetry?.location || {};
     const battery = telemetry?.battery || {};
@@ -138,7 +147,11 @@ export default function FlightStreamControlPanel({
                             <div className="grid h-full grid-cols-2 gap-1">
                                 <button
                                     type="button"
-                                    className="flex h-full w-full items-center justify-center gap-3 border border-[#FC4747] bg-[#EBEBEB] transition-colors hover:bg-[#E1E1E1]"
+                                    onClick={onStartRecording}
+                                    disabled={isRecordDisabled}
+                                    className={`flex h-full w-full items-center justify-center gap-3 border border-[#FC4747] bg-[#EBEBEB] transition-colors ${
+                                        isRecordDisabled ? 'cursor-not-allowed opacity-60' : 'hover:bg-[#E1E1E1]'
+                                    }`}
                                 >
                                     <img
                                         src={recordIcon}
@@ -149,7 +162,11 @@ export default function FlightStreamControlPanel({
                                 </button>
                                 <button
                                     type="button"
-                                    className="flex h-full w-full items-center justify-center gap-3 border border-[#FC4747] bg-[#EBEBEB] transition-colors hover:bg-[#E1E1E1]"
+                                    onClick={onTakePicture}
+                                    disabled={isCaptureDisabled}
+                                    className={`flex h-full w-full items-center justify-center gap-3 border border-[#FC4747] bg-[#EBEBEB] transition-colors ${
+                                        isCaptureDisabled ? 'cursor-not-allowed opacity-60' : 'hover:bg-[#E1E1E1]'
+                                    }`}
                                 >
                                     <img
                                         src={captureIcon}
@@ -167,14 +184,26 @@ export default function FlightStreamControlPanel({
 
                         <button
                             type="button"
-                            className="flex min-h-0 flex-1 w-full items-center justify-center px-0 py-0 transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                            onClick={onAbortMission}
+                            disabled={isAbortDisabled || isAbortingMission}
+                            className={`flex min-h-0 flex-1 w-full items-center justify-center px-0 py-0 transition-transform ${
+                                isAbortDisabled || isAbortingMission
+                                    ? 'cursor-not-allowed opacity-60'
+                                    : 'hover:scale-[1.01] active:scale-[0.99]'
+                            }`}
                         >
                             <img
                                 src={abortMissionButton}
-                                alt="Abort Mission"
+                                alt={isAbortingMission ? 'Aborting Mission' : 'Abort Mission'}
                                 className="h-full w-full object-contain"
                             />
                         </button>
+                        {abortMissionError ? (
+                            <p className="text-[11px] tracking-wide text-[#7A0A0C]">{abortMissionError}</p>
+                        ) : null}
+                        {cameraCommandError ? (
+                            <p className="text-[11px] tracking-wide text-[#7A0A0C]">{cameraCommandError}</p>
+                        ) : null}
                     </div>
 
                     <div className="flex min-w-0 flex-col border px-2.5 py-2.5" style={{ borderColor: '#FF383C', backgroundColor: INNER_CARD_BACKGROUND }}>

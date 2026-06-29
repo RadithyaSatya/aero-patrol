@@ -36,6 +36,7 @@ const DRONE_ICON_WIDTH = 68;
 const DRONE_ICON_HEIGHT = 96;
 const DRONE_ICON_CENTER_X = 34;
 const DRONE_ICON_CENTER_Y = 74;
+const HOME_MARKER_Z_INDEX = 0;
 
 const droneIcon = new L.DivIcon({
     className: 'custom-drone-icon',
@@ -270,7 +271,9 @@ const HistoryTrajectoryMap = ({ historyItem, homePosition, maxRange }) => {
                 <Circle center={effectiveHomePosition} radius={maxRange} pathOptions={geofencePathOptions} />
             ) : null}
 
-            {effectiveHomePosition ? <Marker position={effectiveHomePosition} icon={dockIcon} /> : null}
+            {effectiveHomePosition ? (
+                <Marker position={effectiveHomePosition} icon={dockIcon} zIndexOffset={HOME_MARKER_Z_INDEX} />
+            ) : null}
             {pathPositions.length > 1 ? <Polyline positions={pathPositions} pathOptions={trajectoryPathOptions} /> : null}
 
             {waypointPositions.map((position, index) => (
@@ -765,8 +768,6 @@ export default function HistoryPage() {
                                 className="h-full w-full object-cover opacity-75"
                             />
                         )}
-                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-
                         {!mediaPreviewUrl || hasMediaPreviewPlaybackError ? (
                             <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
                                 <div className="max-w-[280px] rounded border border-[#7A0A0C] bg-[rgba(245,245,245,0.92)] px-5 py-4 text-[12px] text-[#454545] backdrop-blur-sm">

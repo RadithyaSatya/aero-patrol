@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import headerBackground from '../../assets/images/image_background_navbar.png';
-import headerLogo from '../../assets/images/icon_app_white.svg';
-import { clearAuthStorage, dockingService, uavService } from '../../services/api';
+import headerBackground from '../../assets/images/image_background_navbar_white.svg';
+// import headerLogo from '../../assets/images/icon_app_white.svg';
+import { dockingService, uavService } from '../../services/api';
 import useTelemetry from '../hooks/useTelemetry';
 
 const SatelliteIcon = () => (
@@ -173,24 +173,29 @@ export default function AppHeader() {
     }, [selectedDrone?.id]);
 
     const handleLogout = () => {
-        clearAuthStorage();
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('authUsername');
+        localStorage.removeItem('authUserId');
+        localStorage.removeItem('authRole');
+        localStorage.removeItem('deviceToken');
         setIsSettingsOpen(false);
         navigate('/login');
     };
 
     return (
         <header
-            className="relative z-[1000] grid h-[104px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center overflow-visible px-3 py-2 select-none md:px-4 xl:px-6"
+            className="relative z-[1000] grid h-[104px] w-full shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center overflow-visible select-none"
         >
             <img
                 src={headerBackground}
                 alt=""
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill"
+                className="pointer-events-none absolute inset-x-0 -top-2 h-[calc(100%+0.5rem)] w-full select-none object-fill"
             />
 
             {/* Left Section - Branding */}
-            <div className="relative z-10 mb-2 flex min-w-0 items-center justify-start md:mx-10 xl:mx-12">
+            {/*
+            <div className="relative z-10 flex min-w-0 items-center justify-start px-4 md:px-6 xl:px-8">
                 <div className="flex min-w-0 items-center gap-2 md:gap-3 xl:gap-4">
                     <img src={headerLogo} alt="Logo" className="h-[42px] w-auto shrink-0 object-contain md:h-[48px] xl:h-[56px]" />
                     <div className="flex items-center gap-3 md:gap-4">
@@ -208,9 +213,11 @@ export default function AppHeader() {
                     </div>
                 </div>
             </div>
+            */}
+            <div className="relative z-10 min-w-0" />
 
             {/* Center Section - Navigation */}
-            <div className="relative z-10 mt-4 flex h-full items-center justify-center gap-4 px-3 md:gap-6 xl:gap-12">
+            <div className="relative z-10 flex h-full items-center justify-center gap-4 px-4 pt-3 md:gap-6 md:px-6 md:pt-4 xl:gap-12 xl:px-8">
                 <NavLink to="/dashboard" className={navLinkStyles}>
                     DASHBOARD
                 </NavLink>
@@ -269,7 +276,7 @@ export default function AppHeader() {
             </div>
 
             {/* Right Section - Status, Telemetry and Clock */}
-            <div className="relative z-10 mr-10 mt-4 flex h-full items-center justify-end justify-self-end font-tomorrow">
+            <div className="relative z-10 flex h-full items-center justify-end justify-self-end px-4 pt-3 font-tomorrow md:px-6 md:pt-4 xl:px-8">
                 <div className="flex h-full items-center gap-4 md:gap-6 xl:gap-8">
 
                     {/* GNSS */}

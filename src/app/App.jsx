@@ -10,35 +10,19 @@ import UserManagementPage from '../features/settings/pages/UserManagementPage'
 import LoginPage from '../features/auth/pages/LoginPage'
 import { authService, clearAuthStorage, persistAuthProfile } from '../services/api'
 
-function FullPageLoader() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-[#111620] text-sm tracking-[0.12em] text-white">
-      Validating session...
-    </div>
-  );
-}
-
-function GuestRoute({ children, isAuthenticated, isCheckingAuth }) {
-  if (isCheckingAuth) {
-    return <FullPageLoader />;
-  }
-
-  if (isAuthenticated) {
+function GuestRoute({ children, hasAuthToken }) {
+  if (hasAuthToken) {
     return <Navigate to="/dashboard" replace />;
   }
 
   return children;
 }
 
-function ProtectedRoute({ children, isAuthenticated, isCheckingAuth, requireAdmin = false }) {
+function ProtectedRoute({ children, hasAuthToken, requireAdmin = false }) {
   const authRole = (localStorage.getItem('authRole') || '').toLowerCase();
   const isAdmin = authRole === 'admin';
 
-  if (isCheckingAuth) {
-    return <FullPageLoader />;
-  }
-
-  if (!isAuthenticated) {
+  if (!hasAuthToken) {
     return <Navigate to="/login" replace />;
   }
 
@@ -52,10 +36,11 @@ function ProtectedRoute({ children, isAuthenticated, isCheckingAuth, requireAdmi
 function App() {
   const location = useLocation();
   const isLoginPage = location.pathname === '/' || location.pathname === '/login';
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('authToken')));
+  const [, setIsCheckingAuth] = useState(() => Boolean(localStorage.getItem('authToken')));
   const isAboutPage = location.pathname === '/about';
   const useDefaultPageBackground = !isLoginPage && !isAboutPage;
+  const hasAuthToken = Boolean(localStorage.getItem('authToken'));
 
   const validateSession = useCallback(async () => {
     const token = localStorage.getItem('authToken');
@@ -82,30 +67,30 @@ function App() {
 
   useEffect(() => {
     validateSession();
-  }, [validateSession, location.pathname]);
+  }, [validateSession]);
 
   return (
     <div
-      className="min-h-screen flex flex-col font-sans"
+      className="flex min-h-screen w-full flex-col overflow-x-hidden font-sans"
       style={
         useDefaultPageBackground
           ? { background: 'linear-gradient(to bottom, #DDDDDD 0%, #AEAEAE 100%)' }
           : undefined
       }
     >
-      {!isLoginPage && isAuthenticated && !isCheckingAuth ? <AppHeader /> : null}
+      {!isLoginPage && hasAuthToken ? <AppHeader /> : null}
       <Routes>
-        <Route path="/" element={<GuestRoute isAuthenticated={isAuthenticated} isCheckingAuth={isCheckingAuth}><LoginPage /></GuestRoute>} />
-        <Route path="/login" element={<GuestRoute isAuthenticated={isAuthenticated} isCheckingAuth={isCheckingAuth}><LoginPage /></GuestRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute isAuthenticated={isAuthenticated} isCheckingAuth={isCheckingAuth}><DashboardPage /></ProtectedRoute>} />
-        <Route path="/missions" element={<ProtectedRoute isAuthenticated={isAuthenticated} isCheckingAuth={isCheckingAuth}><MissionPage /></ProtectedRoute>} />
-        <Route path="/missions/active" element={<ProtectedRoute isAuthenticated={isAuthenticated} isCheckingAuth={isCheckingAuth}><ActiveMissionPage /></ProtectedRoute>} />
-        <Route path="/history" element={<ProtectedRoute isAuthenticated={isAuthenticated} isCheckingAuth={isCheckingAuth}><HistoryPage /></ProtectedRoute>} />
-        <Route path="/about" element={<ProtectedRoute isAuthenticated={isAuthenticated} isCheckingAuth={isCheckingAuth}><AboutPage /></ProtectedRoute>} />
+        <Route path="/" element={<GuestRoute hasAuthToken={hasAuthToken}><LoginPage /></GuestRoute>} />
+        <Route path="/login" element={<GuestRoute hasAuthToken={hasAuthToken}><LoginPage /></GuestRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute hasAuthToken={hasAuthToken}><DashboardPage /></ProtectedRoute>} />
+        <Route path="/missions" element={<ProtectedRoute hasAuthToken={hasAuthToken}><MissionPage /></ProtectedRoute>} />
+        <Route path="/missions/active" element={<ProtectedRoute hasAuthToken={hasAuthToken}><ActiveMissionPage /></ProtectedRoute>} />
+        <Route path="/history" element={<ProtectedRoute hasAuthToken={hasAuthToken}><HistoryPage /></ProtectedRoute>} />
+        <Route path="/about" element={<ProtectedRoute hasAuthToken={hasAuthToken}><AboutPage /></ProtectedRoute>} />
         <Route
           path="/user-management"
           element={
-            <ProtectedRoute isAuthenticated={isAuthenticated} isCheckingAuth={isCheckingAuth} requireAdmin>
+            <ProtectedRoute hasAuthToken={hasAuthToken} requireAdmin>
               <UserManagementPage />
             </ProtectedRoute>
           }
@@ -114,7 +99,7 @@ function App() {
           path="*"
           element={
             <Navigate
-              to={isAuthenticated ? '/dashboard' : '/login'}
+              to={hasAuthToken ? '/dashboard' : '/login'}
               replace
             />
           }

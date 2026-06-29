@@ -26,6 +26,8 @@ const DRONE_ICON_WIDTH = 68;
 const DRONE_ICON_HEIGHT = 96;
 const DRONE_ICON_CENTER_X = 34;
 const DRONE_ICON_CENTER_Y = 74;
+const HOME_MARKER_Z_INDEX = 0;
+const DRONE_MARKER_Z_INDEX = 1000;
 
 const createDroneIcon = (heading) => new L.DivIcon({
     className: 'custom-drone-icon',
@@ -132,29 +134,40 @@ function MapControlButton({ children, className = '', ...props }) {
     );
 }
 
-function CompassOverlay() {
+function CompassOverlay({ heading = 0 }) {
+    const normalizedHeading = Number.isFinite(Number(heading)) ? Number(heading) : 0;
+
     return (
         <div className="pointer-events-none absolute bottom-6 right-6 z-[450] flex h-32 w-32 items-center justify-center rounded-full bg-black/40">
             <div className="relative flex h-full w-full items-center justify-center rounded-full border border-gray-400/50">
-                <span className="absolute top-2 z-[100] text-[11px] font-bold uppercase tracking-widest text-gray-200">N</span>
-                <span className="absolute right-2 z-[100] text-[11px] font-bold uppercase tracking-widest text-gray-200">E</span>
-                <span className="absolute bottom-2 z-[100] text-[11px] font-bold uppercase tracking-widest text-gray-200">S</span>
-                <span className="absolute left-2 z-[100] text-[11px] font-bold uppercase tracking-widest text-gray-200">W</span>
-                <div className="absolute h-[1px] w-full bg-gray-500/50" />
-                <div className="absolute h-full w-[1px] bg-gray-500/50" />
-                <img src={navUpIcon} alt="" aria-hidden="true" className="absolute z-[100] h-8 w-8 object-contain" />
-                <div className="absolute h-[60%] w-[60%] rounded-full border border-gray-500/50" />
-                <div className="absolute h-[30%] w-[30%] rounded-full border border-gray-500/50" />
+                <span className="absolute top-2 left-1/2 z-[100] -translate-x-1/2 text-[11px] font-bold uppercase tracking-widest text-gray-200">N</span>
+                <span className="absolute right-2 top-1/2 z-[100] -translate-y-1/2 text-[11px] font-bold uppercase tracking-widest text-gray-200">E</span>
+                <span className="absolute bottom-2 left-1/2 z-[100] -translate-x-1/2 text-[11px] font-bold uppercase tracking-widest text-gray-200">S</span>
+                <span className="absolute left-2 top-1/2 z-[100] -translate-y-1/2 text-[11px] font-bold uppercase tracking-widest text-gray-200">W</span>
+                <div className="absolute left-0 top-1/2 h-[1px] w-full -translate-y-1/2 bg-gray-500/50" />
+                <div className="absolute left-1/2 top-0 h-full w-[1px] -translate-x-1/2 bg-gray-500/50" />
+                <div className="absolute left-1/2 top-1/2 h-[60%] w-[60%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-gray-500/50" />
+                <div className="absolute left-1/2 top-1/2 h-[30%] w-[30%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-gray-500/50" />
                 {[...Array(12)].map((_, index) => (
                     <div
                         key={index}
-                        className="absolute flex h-[2px] w-full justify-between px-1"
+                        className="absolute left-0 top-1/2 flex h-[2px] w-full -translate-y-1/2 justify-between px-1"
                         style={{ transform: `rotate(${index * 30}deg)` }}
                     >
                         <div className="h-full w-1.5 bg-gray-400" />
                         <div className="h-full w-1.5 bg-gray-400" />
                     </div>
                 ))}
+                <img
+                    src={navUpIcon}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute z-[100] h-8 w-8 object-contain transition-transform duration-300 ease-out"
+                    style={{ transform: `rotate(${normalizedHeading}deg)` }}
+                />
+                <div className="absolute bottom-3 left-1/2 z-[100] -translate-x-1/2 rounded bg-black/45 px-2 py-0.5 text-[10px] font-medium tracking-[0.12em] text-gray-100">
+                    {`${Math.round(((normalizedHeading % 360) + 360) % 360)}°`}
+                </div>
             </div>
         </div>
     );
@@ -182,7 +195,7 @@ export default function MapViewPanel({
         ? [location.latitude, location.longitude]
         : null;
     const dronePosition = liveDronePosition || fallbackPosition;
-    const heading = location.heading ?? 0;
+    const heading = isLocationFresh && location.heading != null ? location.heading : 0;
 
     // Home position from the selected drone detail
     const homePosition = selectedDrone?.home_latitude && selectedDrone?.home_longitude
@@ -285,7 +298,7 @@ export default function MapViewPanel({
 
                 {/* Home Marker */}
                 {homePosition && (
-                    <Marker position={homePosition} icon={dockIcon} />
+                    <Marker position={homePosition} icon={dockIcon} zIndexOffset={HOME_MARKER_Z_INDEX} />
                 )}
 
                 {/* Drone Marker — live from telemetry */}
@@ -293,6 +306,7 @@ export default function MapViewPanel({
                     <Marker
                         position={dronePosition}
                         icon={createDroneIcon(heading)}
+                        zIndexOffset={DRONE_MARKER_Z_INDEX}
                     />
                 )}
 
@@ -326,7 +340,7 @@ export default function MapViewPanel({
                 </div>
             </div>
 
-            {showCompass ? <CompassOverlay /> : null}
+            {showCompass ? <CompassOverlay heading={heading} /> : null}
         </div>
     );
 }
