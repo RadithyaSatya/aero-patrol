@@ -1,13 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { missionService } from '../../../services/api';
 import DeleteMissionModal from '../components/DeleteMissionModal';
-import addMissionButton from '../../../assets/images/btn_add_mission_white.svg';
+import addMissionButton from '../../../assets/images/btn_add_mission.svg';
+import addMissionButtonId from '../../../assets/images/btn_add_mission_id.svg';
 import deleteMissionIcon from '../../../assets/images/icon_trash_mission.svg';
+import { useI18n } from '../../../shared/i18n/I18nProvider';
 
 const PAGE_LIMIT = 20;
 const DEFAULT_LATER_DAYS = 21;
 const overlayDividerStroke = 'linear-gradient(90deg, rgba(213,53,53,0.18) 0%, #D53535 50%, rgba(213,53,53,0.18) 100%)';
-const tableLayoutClass = 'grid min-w-[640px] grid-cols-[120px_minmax(220px,1fr)_120px_160px_64px]';
+const tableLayoutClass = 'grid min-w-[640px] grid-cols-[1fr_1.7fr_1fr_1.4fr_64px]';
+const missionHeaderFill = 'linear-gradient(137.97deg, rgba(254, 5, 0, 0.6) -3.94%, rgba(186, 4, 4, 0.6) 48.88%, rgba(254, 5, 0, 0.6) 101.7%)';
 
 const formatRunAt = (runAt, timeZone) => {
     if (!runAt) return { date: '-', time: '-' };
@@ -39,13 +42,23 @@ const toTitleCase = (value = '') => value
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-const getScheduleLabel = (scheduleType) => (
+const getScheduleLabel = (scheduleType, t) => (
     !scheduleType
         ? '-'
         : scheduleType === 'one_time'
-        ? 'One Time'
-        : `Recurring - ${toTitleCase(scheduleType)}`
+        ? t('missions.oneTime')
+        : `${t('missions.recurring')} - ${toTitleCase(scheduleType)}`
 );
+
+const getMissionStatusLabel = (status, t) => {
+    const normalizedStatus = String(status || '').trim().toLowerCase();
+
+    if (normalizedStatus === 'waiting') return t('missions.waiting');
+    if (normalizedStatus === 'completed') return t('missions.completed');
+    if (normalizedStatus === 'in progress') return t('missions.inProgress');
+
+    return status || '-';
+};
 
 const getMissionRunKey = (missionRun) => `${missionRun.mission_id}-${missionRun.run_at}`;
 
@@ -56,6 +69,8 @@ export default function MissionListPanel({
     onSelectMission,
     onMissionDeleted,
 }) {
+    const { t, language } = useI18n();
+    const addMissionButtonAsset = language === 'id' ? addMissionButtonId : addMissionButton;
     const [activeFilter, setActiveFilter] = useState('today');
     const [missionRuns, setMissionRuns] = useState([]);
     const [pagination, setPagination] = useState({
@@ -257,19 +272,19 @@ export default function MissionListPanel({
     };
 
     const listSubtitle = useMemo(() => {
-        if (isInitialLoading) return 'Loading...';
-        return `${pagination.total} Mission`;
-    }, [isInitialLoading, pagination.total]);
+        if (isInitialLoading) return t('common.loading');
+        return t('missions.missionCount').replace('{count}', pagination.total);
+    }, [isInitialLoading, pagination.total, t]);
 
     return (
         <>
             <div
-                className="font-tomorrow relative flex h-full w-full flex-col overflow-hidden border border-[#FF383C] p-4 shadow-lg select-none"
+                className="font-inter relative flex h-full w-full flex-col overflow-hidden rounded-[30px] border border-[#FF383C] p-4 shadow-lg select-none"
                 style={{ background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
             >
                 <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                        <h2 className="text-[18px] tracking-wide text-[#1F1F1F]">Mission List</h2>
+                        <h2 className="text-[18px] tracking-wide font-medium text-[#1F1F1F]">{t('missions.missionList')}</h2>
                         <span className="mt-1 text-[11px] font-medium text-[#5F5F5F]">{listSubtitle}</span>
                     </div>
                     <button
@@ -277,134 +292,161 @@ export default function MissionListPanel({
                         onClick={onAddMission}
                         className="transition hover:brightness-110"
                     >
-                        <img src={addMissionButton} alt="Add Mission" className="h-auto w-[132px] object-contain" />
+                        <img src={addMissionButtonAsset} alt={t('missions.missionList')} className="h-auto w-[132px] object-contain" />
                     </button>
                 </div>
 
                 <div className="h-px w-full" style={{ backgroundImage: overlayDividerStroke }} />
 
-                <div className="mt-6 flex items-center gap-1">
+                <div className="mt-6 inline-flex items-end">
                     <button
                         type="button"
                         onClick={() => setActiveFilter('today')}
-                        className={`min-w-[74px] border px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] transition-colors ${
+                        className={`min-w-[92px] border border-b-0 px-4 py-2 text-[10px] uppercase tracking-[0.18em] transition-colors rounded-tl-[18px] ${
                             activeFilter === 'today'
                                 ? 'border-[#951616] bg-[#951616] text-[#FFFFFF]'
-                                : 'border-[#3B3B3B] bg-[#E3E3E3] text-[#000000] hover:bg-[#D9D9D9]'
+                                : 'border-[#000000] bg-[#E3E3E3] text-[#000000] hover:bg-[#D9D9D9]'
                         }`}
                     >
-                        Today
+                        {t('common.today')}
                     </button>
                     <button
                         type="button"
                         onClick={() => setActiveFilter('later')}
-                        className={`min-w-[74px] border px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] transition-colors ${
+                        className={`-ml-px min-w-[92px] border border-b-0 px-4 py-2 text-[10px] uppercase tracking-[0.18em] transition-colors rounded-tr-[18px] ${
                             activeFilter === 'later'
                                 ? 'border-[#951616] bg-[#951616] text-[#FFFFFF]'
-                                : 'border-[#3B3B3B] bg-[#E3E3E3] text-[#000000] hover:bg-[#D9D9D9]'
+                                : 'border-[#000000] bg-[#E3E3E3] text-[#000000] hover:bg-[#D9D9D9]'
                         }`}
                     >
-                        Later
+                        {t('common.later')}
                     </button>
                 </div>
 
                 <div
                     ref={containerRef}
                     onScroll={handleScroll}
-                    className="custom-scrollbar mt-2 flex-1 min-h-0 overflow-auto"
+                    className="custom-scrollbar flex-1 min-h-0 overflow-auto"
                 >
                     <div className="inline-block min-w-full align-top">
-                        <div className={`${tableLayoutClass} w-full items-center border-t-[0.5px] border-b border-x border-[#7A0A0C] bg-[#5E0A0A] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#FFFFFF]`}>
-                            <div className="whitespace-nowrap">Date</div>
-                            <div className="min-w-0">Mission Name</div>
-                            <div className="whitespace-nowrap">Status</div>
-                            <div className="whitespace-nowrap">Schedule</div>
-                            <div className="whitespace-nowrap text-center">Act</div>
+                        <div className="overflow-hidden rounded-tr-[18px] rounded-br-[18px] rounded-bl-[18px] border border-[#7A0A0C]">
+                            <div
+                                className={`${tableLayoutClass} w-full items-center border-b border-[#7A0A0C] px-2 py-2 text-[10px] uppercase tracking-[0.12em] text-[#FFFFFF]`}
+                                style={{ background: missionHeaderFill }}
+                            >
+                                <div className="font-medium whitespace-nowrap">{t('common.date')}</div>
+                                <div className="font-medium min-w-0">{t('common.mission')}</div>
+                                <div className="font-medium whitespace-nowrap">{t('common.status')}</div>
+                                <div className="font-medium whitespace-nowrap">{t('missions.schedule')}</div>
+                                <div className="whitespace-nowrap text-center">{t('missions.act')}</div>
+                            </div>
+
+                            {isInitialLoading ? (
+                                <div className="px-2 py-3 text-xs text-[#5F5F5F]">{t('missions.loadingMissions')}</div>
+                            ) : errorMsg && missionRuns.length === 0 ? (
+                                <div className="flex h-full flex-col items-center justify-center px-3 py-4 text-center text-xs text-[#B42323]">
+                                    <span>{t('missions.errorLoadingMissions')}</span>
+                                    <span className="mt-1 opacity-80">{errorMsg}</span>
+                                </div>
+                            ) : missionRuns.length === 0 ? (
+                                <div className="flex h-full items-center justify-center px-3 py-4 text-xs italic text-[#5F5F5F]">
+                                    {t('missions.noMissionsForFilter')}
+                                </div>
+                            ) : (
+                                <div>
+                                    {missionRuns.map((missionRun) => {
+                                        const formattedRunAt = formatRunAt(missionRun.run_at, missionRun.schedule_timezone);
+                                        const missionKey = getMissionRunKey(missionRun);
+                                        const isSelected = selectedMissionKey === missionKey;
+                                        const isActive = missionRun.status === 'In Progress';
+
+                                        return (
+                                            <div
+                                                key={missionKey}
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={() => onSelectMission?.(missionRun)}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                        event.preventDefault();
+                                                        onSelectMission?.(missionRun);
+                                                    }
+                                                }}
+                                                className={`${tableLayoutClass} w-full items-center px-1 py-2.5 text-xs transition-colors ${
+                                                    missionRuns[0] === missionRun ? '' : 'border-t border-[#7A0A0C]'
+                                                } ${
+                                                    missionRuns[missionRuns.length - 1] === missionRun ? '' : ''
+                                                } ${
+                                                    isSelected
+                                                        ? 'bg-[#F3D9D9] shadow-[inset_0_0_0_1px_rgba(122,10,12,0.28)]'
+                                                        : 'bg-transparent hover:bg-[#F2E5E5]'
+                                                }`}
+                                            >
+                                                <div className="flex min-w-0 flex-col whitespace-nowrap leading-[1.15]">
+                                                    <span className="text-[13px] text-[#1F1F1F]">
+                                                        {formattedRunAt.date}
+                                                    </span>
+                                                    <span className="mt-0.5 text-[11px] text-[#5F5F5F]">
+                                                        {formattedRunAt.time}
+                                                    </span>
+                                                </div>
+                                                <div className={`min-w-0 pr-3 text-[13px] ${
+                                                    isActive
+                                                        ? 'text-[#1F1F1F]'
+                                                        : 'text-[#2A2A2A]'
+                                                }`}>
+                                                    <div className={`truncate ${isActive && !isSelected ? 'inline-block border-b border-[#7A0A0C]' : ''}`}>
+                                                        {missionRun.mission_name}
+                                                    </div>
+                                                </div>
+                                                <div className={`min-w-0 pr-2 text-[13px] ${
+                                                    isActive
+                                                        ? 'text-[#1F1F1F]'
+                                                        : 'text-[#2A2A2A]'
+                                                }`}>
+                                                    <div className="truncate">{getMissionStatusLabel(missionRun.status, t)}</div>
+                                                </div>
+                                                <div className="flex min-w-0 flex-col pr-2 leading-[1.15]">
+                                                    <span className="truncate text-[13px] text-[#2A2A2A]">
+                                                        {getScheduleLabel(missionRun.schedule_type, t)}
+                                                    </span>
+                                                    <span className="mt-0.5 whitespace-nowrap text-[11px] text-[#5F5F5F]">
+                                                        {formattedRunAt.time}
+                                                    </span>
+                                                </div>
+                                                <div className="flex w-full justify-center">
+                                                    <button
+                                                        type="button"
+                                                        aria-label={t('missions.deleteMissionAria').replace('{name}', missionRun.mission_name)}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            setDeleteErrorMsg('');
+                                                            setDeleteTarget(missionRun);
+                                                        }}
+                                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-transparent transition hover:border-[#7A0A0C] hover:bg-[#F1DCDC]"
+                                                    >
+                                                        <img src={deleteMissionIcon} alt="" aria-hidden="true" className="h-4 w-4 object-contain" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
-
-                        {isInitialLoading ? (
-                            <div className="px-2 py-3 text-xs text-[#5F5F5F]">Loading missions...</div>
-                        ) : errorMsg && missionRuns.length === 0 ? (
-                            <div className="flex h-full flex-col items-center justify-center px-3 py-4 text-center text-xs text-[#B42323]">
-                                <span>Oops, error loading missions:</span>
-                                <span className="mt-1 opacity-80">{errorMsg}</span>
-                            </div>
-                        ) : missionRuns.length === 0 ? (
-                            <div className="flex h-full items-center justify-center px-3 py-4 text-xs italic text-[#5F5F5F]">
-                                No missions found for this filter.
-                            </div>
-                        ) : (
-                            <>
-                                {missionRuns.map((missionRun) => {
-                                    const formattedRunAt = formatRunAt(missionRun.run_at, missionRun.schedule_timezone);
-                                    const missionKey = getMissionRunKey(missionRun);
-                                    const isSelected = selectedMissionKey === missionKey;
-
-                                    return (
-                                        <div
-                                            key={missionKey}
-                                            role="button"
-                                            tabIndex={0}
-                                            onClick={() => onSelectMission?.(missionRun)}
-                                            onKeyDown={(event) => {
-                                                if (event.key === 'Enter' || event.key === ' ') {
-                                                    event.preventDefault();
-                                                    onSelectMission?.(missionRun);
-                                                }
-                                            }}
-                                            className={`${tableLayoutClass} w-full items-center border-t-[0.5px] border-b border-x border-[#7A0A0C] px-3 py-[10px] text-xs transition-colors ${
-                                                isSelected
-                                                    ? 'bg-[#F3D9D9] shadow-[inset_0_0_0_1px_rgba(149,22,22,0.35)]'
-                                                    : 'bg-[#F8F8F8] hover:bg-[#EFEFEF]'
-                                            }`}
-                                        >
-                                            <div className="min-w-0 whitespace-nowrap leading-tight text-[10px] text-[#454545]">
-                                                <div>{formattedRunAt.date}</div>
-                                                <div className="mt-1">{formattedRunAt.time}</div>
-                                            </div>
-                                            <div className={`min-w-0 pr-3 text-[11px] font-medium ${isSelected ? 'text-[#951616]' : 'text-[#1F1F1F]'}`}>
-                                                <div className="truncate">{missionRun.mission_name}</div>
-                                                {/* <div className="mt-1 truncate text-[10px] text-[#5F5F5F]">Mission ID {missionRun.mission_id}</div> */}
-                                            </div>
-                                            <div className="min-w-0 pr-2 text-[11px] text-[#454545]">
-                                                <div className="truncate">{missionRun.status}</div>
-                                            </div>
-                                            <div className="min-w-0 pr-2 text-[10px] text-[#454545]">
-                                                <div className="truncate">{getScheduleLabel(missionRun.schedule_type)}</div>
-                                                <div className="mt-1 whitespace-nowrap text-[#5F5F5F]">{formattedRunAt.time}</div>
-                                            </div>
-                                            <div className="flex w-full justify-center">
-                                                <button
-                                                    type="button"
-                                                    aria-label={`Delete mission ${missionRun.mission_name}`}
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        setDeleteErrorMsg('');
-                                                        setDeleteTarget(missionRun);
-                                                    }}
-                                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-transparent transition hover:border-[#7A0A0C] hover:bg-[#F1DCDC]"
-                                                >
-                                                    <img src={deleteMissionIcon} alt="" aria-hidden="true" className="h-4 w-4 object-contain" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-
-                                {isLoadingMore ? (
-                                    <div className="px-2 py-3 text-center text-xs text-[#5F5F5F]">Loading more missions...</div>
-                                ) : null}
-
-                                {!pagination.hasNext ? (
-                                    <div className="px-2 py-3 text-center text-[11px] text-[#5F5F5F]">End of missions</div>
-                                ) : null}
-
-                                {errorMsg && missionRuns.length > 0 ? (
-                                    <div className="px-2 py-3 text-center text-xs text-[#B42323]">{errorMsg}</div>
-                                ) : null}
-                            </>
-                        )}
                     </div>
+
+                    {isLoadingMore ? (
+                        <div className="px-2 py-3 text-center text-xs text-[#5F5F5F]">{t('missions.loadingMoreMissions')}</div>
+                    ) : null}
+
+                    {!pagination.hasNext && missionRuns.length > 0 ? (
+                        <div className="px-2 py-3 text-center text-[11px] text-[#5F5F5F]">{t('missions.endOfMissions')}</div>
+                    ) : null}
+
+                    {errorMsg && missionRuns.length > 0 ? (
+                        <div className="px-2 py-3 text-center text-xs text-[#B42323]">{errorMsg}</div>
+                    ) : null}
                 </div>
             </div>
 

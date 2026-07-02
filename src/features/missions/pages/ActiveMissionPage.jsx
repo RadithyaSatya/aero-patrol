@@ -71,7 +71,7 @@ const DPadControl = () => (
 
 export default function ActiveMissionPage() {
     return (
-        <div className="p-[28px] flex flex-col gap-[20px] w-full h-[calc(100vh-104px)] overflow-hidden">
+        <div className="p-[28px] flex flex-col gap-[20px] w-full h-[calc(100vh-84px)] overflow-hidden">
             {/* UPPER AREA: Main Video + Right Sidebar */}
             <div className="flex-1 flex gap-[20px] min-h-0">
                 {/* Main Video Feed */}

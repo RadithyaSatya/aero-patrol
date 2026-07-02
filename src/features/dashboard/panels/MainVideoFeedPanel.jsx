@@ -42,10 +42,16 @@ function CompassOverlay({ heading = 0 }) {
     );
 }
 
-export default function MainVideoFeedPanel({ compact = false, showCompass = false, lightShell = false, heading = 0 }) {
+export default function MainVideoFeedPanel({
+    compact = false,
+    showCompass = false,
+    lightShell = false,
+    heading = 0,
+    radiusClassName = 'rounded-[24px]',
+}) {
     return (
         <div
-            className="font-tomorrow relative h-full w-full overflow-hidden select-none"
+            className={`font-inter relative h-full w-full overflow-hidden ${radiusClassName} select-none`}
             style={lightShell
                 ? { background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }
                 : { backgroundColor: '#1c222c' }}
@@ -61,7 +67,7 @@ export default function MainVideoFeedPanel({ compact = false, showCompass = fals
             />
 
             {/* Top Left Badge */}
-            <div className={`absolute bg-black/60 uppercase flex items-center justify-center ${compact ? 'left-3 top-3 px-2 py-1' : 'left-4 top-4 px-3 py-1.5'}`}>
+            <div className={`absolute bg-black/60 uppercase flex items-center justify-center ${compact ? 'left-5 top-5 px-2 py-1' : 'left-7 top-7 px-3 py-1.5'}`}>
                 <span className="text-[#F94343] text-[11px] font-bold tracking-widest">DRONE CAM</span>
             </div>
 

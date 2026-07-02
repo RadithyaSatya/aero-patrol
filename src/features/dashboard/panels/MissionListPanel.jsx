@@ -1,15 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { missionService } from '../../../services/api';
+import { useI18n } from '../../../shared/i18n/I18nProvider';
 
 const PAGE_LIMIT = 20;
-const PANEL_STROKE_RED = '#FF383C';
-
+const MISSION_PANEL_BACKGROUND = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
+const MISSION_PANEL_BORDER = 'linear-gradient(0deg, #ED0000 0%, #FB5555 22%, rgba(251, 85, 85, 0.38) 38%, rgba(251, 85, 85, 0.12) 47%, rgba(251, 85, 85, 0) 56%)';
+const MISSION_TABLE_HEADER_FILL = 'linear-gradient(137.97deg, rgba(254, 5, 0, 0.6) -3.94%, rgba(186, 4, 4, 0.6) 48.88%, rgba(254, 5, 0, 0.6) 101.7%)';
 const StatBox = ({ count, label }) => (
-    <div className="font-tomorrow relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-[rgba(197,197,197,0.5)]">
-        <div className="pointer-events-none absolute bottom-0 left-0 h-[52%] w-px bg-gradient-to-t from-[#FF383C] via-[#FF383C]/45 to-transparent" />
-        <div className="pointer-events-none absolute bottom-0 right-0 h-[52%] w-px bg-gradient-to-t from-[#FF383C] via-[#FF383C]/45 to-transparent" />
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#FF383C]" />
-        <span className="text-[28px] font-bold leading-none tracking-wider text-[#1F1F1F]">{count}</span>
+    <div className="font-inter relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-[12px] border border-[#D4D4D4] bg-transparent">
+        <span className="text-[28px] font-medium leading-none tracking-wider text-[#1F1F1F]">{count}</span>
         <span className="mt-1 text-[14px] text-[#3A3A3A]">{label}</span>
     </div>
 );
@@ -44,16 +43,26 @@ const toTitleCase = (value = '') => value
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-const getScheduleInfo = (mission) => {
+const getScheduleInfo = (mission, t) => {
     const scheduleType = mission?.schedule_type || '';
     const formattedSchedule = formatRunAt(mission?.run_at, mission?.schedule_timezone);
 
     return {
         typeLabel: scheduleType === 'one_time'
-            ? 'One Time'
-            : `Recurring - ${toTitleCase(scheduleType)}`,
+            ? t('missions.oneTime')
+            : `${t('missions.recurring')} - ${toTitleCase(scheduleType)}`,
         timeLabel: formattedSchedule.time,
     };
+};
+
+const getMissionStatusLabel = (status, t) => {
+    const normalizedStatus = String(status || '').trim().toLowerCase();
+
+    if (normalizedStatus === 'waiting') return t('missions.waiting');
+    if (normalizedStatus === 'completed') return t('missions.completed');
+    if (normalizedStatus === 'in progress') return t('missions.inProgress');
+
+    return status || '-';
 };
 
 const sortMissionRunsByLatestSchedule = (items = []) => [...items].sort((left, right) => {
@@ -76,6 +85,7 @@ const sortMissionRunsByLatestSchedule = (items = []) => [...items].sort((left, r
 });
 
 export default function MissionListPanel({ uavId, refreshKey = 0 }) {
+    const { t } = useI18n();
     const [missions, setMissions] = useState([]);
     const [pagination, setPagination] = useState({
         page: 1,
@@ -250,102 +260,120 @@ export default function MissionListPanel({ uavId, refreshKey = 0 }) {
 
     return (
         <div
-            className="font-tomorrow flex h-full w-full gap-4 select-none border border-[#FF383C] p-4 shadow-lg"
-            style={{ background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
+            className="font-inter relative h-full w-full overflow-hidden rounded-[30px] p-px select-none"
+            style={{ backgroundImage: MISSION_PANEL_BORDER }}
         >
-            <div className="flex h-full w-[200px] flex-col gap-3">
-                <div className="min-h-0 flex-1">
-                    <StatBox count={stats.total} label="Today Mission" />
-                </div>
-                <div className="min-h-0 flex-1">
-                    <StatBox count={stats.waiting} label="Waiting" />
-                </div>
-                <div className="min-h-0 flex-1">
-                    <StatBox count={stats.completed} label="Completed" />
-                </div>
-            </div>
-
-            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                <div className="grid grid-cols-[1fr_1.7fr_1fr_1.4fr] border-t-[0.5px] border-b border-[#7A0A0C] bg-[#5E0A0A] px-2 py-2 text-[10px] uppercase tracking-[0.12em] text-white">
-                    <div className="font-medium">Date</div>
-                    <div className="font-medium">Mission</div>
-                    <div className="font-medium">Status</div>
-                    <div className="font-medium">Schedule</div>
+            <div
+                className="flex h-full w-full gap-4 overflow-hidden rounded-[29px] p-4"
+                style={{ background: MISSION_PANEL_BACKGROUND }}
+            >
+                <div className="flex h-full w-[164px] flex-col gap-3">
+                    <div className="min-h-0 flex-1">
+                        <StatBox count={stats.total} label={t('missions.todayMission')} />
+                    </div>
+                    <div className="min-h-0 flex-1">
+                        <StatBox count={stats.waiting} label={t('missions.waiting')} />
+                    </div>
+                    <div className="min-h-0 flex-1">
+                        <StatBox count={stats.completed} label={t('missions.completed')} />
+                    </div>
                 </div>
 
-                <div
-                    ref={containerRef}
-                    onScroll={handleScroll}
-                    className="custom-scrollbar flex-1 overflow-y-auto"
-                >
-                    {isInitialLoading ? (
-                        <div className="px-1 py-2 text-xs text-gray-400">Loading today missions...</div>
-                    ) : errorMsg && missions.length === 0 ? (
-                        <div className="flex h-full flex-col items-center justify-center px-1 py-2 text-center text-xs text-red-400">
-                            <span>Oops, error loading mission today:</span>
-                            <span className="mt-1 opacity-80">{errorMsg}</span>
-                        </div>
-                    ) : missions.length === 0 ? (
-                        <div className="flex h-full items-center justify-center px-1 py-2 text-xs italic text-gray-400">
-                            No mission scheduled for today.
-                        </div>
-                    ) : (
-                        <div>
-                            {missions.map((mission) => {
-                                const active = mission.status === 'In Progress';
-                                const formattedSchedule = formatRunAt(mission.run_at, mission.schedule_timezone);
-                                const scheduleInfo = getScheduleInfo(mission);
+                <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                    <div
+                        ref={containerRef}
+                        onScroll={handleScroll}
+                        className="custom-scrollbar flex-1 overflow-y-auto"
+                    >
+                        {isInitialLoading ? (
+                            <div className="px-1 py-2 text-xs text-gray-400">{t('missions.loadingTodayMissions')}</div>
+                        ) : errorMsg && missions.length === 0 ? (
+                            <div className="flex h-full flex-col items-center justify-center px-1 py-2 text-center text-xs text-red-400">
+                                <span>{t('missions.errorLoadingTodayMission')}</span>
+                                <span className="mt-1 opacity-80">{errorMsg}</span>
+                            </div>
+                        ) : (
+                            <div>
+                                <div
+                                    className="grid grid-cols-[1fr_1.7fr_1fr_1.4fr] border-x border-t border-[#7A0A0C] px-2 py-2 text-[10px] uppercase tracking-[0.12em] text-[#FFFFFF]"
+                                    style={{ background: MISSION_TABLE_HEADER_FILL }}
+                                >
+                                    <div className="font-medium">{t('common.date')}</div>
+                                    <div className="font-medium">{t('common.mission')}</div>
+                                    <div className="font-medium">{t('common.status')}</div>
+                                    <div className="font-medium">{t('missions.schedule')}</div>
+                                </div>
 
-                                return (
-                                    <div
-                                        key={`${mission.mission_id}-${mission.run_at}`}
-                                        className="grid grid-cols-[1fr_1.7fr_1fr_1.4fr] items-center border-t-[0.5px] border-b border-[#7A0A0C] px-1 py-2.5 text-xs"
-                                    >
-                                        <div className="flex flex-col leading-[1.1]">
-                                            <span className="text-[14px] text-[#1F1F1F]">
-                                                {formattedSchedule.date}
-                                            </span>
-                                            <span className="mt-0.5 text-[11px] text-[#5F5F5F]">
-                                                {formattedSchedule.time}
-                                            </span>
+                                <div className="border-x border-[#7A0A0C]">
+                                    {missions.length === 0 ? (
+                                        <div className="border-b border-[#7A0A0C] px-2 py-3 text-center text-xs italic text-gray-400">
+                                            {t('missions.noMissionToday')}
                                         </div>
-                                        <div className={`mr-2 truncate text-[14px] ${active ? 'w-max border-b border-[#7A0A0C] text-[#1F1F1F]' : 'text-[#2A2A2A]'}`}>
-                                            {mission.mission_name}
+                                    ) : (
+                                        <div>
+                                            {missions.map((mission, index) => {
+                                                const active = mission.status === 'In Progress';
+                                                const formattedSchedule = formatRunAt(mission.run_at, mission.schedule_timezone);
+                                                const scheduleInfo = getScheduleInfo(mission, t);
+
+                                                return (
+                                                    <div
+                                                        key={`${mission.mission_id}-${mission.run_at}`}
+                                                        className={`grid grid-cols-[1fr_1.7fr_1fr_1.4fr] items-center px-1 py-2.5 text-xs ${
+                                                            index === 0 ? '' : 'border-t border-[#7A0A0C]'
+                                                        } ${
+                                                            index === missions.length - 1 ? 'border-b border-[#7A0A0C]' : ''
+                                                        }`}
+                                                    >
+                                                        <div className="flex flex-col leading-[1.15]">
+                                                            <span className="text-[13px] text-[#1F1F1F]">
+                                                                {formattedSchedule.date}
+                                                            </span>
+                                                            <span className="mt-0.5 text-[11px] text-[#5F5F5F]">
+                                                                {formattedSchedule.time}
+                                                            </span>
+                                                        </div>
+                                                        <div className={`mr-2 truncate text-[13px] ${active ? 'w-max border-b border-[#7A0A0C] text-[#1F1F1F]' : 'text-[#2A2A2A]'}`}>
+                                                            {mission.mission_name}
+                                                        </div>
+                                                        <div className={`text-[13px] ${active ? 'text-[#1F1F1F]' : 'text-[#2A2A2A]'}`}>
+                                                            {getMissionStatusLabel(mission.status, t)}
+                                                        </div>
+                                                        <div className="flex flex-col leading-[1.15]">
+                                                            <span className="text-[13px] text-[#2A2A2A]">
+                                                                {scheduleInfo.typeLabel}
+                                                            </span>
+                                                            <span className="mt-0.5 text-[11px] text-[#5F5F5F]">
+                                                                {scheduleInfo.timeLabel}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
-                                        <div className={`text-[14px] ${active ? 'text-[#1F1F1F]' : 'text-[#2A2A2A]'}`}>
-                                            {mission.status}
-                                        </div>
-                                        <div className="flex flex-col leading-[1.1]">
-                                            <span className="text-[11px] text-[#2A2A2A]">
-                                                {scheduleInfo.typeLabel}
-                                            </span>
-                                            <span className="mt-0.5 text-[11px] text-[#5F5F5F]">
-                                                {scheduleInfo.timeLabel}
-                                            </span>
-                                        </div>
+                                    )}
+                                </div>
+
+                                {isLoadingMore ? (
+                                    <div className="px-2 py-3 text-center text-xs text-gray-400">
+                                        {t('missions.loadingMoreMissions')}
                                     </div>
-                                );
-                            })}
+                                ) : null}
 
-                            {isLoadingMore ? (
-                                <div className="px-2 py-3 text-center text-xs text-gray-400">
-                                    Loading more missions...
-                                </div>
-                            ) : null}
+                                {!pagination.hasNext && missions.length > 0 ? (
+                                    <div className="px-2 py-3 text-center text-[11px] text-gray-500">
+                                        {t('missions.endOfTodayMissions')}
+                                    </div>
+                                ) : null}
 
-                            {!pagination.hasNext ? (
-                                <div className="px-2 py-3 text-center text-[11px] text-gray-500">
-                                    End of today missions
-                                </div>
-                            ) : null}
-
-                            {errorMsg && missions.length > 0 ? (
-                                <div className="px-2 py-3 text-center text-xs text-red-400">
-                                    {errorMsg}
-                                </div>
-                            ) : null}
-                        </div>
-                    )}
+                                {errorMsg && missions.length > 0 ? (
+                                    <div className="px-2 py-3 text-center text-xs text-red-400">
+                                        {errorMsg}
+                                    </div>
+                                ) : null}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

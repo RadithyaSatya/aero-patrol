@@ -8,6 +8,8 @@ const MAX_PITCH_DEG = 90;
 const MAX_YAW_DEG = 180;
 const PITCH_SPEED_DPS = 38;
 const YAW_SPEED_DPS = 65;
+const JOYSTICK_PANEL_BACKGROUND = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
+const JOYSTICK_PANEL_BORDER = 'linear-gradient(0deg, #ED0000 0%, #FB5555 51.28%, rgba(251, 85, 85, 0) 100%)';
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -397,10 +399,13 @@ export default function CameraJoystickPanel({
 
     return (
         <div
-            className="font-tomorrow flex h-full w-full items-center justify-center overflow-hidden border border-[#FF383C] p-4 shadow-lg select-none"
-            style={{ background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
+            className="font-inter relative h-full w-full overflow-hidden rounded-[30px] p-px select-none"
+            style={{ backgroundImage: JOYSTICK_PANEL_BORDER }}
         >
-            <div className="flex w-full items-center justify-evenly gap-6">
+            <div
+                className="flex h-full w-full items-center justify-evenly gap-6 overflow-hidden rounded-[29px] p-4"
+                style={{ background: JOYSTICK_PANEL_BACKGROUND }}
+            >
                 <div className="flex flex-col items-center gap-4">
                     <div className="flex h-48 flex-col gap-4">
                         <ZoomButton

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useI18n } from '../../../shared/i18n/I18nProvider';
 
 const modalStroke = '#FF383C';
 const actionStroke = '#ED0000';
@@ -15,6 +16,7 @@ export default function DeleteMissionModal({
     onClose,
     onConfirm
 }) {
+    const { t } = useI18n();
     useEffect(() => {
         if (!isOpen) return undefined;
 
@@ -47,13 +49,11 @@ export default function DeleteMissionModal({
 
                 <div className="px-6 py-6 sm:px-7 sm:py-7">
                     <div className="mb-5">
-                        <h2 className="text-[20px] font-medium uppercase tracking-[0.18em] text-[#000000]">Delete Mission</h2>
+                        <h2 className="text-[20px] font-medium uppercase tracking-[0.18em] text-[#000000]">{t('missions.deleteMission')}</h2>
                     </div>
 
                     <p className="text-[13px] leading-6 text-[#454545]">
-                        Delete mission
-                        <span className="mx-1 text-[#000000]">{missionName || 'this mission'}</span>
-                        permanently from the list? This action cannot be undone.
+                        {t('missions.deleteMissionPrompt').replace('{name}', missionName || t('missions.thisMission'))}
                     </p>
 
                     {errorMsg ? (
@@ -73,7 +73,7 @@ export default function DeleteMissionModal({
                             className="h-[46px] min-w-[140px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-[#FFFFFF] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                             style={{ borderColor: actionStroke, backgroundColor: cancelBackground }}
                         >
-                            Cancel
+                            {t('common.cancel')}
                         </button>
                         <button
                             type="button"
@@ -82,7 +82,7 @@ export default function DeleteMissionModal({
                             className="h-[46px] min-w-[160px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-[#FFFFFF] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                             style={{ borderColor: actionStroke, background: confirmBackground }}
                         >
-                            {isSubmitting ? 'Deleting...' : 'Delete Mission'}
+                            {isSubmitting ? t('missions.deleting') : t('missions.deleteMission')}
                         </button>
                     </div>
                 </div>

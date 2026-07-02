@@ -6,8 +6,10 @@ import droneIconImage from '../../../assets/images/icon_drone.svg';
 import droneCenterMissionIcon from '../../../assets/images/icon_drone_center_mission_white.svg';
 import detailInformationIcon from '../../../assets/images/icon_detail_information_mission_white.svg';
 import droneSingleIcon from '../../../assets/images/icon_drone_single.svg';
-import cancelMissionButton from '../../../assets/images/btn_cancel_mission_white.svg';
-import launchMissionButton from '../../../assets/images/btn_launch_mission_white.svg';
+import cancelMissionButton from '../../../assets/images/btn_cancel_quicklaunch.svg';
+import cancelMissionButtonId from '../../../assets/images/btn_cancel_quicklaunch_id.svg';
+import launchMissionButton from '../../../assets/images/btn_launch_quicklaunch.svg';
+import launchMissionButtonId from '../../../assets/images/btn_launch_quicklaunch_id.svg';
 import useWeatherForecast from '../../../shared/hooks/useWeatherForecast';
 import {
     formatHumidity,
@@ -21,6 +23,7 @@ import {
     getEstimatedMissionDurationSeconds,
     getMissionProfileLengthMeters,
 } from '../utils/missionMetrics';
+import { useI18n } from '../../../shared/i18n/I18nProvider';
 
 // Fix Leaflet's default icon path issues
 delete L.Icon.Default.prototype._getIconUrl;
@@ -70,6 +73,9 @@ const geofencePathOptions = {
 const overlayTopStroke = 'linear-gradient(90deg, #ED0000 0%, rgba(237,0,0,0.2) 50%, #ED0000 100%)';
 const overlayBottomStroke = 'linear-gradient(90deg, rgba(237,0,0,0.2) 0%, #ED0000 22%, #ED0000 100%)';
 const overlayDividerStroke = 'linear-gradient(90deg, rgba(251,85,85,0.18) 0%, #E83737 50%, rgba(251,85,85,0.18) 100%)';
+const panelBackground = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
+const panelBorderImage = 'conic-gradient(from 0deg at 50% 50%, rgba(251,85,85,0) 0deg 22deg, #FB5555 72deg, #ED0000 142deg, #ED0000 196deg, rgba(251,85,85,0) 214deg 252deg, #FB5555 304deg, #ED0000 342deg, rgba(251,85,85,0) 360deg)';
+const INITIAL_MAP_ZOOM = 18;
 
 // Component to handle map clicks for adding waypoints
 function MapClickHandler({ onAddWaypoint }) {
@@ -101,6 +107,18 @@ function MissionMapControlButton({ children, className = '', ...props }) {
             <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#ED0000]" />
             <span className="relative z-10 flex items-center justify-center">{children}</span>
         </button>
+    );
+}
+
+function MissionOverlayPanel({ children, className = '', contentClassName = '', pointerEvents = 'none' }) {
+    return (
+        <div className={`font-inter absolute rounded-[30px] p-px shadow-lg ${className} ${pointerEvents === 'auto' ? 'pointer-events-auto' : 'pointer-events-none'}`} style={{ backgroundImage: panelBorderImage }}>
+            <div className="relative h-full w-full overflow-hidden rounded-[29px]" style={{ background: panelBackground }}>
+                <div className={`relative z-10 ${contentClassName}`}>
+                    {children}
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -144,8 +162,8 @@ const toTitleCase = (value = '') => value
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-const formatScheduleType = (value) => (
-    !value ? '-' : value === 'one_time' ? 'One Time' : `Recurring - ${toTitleCase(value)}`
+const formatScheduleType = (value, t) => (
+    !value ? '-' : value === 'one_time' ? t('missions.oneTime') : `${t('missions.recurring')} - ${toTitleCase(value)}`
 );
 
 const formatWaypointAction = (value) => {
@@ -174,6 +192,9 @@ export default function MissionMapPanel({
     missionDetailError = '',
     isLaunchingMission = false,
 }) {
+    const { t, language } = useI18n();
+    const cancelMissionButtonAsset = language === 'id' ? cancelMissionButtonId : cancelMissionButton;
+    const launchMissionButtonAsset = language === 'id' ? launchMissionButtonId : launchMissionButton;
     const mapRef = useRef(null);
     const defaultCenter = [-6.200000, 106.816666];
     const dockPosition = toLatLng(selectedDrone?.home_latitude, selectedDrone?.home_longitude);
@@ -189,23 +210,23 @@ export default function MissionMapPanel({
         ? Number(telemetry.attitude.yaw_deg)
         : Number(telemetry?.location?.heading ?? 0);
     const center = dockPosition || defaultCenter;
-    const initialZoom = dockPosition ? 16 : 13;
+    const initialZoom = INITIAL_MAP_ZOOM;
     const parsedMaxRange = Number(selectedDrone?.max_range_meter);
     const maxRange = Number.isFinite(parsedMaxRange) && parsedMaxRange > 0 ? parsedMaxRange : null;
     const activeWaypoints = isViewMode
         ? (Array.isArray(missionDetail?.waypoints) ? missionDetail.waypoints : [])
         : waypoints;
-    const missionTitle = missionDetail?.mission_name || missionRun?.mission_name || 'Mission Detail';
+    const missionTitle = missionDetail?.mission_name || missionRun?.mission_name || t('missions.missionDetail');
     const missionDateTime = formatDateTime(
         missionRun?.run_at || missionDetail?.schedule,
         missionRun?.schedule_timezone || missionDetail?.schedule_timezone
     );
     const topDetailItems = [
-        { label: 'Status', value: missionRun?.status || missionDetail?.status || '-' },
-        { label: 'Schedule', value: formatScheduleType(missionRun?.schedule_type || missionDetail?.schedule_type || '') },
-        { label: 'Run At', value: missionDateTime },
-        { label: 'Takeoff Hold', value: missionDetail?.takeoff_hold_duration != null ? `${missionDetail.takeoff_hold_duration} s` : '-' },
-        { label: 'Waypoints', value: `${activeWaypoints.length}` },
+        { label: t('common.status'), value: missionRun?.status || missionDetail?.status || '-' },
+        { label: t('missions.schedule'), value: formatScheduleType(missionRun?.schedule_type || missionDetail?.schedule_type || '', t) },
+        { label: t('missions.runAt'), value: missionDateTime },
+        { label: t('missions.takeoffHold'), value: missionDetail?.takeoff_hold_duration != null ? `${missionDetail.takeoff_hold_duration} s` : '-' },
+        { label: t('missions.waypoints'), value: `${activeWaypoints.length}` },
     ];
 
     const rtlAnchorPosition = dockPosition;
@@ -224,7 +245,7 @@ export default function MissionMapPanel({
     });
     const batteryPercent = selectedDrone?.status?.battery_percent;
     const batteryLabel = batteryPercent != null
-        ? `${batteryPercent}% (${batteryPercent >= 60 ? 'Good' : batteryPercent >= 30 ? 'Moderate' : 'Low'})`
+        ? `${batteryPercent}% (${batteryPercent >= 60 ? t('missions.good') : batteryPercent >= 30 ? t('missions.moderate') : t('missions.low')})`
         : '--';
     const flightSpeedLabel = Number.isFinite(Number(selectedDrone?.flight_speed))
         ? `${Number(selectedDrone.flight_speed).toFixed(1)} m/s`
@@ -236,6 +257,7 @@ export default function MissionMapPanel({
     });
     const currentWeather = weatherData?.current || {};
     const currentWeatherPresentation = getWeatherPresentation(currentWeather.weather_code, currentWeather.is_day);
+    const currentWeatherLabel = t(currentWeatherPresentation.labelKey, currentWeatherPresentation.label);
     const allLines = rtlAnchorPosition && linePositions.length > 0
         ? [rtlAnchorPosition, ...linePositions, rtlAnchorPosition]
         : [];
@@ -279,6 +301,7 @@ export default function MissionMapPanel({
                 style={{ height: '100%', width: '100%' }}
                 zoomControl={false}
                 scrollWheelZoom={true}
+                maxZoom={INITIAL_MAP_ZOOM}
             >
                 {/* Satellite tile layer */}
                 <TileLayer
@@ -321,9 +344,9 @@ export default function MissionMapPanel({
             </MapContainer>
 
             {/* Map Custom Controls (Zoom/Location) */}
-            <div className="absolute top-[60vh] left-4 z-[450] flex flex-col">
+            <div className="absolute top-[60vh] left-4 z-[450] flex flex-col gap-1">
                 <div className="flex flex-col gap-1">
-                    <MissionMapControlButton onClick={handleCenterDrone} aria-label="Center drone on map">
+                    <MissionMapControlButton onClick={handleCenterDrone} aria-label={t('missions.drone')}>
                         <img
                             src={droneCenterMissionIcon}
                             alt=""
@@ -335,31 +358,19 @@ export default function MissionMapPanel({
                         <span className="text-[24px] leading-none text-black">+</span>
                     </MissionMapControlButton>
                 </div>
-                <div className="mt-2">
-                    <MissionMapControlButton onClick={handleZoomOut} aria-label="Zoom out">
-                        <span className="text-[24px] leading-none text-black">−</span>
-                    </MissionMapControlButton>
-                </div>
+                <MissionMapControlButton onClick={handleZoomOut} aria-label="Zoom out">
+                    <span className="text-[24px] leading-none text-black">−</span>
+                </MissionMapControlButton>
             </div>
 
             {/* Conditionally Render Overlays */}
             {isViewMode ? (
                 <>
                     {/* View Mode: Detail Overlay */}
-                    <div
-                        className="font-tomorrow absolute top-4 right-4 z-[450] w-[280px] overflow-hidden p-5 shadow-lg pointer-events-none"
-                        style={{ background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
+                    <MissionOverlayPanel
+                        className="top-4 right-4 z-[450] w-[280px]"
+                        contentClassName="p-5"
                     >
-                        <div
-                            className="pointer-events-none absolute left-0 top-0 h-px w-full"
-                            style={{ backgroundImage: overlayTopStroke }}
-                        />
-                        <div
-                            className="pointer-events-none absolute bottom-0 left-0 h-px w-full"
-                            style={{ backgroundImage: overlayBottomStroke }}
-                        />
-                        <div className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[#FF383C]" />
-                        <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#FF383C]" />
                         <div className="flex items-center space-x-2 mb-4">
                             <img
                                 src={detailInformationIcon}
@@ -367,7 +378,7 @@ export default function MissionMapPanel({
                                 aria-hidden="true"
                                 className="h-[14px] w-[14px] object-contain"
                             />
-                            <span className="text-[#1F1F1F] text-[13px] font-bold tracking-wide">Detail</span>
+                            <span className="text-[#1F1F1F] text-[13px] font-medium tracking-wide">{t('missions.detail')}</span>
                         </div>
 
                         <div
@@ -376,11 +387,11 @@ export default function MissionMapPanel({
                         />
 
                         {isMissionDetailLoading ? (
-                            <div className="text-xs text-[#5F5F5F]">Loading mission detail...</div>
+                            <div className="text-xs text-[#5F5F5F]">{t('missions.loadingMissionDetail')}</div>
                         ) : missionDetailError ? (
                             <div className="text-xs text-[#B42323]">{missionDetailError}</div>
                         ) : !missionRun ? (
-                            <div className="text-xs text-[#5F5F5F]">Select a mission from the list to inspect its detail.</div>
+                            <div className="text-xs text-[#5F5F5F]">{t('missions.selectMissionHint')}</div>
                         ) : (
                             <div className="grid grid-cols-2 gap-x-2 gap-y-5">
                                 {topDetailItems.map((item) => (
@@ -391,23 +402,14 @@ export default function MissionMapPanel({
                                 ))}
                             </div>
                         )}
-                    </div>
+                    </MissionOverlayPanel>
 
                     {/* View Mode: Mission Waypoints List */}
-                    <div
-                        className="font-tomorrow absolute bottom-4 right-4 z-[450] w-[400px] overflow-hidden p-4 shadow-lg pointer-events-auto"
-                        style={{ background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
+                    <MissionOverlayPanel
+                        className="bottom-4 right-4 z-[450] w-[400px]"
+                        contentClassName="p-4"
+                        pointerEvents="auto"
                     >
-                        <div
-                            className="pointer-events-none absolute left-0 top-0 h-px w-full"
-                            style={{ backgroundImage: overlayTopStroke }}
-                        />
-                        <div
-                            className="pointer-events-none absolute bottom-0 left-0 h-px w-full"
-                            style={{ backgroundImage: overlayBottomStroke }}
-                        />
-                        <div className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[#FF383C]" />
-                        <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#FF383C]" />
                         <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center space-x-2">
                                 <img
@@ -430,32 +432,32 @@ export default function MissionMapPanel({
 
                         <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                             {isMissionDetailLoading ? (
-                                <div className="px-2 py-3 text-xs text-[#5F5F5F]">Loading waypoints...</div>
+                                <div className="px-2 py-3 text-xs text-[#5F5F5F]">{t('missions.loadingWaypoints')}</div>
                             ) : missionDetailError ? (
                                 <div className="px-2 py-3 text-xs text-[#B42323]">{missionDetailError}</div>
                             ) : activeWaypoints.length === 0 ? (
                                 <div className="px-2 py-3 text-xs text-[#5F5F5F]">
-                                    {missionRun ? 'This mission has no waypoints.' : 'No mission selected.'}
+                                    {missionRun ? t('missions.missionNoWaypoints') : t('missions.noMissionSelected')}
                                 </div>
                             ) : (
                                 activeWaypoints.map((wp, i) => (
                                     <div key={wp.id} className="relative overflow-hidden border border-[#A8A8A8] bg-[#EBEBEB] p-3">
-                                        <h4 className="mb-2 text-xs tracking-wide text-[#1F1F1F]">Point {i + 1}</h4>
+                                        <h4 className="mb-2 text-xs tracking-wide text-[#1F1F1F]">{t('missions.point')} {i + 1}</h4>
                                         <div className="grid grid-cols-[0.9fr_0.9fr_1.2fr] gap-3">
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-[9px] uppercase text-[#454545]">Altitude (M)</span>
+                                                <span className="text-[9px] uppercase text-[#454545]">{t('missions.altitudeMeter')}</span>
                                                 <div className="rounded border border-[#A8A8A8] bg-white/70 px-2 py-1">
                                                     <span className="text-[11px] text-[#1F1F1F]">{wp.altitude ?? '-'}</span>
                                                 </div>
                                             </div>
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-[9px] uppercase text-[#454545]">Hold (S)</span>
+                                                <span className="text-[9px] uppercase text-[#454545]">{t('missions.holdSecond')}</span>
                                                 <div className="rounded border border-[#A8A8A8] bg-white/70 px-2 py-1">
                                                     <span className="text-[11px] text-[#1F1F1F]">{wp.action_duration ?? '-'}</span>
                                                 </div>
                                             </div>
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-[9px] uppercase text-[#454545]">Action</span>
+                                                <span className="text-[9px] uppercase text-[#454545]">{t('common.action')}</span>
                                                 <div className="rounded border border-[#A8A8A8] bg-white/70 px-2 py-1">
                                                     <span className="whitespace-nowrap text-[11px] text-[#1F1F1F]">{formatWaypointAction(wp.action)}</span>
                                                 </div>
@@ -465,25 +467,15 @@ export default function MissionMapPanel({
                                 ))
                             )}
                         </div>
-                    </div>
+                    </MissionOverlayPanel>
                 </>
             ) : (
                 <>
                     {/* Add Mode: Drone Condition Overlay */}
-                    <div
-                        className="font-tomorrow absolute top-4 left-4 z-[450] w-[280px] overflow-hidden p-4 shadow-lg pointer-events-none"
-                        style={{ background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
+                    <MissionOverlayPanel
+                        className="top-4 left-4 z-[450] w-[280px]"
+                        contentClassName="p-4"
                     >
-                        <div
-                            className="pointer-events-none absolute left-0 top-0 h-px w-full"
-                            style={{ backgroundImage: overlayTopStroke }}
-                        />
-                        <div
-                            className="pointer-events-none absolute bottom-0 left-0 h-px w-full"
-                            style={{ backgroundImage: overlayBottomStroke }}
-                        />
-                        <div className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[#FF383C]" />
-                        <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#FF383C]" />
                         <div className="flex items-center space-x-2 mb-4">
                             <img
                                 src={detailInformationIcon}
@@ -491,7 +483,7 @@ export default function MissionMapPanel({
                                 aria-hidden="true"
                                 className="h-[14px] w-[14px] object-contain"
                             />
-                            <span className="text-[#1F1F1F] text-xs font-bold tracking-wide">Drone Condition</span>
+                            <span className="text-[#1F1F1F] text-xs font-medium tracking-wide">{t('missions.droneCondition')}</span>
                         </div>
 
                         <div
@@ -501,31 +493,31 @@ export default function MissionMapPanel({
 
                         <div className="grid grid-cols-2 gap-y-4 gap-x-2 mb-4">
                             <div className="flex flex-col">
-                                <span className="text-[#454545] text-[10px] mb-1">Battery Level</span>
+                                <span className="text-[#454545] text-[10px] mb-1">{t('missions.batteryLevel')}</span>
                                 <span className="text-[#1F1F1F] text-[11px] font-semibold">{batteryLabel}</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[#454545] text-[10px] mb-1">Mission Estimation</span>
+                                <span className="text-[#454545] text-[10px] mb-1">{t('missions.missionEstimation')}</span>
                                 <span className="text-[#1F1F1F] text-[11px]">{formatFlightDuration(estimatedFlightDurationSeconds)}</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[#454545] text-[10px] mb-1">Flight Speed</span>
+                                <span className="text-[#454545] text-[10px] mb-1">{t('missions.flightSpeed')}</span>
                                 <span className="text-[#1F1F1F] text-[11px] font-semibold">{flightSpeedLabel}</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[#454545] text-[10px] mb-1">Mission Length</span>
+                                <span className="text-[#454545] text-[10px] mb-1">{t('missions.missionLength')}</span>
                                 <span className="text-[#1F1F1F] text-[11px]">{formatMissionDistance(missionLengthMeters)}</span>
                             </div>
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <span className="text-[#454545] text-[10px]">Weather Condition</span>
+                            <span className="text-[#454545] text-[10px]">{t('missions.weatherCondition')}</span>
                             <div className="rounded-lg border border-[#A8A8A8] bg-[#EBEBEB] p-3">
                                 <div className="flex items-center space-x-3 mb-3">
-                                    <img src={currentWeatherPresentation.icon} alt={currentWeatherPresentation.label} className="h-8 w-8 object-contain" />
+                                    <img src={currentWeatherPresentation.icon} alt={currentWeatherLabel} className="h-8 w-8 object-contain" />
                                     <div className="flex-1 flex justify-between items-center">
                                         <span className="text-[#1F1F1F] text-sm font-bold">
-                                            {isWeatherLoading ? 'Loading...' : weatherError ? 'Weather Error' : currentWeatherPresentation.label}
+                                            {isWeatherLoading ? t('common.loading') : weatherError ? t('missions.weatherError') : currentWeatherLabel}
                                         </span>
                                         <span className="text-[#1F1F1F] text-lg font-bold">
                                             {isWeatherLoading ? '--' : formatTemperature(currentWeather.temperature_2m)}
@@ -533,30 +525,20 @@ export default function MissionMapPanel({
                                     </div>
                                 </div>
                                 <div className="flex justify-between text-[10px] text-[#454545]">
-                                    <div className="flex space-x-1"><span>Gust</span><span className="text-[#1F1F1F]">{isWeatherLoading ? '--' : formatWind(currentWeather.wind_gusts_10m)}</span></div>
-                                    <div className="flex space-x-1"><span>Wind</span><span className="text-[#1F1F1F]">{isWeatherLoading ? '--' : formatWind(currentWeather.wind_speed_10m)}</span></div>
-                                    <div className="flex space-x-1"><span>Humid</span><span className="text-[#1F1F1F]">{isWeatherLoading ? '--' : formatHumidity(currentWeather.relative_humidity_2m)}</span></div>
+                                    <div className="flex space-x-1"><span>{t('dashboard.gust')}</span><span className="text-[#1F1F1F]">{isWeatherLoading ? '--' : formatWind(currentWeather.wind_gusts_10m)}</span></div>
+                                    <div className="flex space-x-1"><span>{t('dashboard.wind')}</span><span className="text-[#1F1F1F]">{isWeatherLoading ? '--' : formatWind(currentWeather.wind_speed_10m)}</span></div>
+                                    <div className="flex space-x-1"><span>{t('dashboard.humid')}</span><span className="text-[#1F1F1F]">{isWeatherLoading ? '--' : formatHumidity(currentWeather.relative_humidity_2m)}</span></div>
                                 </div>
                                 {weatherError ? <div className="mt-2 text-[10px] text-[#B42323]">{weatherError}</div> : null}
                             </div>
                         </div>
-                    </div>
+                    </MissionOverlayPanel>
 
                     {/* Add Mode: Legend Overlay */}
-                    <div
-                        className="font-tomorrow absolute top-4 right-4 z-[450] w-[240px] overflow-hidden p-4 shadow-lg pointer-events-none"
-                        style={{ background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
+                    <MissionOverlayPanel
+                        className="top-4 right-4 z-[450] w-[240px]"
+                        contentClassName="p-4"
                     >
-                        <div
-                            className="pointer-events-none absolute left-0 top-0 h-px w-full"
-                            style={{ backgroundImage: overlayTopStroke }}
-                        />
-                        <div
-                            className="pointer-events-none absolute bottom-0 left-0 h-px w-full"
-                            style={{ backgroundImage: overlayBottomStroke }}
-                        />
-                        <div className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[#FF383C]" />
-                        <div className="pointer-events-none absolute right-0 top-0 h-full w-px bg-[#FF383C]" />
                         <div className="flex items-center space-x-2 mb-3">
                             <img
                                 src={detailInformationIcon}
@@ -564,7 +546,7 @@ export default function MissionMapPanel({
                                 aria-hidden="true"
                                 className="h-[14px] w-[14px] object-contain"
                             />
-                            <span className="text-[#1F1F1F] text-xs font-bold tracking-wide">Legend</span>
+                            <span className="text-[#1F1F1F] text-xs font-medium tracking-wide">{t('missions.legend')}</span>
                         </div>
 
                         <div
@@ -575,24 +557,24 @@ export default function MissionMapPanel({
                         <div className="grid grid-cols-2 gap-y-3">
                             <div className="flex items-center space-x-2">
                                 <div className="w-3 h-3 rounded-full border border-[#E1BA95] bg-[#9616161A]"></div>
-                                <span className="text-[#454545] text-[10px] font-medium">Max Radius</span>
+                                <span className="text-[#454545] text-[10px] font-medium">{t('missions.maxRadius')}</span>
                             </div>
                             <div className="flex items-center space-x-2">
                                 <div className="w-3.5 h-3.5 rounded-full bg-[#d4af37] text-black text-[7px] font-bold flex items-center justify-center">H</div>
-                                <span className="text-[#454545] text-[10px] font-medium">Dock</span>
+                                <span className="text-[#454545] text-[10px] font-medium">{t('missions.dock')}</span>
                             </div>
                             <div className="flex items-center space-x-2">
                                 <img src={droneSingleIcon} alt="" aria-hidden="true" className="h-4 w-4 object-contain" />
-                                <span className="text-[#454545] text-[10px] font-medium">Drone</span>
+                                <span className="text-[#454545] text-[10px] font-medium">{t('missions.drone')}</span>
                             </div>
                             <div className="flex items-center space-x-2">
                                 <div className="flex space-x-[2px] text-[#682F2F] text-[10px] font-bold">
                                     <span>1</span><span>/</span><span>2</span><span>/</span><span>3</span>
                                 </div>
-                                <span className="text-[#454545] text-[10px] font-medium ml-1">Waypoint</span>
+                                <span className="text-[#454545] text-[10px] font-medium ml-1">{t('missions.waypoint')}</span>
                             </div>
                         </div>
-                    </div>
+                    </MissionOverlayPanel>
 
                     {/* Add Mode: Bottom Controls Overlay */}
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[400] flex flex-col items-center">
@@ -603,7 +585,7 @@ export default function MissionMapPanel({
                                 disabled={isLaunchingMission}
                                 className="bg-transparent hover:brightness-110 transition flex items-center space-x-2"
                             >
-                                <img src={cancelMissionButton} alt="Cancel Mission" />
+                                <img src={cancelMissionButtonAsset} alt={t('common.cancel')} />
                             </button>
                             <button
                                 type="button"
@@ -611,7 +593,7 @@ export default function MissionMapPanel({
                                 disabled={isLaunchingMission}
                                 className={`bg-transparent transition ${isLaunchingMission ? 'cursor-not-allowed opacity-60' : 'hover:brightness-110'}`}
                             >
-                                <img src={launchMissionButton} alt="Launch Mission" />
+                                <img src={launchMissionButtonAsset} alt={t('dashboard.launch')} />
                             </button>
                         </div>
                     </div>

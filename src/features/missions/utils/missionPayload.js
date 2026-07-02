@@ -8,6 +8,10 @@ const DEFAULT_NOW_OFFSET_MINUTES = (() => {
 const DEFAULT_RECORD_VIDEO_DURATION = 10;
 const DEFAULT_TAKEOFF_ALTITUDE = 15;
 const JAKARTA_UTC_OFFSET = '+07:00';
+const defaultTranslate = (_, fallback, replacements = {}) => Object.entries(replacements).reduce(
+    (message, [key, value]) => message.replace(`{${key}}`, value),
+    fallback
+);
 
 const INITIAL_MISSION_FORM_VALUES = {
     missionName: 'Mission1',
@@ -83,11 +87,11 @@ const normalizeNonNegativeInteger = (value, fallbackValue) => {
     return Math.trunc(numericValue);
 };
 
-const normalizeOptionalNonNegativeInteger = (value) => {
+const normalizeOptionalNonNegativeInteger = (value, translate = defaultTranslate) => {
     const numericValue = Number(value);
 
     if (!Number.isFinite(numericValue) || numericValue < 0) {
-        throw new Error('Takeoff hold duration must be 0 or greater.');
+        throw new Error(translate('missions.errorTakeoffHold', 'Takeoff hold duration must be 0 or greater.'));
     }
 
     return Math.trunc(numericValue);
@@ -122,7 +126,7 @@ const collectUniqueTimes = (...groups) => {
 const mapWaypointActionForApi = (value) => (value === 'take_picture' ? 'Take Picture' : 'Record Video');
 const mapWeekdayToIso = (value) => Number(value) + 1;
 
-const buildSchedulePayload = (formValues) => {
+const buildSchedulePayload = (formValues, translate = defaultTranslate) => {
     if (formValues.timeMode === 'now') {
         const executionDate = new Date(Date.now() + (DEFAULT_NOW_OFFSET_MINUTES * 60 * 1000));
         const startDate = getDateInTimeZone(executionDate, SCHEDULE_TIMEZONE);
@@ -139,7 +143,7 @@ const buildSchedulePayload = (formValues) => {
 
     if (formValues.timeMode === 'one_time') {
         if (!formValues.oneTimeDate || !timeValuePattern.test(formValues.oneTimeStartTime)) {
-            throw new Error('One-time mission requires a valid date and start time.');
+            throw new Error(translate('missions.errorOneTimeDateStart', 'One-time mission requires a valid date and start time.'));
         }
 
         return {
@@ -152,7 +156,7 @@ const buildSchedulePayload = (formValues) => {
     }
 
     if (formValues.timeMode !== 'recurrent') {
-        throw new Error('Unsupported mission schedule mode.');
+        throw new Error(translate('missions.errorUnsupportedScheduleMode', 'Unsupported mission schedule mode.'));
     }
 
     const today = getDateInTimeZone(new Date(), SCHEDULE_TIMEZONE);
@@ -161,15 +165,15 @@ const buildSchedulePayload = (formValues) => {
         const times = collectUniqueTimes(formValues.dailyTimes, formValues.dailyStartTime);
 
         if (times.length === 0) {
-            throw new Error('Daily mission requires at least one execution time.');
+            throw new Error(translate('missions.errorDailyExecutionTime', 'Daily mission requires at least one execution time.'));
         }
 
         if (!formValues.dailyEndDate) {
-            throw new Error('Daily mission requires an end date.');
+            throw new Error(translate('missions.errorDailyEndDate', 'Daily mission requires an end date.'));
         }
 
         if (formValues.dailyEndDate < today) {
-            throw new Error('Daily mission end date cannot be before start date.');
+            throw new Error(translate('missions.errorDailyEndDateBeforeStart', 'Daily mission end date cannot be before start date.'));
         }
 
         return {
@@ -187,11 +191,11 @@ const buildSchedulePayload = (formValues) => {
         const times = collectUniqueTimes(formValues.weeklyTimes, formValues.weeklyStartTime);
 
         if (times.length === 0) {
-            throw new Error('Weekly mission requires at least one execution time.');
+            throw new Error(translate('missions.errorWeeklyExecutionTime', 'Weekly mission requires at least one execution time.'));
         }
 
         if (!Array.isArray(formValues.selectedWeekDays) || formValues.selectedWeekDays.length === 0) {
-            throw new Error('Weekly mission requires at least one selected weekday.');
+            throw new Error(translate('missions.errorWeeklyWeekday', 'Weekly mission requires at least one selected weekday.'));
         }
 
         const weeksToAdd = normalizePositiveInteger(formValues.weeklyEndAfterWeeks, 8);
@@ -213,11 +217,11 @@ const buildSchedulePayload = (formValues) => {
         const times = collectUniqueTimes(formValues.monthlyTimes, formValues.monthlyStartTime);
 
         if (times.length === 0) {
-            throw new Error('Monthly mission requires at least one execution time.');
+            throw new Error(translate('missions.errorMonthlyExecutionTime', 'Monthly mission requires at least one execution time.'));
         }
 
         if (!Array.isArray(formValues.selectedMonthDates) || formValues.selectedMonthDates.length === 0) {
-            throw new Error('Monthly mission requires at least one selected date.');
+            throw new Error(translate('missions.errorMonthlySelectedDate', 'Monthly mission requires at least one selected date.'));
         }
 
         const monthsToAdd = normalizePositiveInteger(formValues.monthlyEndAfterMonths, 3);
@@ -233,7 +237,7 @@ const buildSchedulePayload = (formValues) => {
         };
     }
 
-    throw new Error('Unsupported recurrent mission schedule.');
+    throw new Error(translate('missions.errorUnsupportedRecurrent', 'Unsupported recurrent mission schedule.'));
 };
 
 const buildMissionPayload = ({
@@ -243,25 +247,26 @@ const buildMissionPayload = ({
     waypoints,
     confirmRecentHistoryGuard = false,
     conflictResolutions = [],
+    translate = defaultTranslate,
 }) => {
     const missionName = String(formValues.missionName ?? '').trim();
     const normalizedTakeoffAltitude = Number(takeoffAltitude);
-    const normalizedTakeoffHoldDuration = normalizeOptionalNonNegativeInteger(formValues.takeoffHoldDuration);
+    const normalizedTakeoffHoldDuration = normalizeOptionalNonNegativeInteger(formValues.takeoffHoldDuration, translate);
     const rawPriority = String(formValues.priority ?? '').trim();
     const normalizedPriority = rawPriority ? normalizePositiveInteger(rawPriority, DEFAULT_MISSION_PRIORITY) : null;
 
     if (!missionName) {
-        throw new Error('Mission name is required.');
+        throw new Error(translate('missions.errorMissionNameRequired', 'Mission name is required.'));
     }
 
     if (!Number.isFinite(normalizedTakeoffAltitude) || normalizedTakeoffAltitude < 0) {
-        throw new Error('Takeoff altitude must be 0 or greater.');
+        throw new Error(translate('missions.errorTakeoffAltitude', 'Takeoff altitude must be 0 or greater.'));
     }
 
     const payload = {
         mission_name: missionName,
         takeoff_altitude: normalizedTakeoffAltitude,
-        ...buildSchedulePayload(formValues),
+        ...buildSchedulePayload(formValues, translate),
         status: DEFAULT_MISSION_STATUS,
         confirm_recent_history_guard: Boolean(confirmRecentHistoryGuard),
         conflict_resolutions: Array.isArray(conflictResolutions) ? conflictResolutions : [],
@@ -273,7 +278,7 @@ const buildMissionPayload = ({
             const isTakePicture = waypoint.action === 'take_picture';
 
             if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-                throw new Error(`Waypoint ${index + 1} has invalid coordinates.`);
+                throw new Error(translate('missions.errorWaypointInvalidCoordinates', `Waypoint ${index + 1} has invalid coordinates.`, { index: index + 1 }));
             }
 
             return {
@@ -299,7 +304,7 @@ const buildMissionPayload = ({
             const longitude = Number(roi.lng ?? roi.longitude);
 
             if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-                throw new Error('ROI has invalid coordinates.');
+                throw new Error(translate('missions.errorRoiInvalidCoordinates', 'ROI has invalid coordinates.'));
             }
 
             payload.roi = { latitude, longitude };

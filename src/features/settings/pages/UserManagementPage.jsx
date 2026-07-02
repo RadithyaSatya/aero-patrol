@@ -373,7 +373,7 @@ export default function UserManagementPage() {
     };
 
     return (
-        <div className="h-[calc(100vh-104px)] w-full p-[28px]">
+        <div className="h-[calc(100vh-84px)] w-full p-[28px]">
             <PanelShell className="flex h-full flex-col gap-4" showBottomDivider={false}>
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">

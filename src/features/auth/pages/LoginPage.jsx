@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService, clearAuthStorage, persistAuthProfile } from '../../../services/api';
-import backgroundImage from '../../../assets/images/image_background_login_white.png';
-import formBorderBackground from '../../../assets/images/image_border_form_login_white.png';
-import loginButton from '../../../assets/images/btn_login_white.png';
+import loginBackground from '../../../assets/images/image_background_login_white.png';
+import formBorderBackground from '../../../assets/images/image_border_form_login.png';
+import loginButton from '../../../assets/images/btn_login.svg';
 import iconApp from '../../../assets/images/icon_app_white.svg';
+import { useI18n } from '../../../shared/i18n/I18nProvider';
 
 export default function LoginPage() {
     const [username, setUsername] = useState('');
@@ -12,6 +13,7 @@ export default function LoginPage() {
     const [errorMsg, setErrorMsg] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
+    const { t } = useI18n();
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -39,17 +41,10 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#111620] flex items-center justify-center relative overflow-hidden font-sans">
-            {/* Background design elements to mimic the network/tech feel */}
-            <div className="absolute inset-0 pointer-events-none">
-                <img
-                    src={backgroundImage}
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 h-full w-full object-cover object-center select-none"
-                />
-            </div>
-
+        <div
+            className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#F1F4F9] bg-cover bg-center bg-no-repeat font-sans"
+            style={{ backgroundImage: `url(${loginBackground})` }}
+        >
             <div className="max-w-6xl w-full flex flex-col md:flex-row items-center justify-center gap-20 md:gap-40 lg:gap-48 z-10 px-8">
 
                 {/* Left Side: Logo & Branding */}
@@ -58,16 +53,16 @@ export default function LoginPage() {
                         {/* Custom Drone SVG Logo mimicking the image */}
                         <img src={iconApp} alt="Drone" className="w-full h-full object-contain" />
                     </div>
-                    <h1 className="font-orbitron text-[40px] md:text-[52px] font-extrabold tracking-[0.16em] text-[#FD0202] mb-2 leading-none">
-                        ICCS
+                    <h1 className="font-inter text-[40px] md:text-[52px] font-bold tracking-[0.16em] text-[#FD0202] mb-2 leading-none">
+                        {t('app.productName')}
                     </h1>
-                    <h2 className="font-tomorrow text-[24px] md:text-[28px] text-[#000000] font-medium tracking-[0.12em]">
-                        Guard SF Perimeter 
+                    <h2 className="font-inter text-[24px] md:text-[28px] text-[#000000] font-medium tracking-[0.12em]">
+                        {t('app.productSubtitle')}
                     </h2>
                 </div>
 
                 {/* Right Side: Login Form */}
-                <div className="font-orbitron relative w-full max-w-[400px] aspect-[642/705] text-center drop-shadow-[0_24px_40px_rgba(0,0,0,0.45)]">
+                <div className="font-inter relative w-full max-w-[400px] aspect-[642/705] text-center">
                     <img
                         src={formBorderBackground}
                         alt=""
@@ -76,17 +71,17 @@ export default function LoginPage() {
                     />
 
                     <div className="relative z-10 flex h-full flex-col justify-center px-10 py-12">
-                        <h2 className="text-xl font-bold text-black mb-1 tracking-wide">User Login</h2>
-                        <p className="text-[#222222] text-xs mb-8">Please enter your credential</p>
+                        <h2 className="text-xl font-medium text-black mb-1 tracking-wide">{t('auth.loginTitle')}</h2>
+                        <p className="text-[#222222] text-xs mb-8">{t('auth.loginSubtitle')}</p>
 
-                        <form onSubmit={handleLogin} className="font-tomorrow space-y-5 text-left">
+                        <form onSubmit={handleLogin} className="font-inter space-y-5 text-left">
                             {errorMsg && (
                                 <div className="bg-red-500/10 border border-red-500/50 text-red-400 text-xs px-3 py-2 rounded-sm text-center mb-4">
                                     {errorMsg}
                                 </div>
                             )}
                             <div>
-                                <label className="block text-black text-xs mb-1.5 ml-1">Username</label>
+                                <label className="block text-black text-xs mb-1.5 ml-1">{t('common.username')}</label>
                                 <input
                                     type="text"
                                     value={username}
@@ -97,7 +92,7 @@ export default function LoginPage() {
                             </div>
 
                             <div>
-                                <label className="block text-black text-xs mb-1.5 ml-1">Password</label>
+                                <label className="block text-black text-xs mb-1.5 ml-1">{t('common.password')}</label>
                                 <input
                                     type="password"
                                     value={password}
@@ -114,7 +109,7 @@ export default function LoginPage() {
                                     className={`relative mx-auto flex w-full max-w-[290px] aspect-[534/76] items-center justify-center overflow-hidden rounded-[2px] shadow-lg transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                                 >
                                     {isLoading ? (
-                                        <span className="relative z-10 font-orbitron text-sm tracking-wider text-white">Logging in...</span>
+                                        <span className="relative z-10 font-inter text-sm font-medium tracking-wider text-white">{t('auth.loggingIn')}</span>
                                     ) : (
                                         <img src={loginButton} alt="Login" className="block h-full w-full object-contain" />
                                     )}

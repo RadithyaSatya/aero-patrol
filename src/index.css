@@ -1,6 +1,30 @@
 @import "tailwindcss";
 
 @font-face {
+  font-family: "Inter";
+  src: url("./assets/fonts/Inter-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("./assets/fonts/Inter-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("./assets/fonts/Inter-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: "Tomorrow";
   src: url("./assets/fonts/Tomorrow-Regular.ttf") format("truetype");
   font-weight: 400;
@@ -49,6 +73,7 @@
 }
 
 @theme {
+  --font-inter: "Inter", sans-serif;
   --font-orbitron: "Orbitron", sans-serif;
   --font-tomorrow: "Tomorrow", sans-serif;
 }
@@ -63,6 +88,7 @@ body,
 
 body {
   min-height: 100vh;
+  font-family: "Inter", sans-serif;
 }
 
 .mission-time-input {

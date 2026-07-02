@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import launchIcon from '../../../assets/images/icon_launch.svg';
 import roiIcon from '../../../assets/images/icon_roi.svg';
 import spiralIcon from '../../../assets/images/icon_spiral.svg';
-import cancelQuickLaunchButton from '../../../assets/images/btn_cancel_quicklaunch_white.svg';
-import launchQuickLaunchButton from '../../../assets/images/btn_launch_quicklaunch_white.svg';
+import cancelQuickLaunchButton from '../../../assets/images/btn_cancel_quicklaunch.svg';
+import cancelQuickLaunchButtonId from '../../../assets/images/btn_cancel_quicklaunch_id.svg';
+import launchQuickLaunchButton from '../../../assets/images/btn_launch_quicklaunch.svg';
+import launchQuickLaunchButtonId from '../../../assets/images/btn_launch_quicklaunch_id.svg';
+import { useI18n } from '../../../shared/i18n/I18nProvider';
 
 // Icons for the Mission Types
 const LaunchIcon = () => (
@@ -20,20 +23,23 @@ const SpiralIcon = () => (
 
 
 export default function QuickLaunchDialog({ isOpen, onClose, onConfirm }) {
+    const { t, language } = useI18n();
     const [selectedType, setSelectedType] = useState('ROI');
+    const cancelButtonAsset = language === 'id' ? cancelQuickLaunchButtonId : cancelQuickLaunchButton;
+    const launchButtonAsset = language === 'id' ? launchQuickLaunchButtonId : launchQuickLaunchButton;
 
     if (!isOpen) return null;
 
     const missionTypes = [
-        { id: 'Launch', label: 'Launch', icon: <LaunchIcon /> },
+        { id: 'Launch', label: t('dashboard.launch'), icon: <LaunchIcon /> },
         { id: 'ROI', label: 'ROI', icon: <ROIIcon /> },
         { id: 'Spiral', label: 'Spiral', icon: <SpiralIcon /> },
     ];
 
     return (
-        <div className="font-tomorrow fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#0a0f18]/80 backdrop-blur-sm">
+        <div className="font-inter fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#0a0f18]/80 backdrop-blur-sm">
             <div
-                className="relative flex w-[780px] flex-col overflow-hidden border p-8 shadow-[0_0_50px_rgba(0,0,0,0.35)] backdrop-blur-md"
+                className="relative flex w-[840px] flex-col overflow-hidden rounded-[30px] border p-8 shadow-[0_0_50px_rgba(0,0,0,0.35)] backdrop-blur-md"
                 style={{ borderColor: '#FF383C', background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
             >
                 <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#FF383C] via-[#FF383C]/45 to-transparent" />
@@ -41,11 +47,11 @@ export default function QuickLaunchDialog({ isOpen, onClose, onConfirm }) {
 
                 {/* Header */}
                 <h2 className="mb-8 text-center text-[18px] font-light tracking-widest text-[#000000]">
-                    Select Mission Type
+                    {t('dashboard.selectMissionType')}
                 </h2>
 
                 {/* Mission Type Selection Grid */}
-                <div className="flex justify-center gap-6 mb-10">
+                <div className="mb-10 flex justify-center gap-8">
                     {missionTypes.map((type) => {
                         const isSelected = selectedType === type.id;
                         return (
@@ -53,7 +59,7 @@ export default function QuickLaunchDialog({ isOpen, onClose, onConfirm }) {
                                 key={type.id}
                                 onClick={() => setSelectedType(type.id)}
                                 className={`
-                                    group relative flex h-[140px] w-[160px] cursor-pointer flex-col items-center justify-center overflow-hidden border transition-all
+                                    group relative flex h-[164px] w-[190px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[12px] border transition-all
                                     ${isSelected
                                         ? 'bg-[#F3D9D9] text-[#000000]'
                                         : 'bg-[#EBEBEB] text-[#000000] hover:bg-[#E3E3E3]'
@@ -72,7 +78,7 @@ export default function QuickLaunchDialog({ isOpen, onClose, onConfirm }) {
                                 <div className={`transition-transform duration-300 ${isSelected ? 'scale-110' : 'scale-100 opacity-80'}`}>
                                     {type.icon}
                                 </div>
-                                <span className={`text-[16px] tracking-wider ${isSelected ? 'text-[#951616]' : 'text-[#000000] group-hover:text-[#951616]'}`}>
+                                <span className={`mt-2 text-[18px] tracking-wider ${isSelected ? 'text-[#951616]' : 'text-[#000000] group-hover:text-[#951616]'}`}>
                                     {type.label}
                                 </span>
                             </div>
@@ -87,8 +93,8 @@ export default function QuickLaunchDialog({ isOpen, onClose, onConfirm }) {
                         className="w-full bg-transparent active:scale-[0.98]"
                     >
                         <img
-                            src={cancelQuickLaunchButton}
-                            alt="Cancel"
+                            src={cancelButtonAsset}
+                            alt={t('common.cancel')}
                             className="aspect-[418/76] w-full object-contain transition duration-150 hover:brightness-110 hover:contrast-110"
                         />
                     </button>
@@ -97,9 +103,9 @@ export default function QuickLaunchDialog({ isOpen, onClose, onConfirm }) {
                         className="w-full bg-transparent active:scale-[0.98]"
                     >
                         <img
-                            src={launchQuickLaunchButton}
-                            alt="Set Mission"
-                            className="aspect-[418/76] w-full object-contain transition duration-150 hover:brightness-110 hover:contrast-110"
+                            src={launchButtonAsset}
+                            alt={t('dashboard.selectMissionType')}
+                            className="aspect-[418/76] w-full object-contain transition duration-150 hover:brightness-95 hover:contrast-105"
                         />
                     </button>
                 </div>

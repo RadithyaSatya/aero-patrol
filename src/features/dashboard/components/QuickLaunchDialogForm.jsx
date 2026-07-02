@@ -3,8 +3,11 @@ import { Circle, MapContainer, Marker, Polyline, TileLayer, useMapEvents } from 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import droneIconImage from '../../../assets/images/icon_drone.svg';
-import cancelQuickLaunchButton from '../../../assets/images/btn_cancel_quicklaunch_white.svg';
-import launchQuickLaunchButton from '../../../assets/images/btn_launch_quicklaunch_white.svg';
+import cancelQuickLaunchButton from '../../../assets/images/btn_cancel_quicklaunch.svg';
+import cancelQuickLaunchButtonId from '../../../assets/images/btn_cancel_quicklaunch_id.svg';
+import launchQuickLaunchButton from '../../../assets/images/btn_launch_quicklaunch.svg';
+import launchQuickLaunchButtonId from '../../../assets/images/btn_launch_quicklaunch_id.svg';
+import { useI18n } from '../../../shared/i18n/I18nProvider';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -185,6 +188,8 @@ function GradientFieldFrame({ children, className = '' }) {
 }
 
 function CoordinateField({ label, position, accentClass, onClear, emptyLabel }) {
+    const { t, language } = useI18n();
+    const cancelButtonAsset = language === 'id' ? cancelQuickLaunchButtonId : cancelQuickLaunchButton;
     return (
         <div className="flex flex-col">
             <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">{label}</label>
@@ -205,6 +210,7 @@ function CoordinateField({ label, position, accentClass, onClear, emptyLabel }) 
                             type="button"
                             onClick={onClear}
                             className="flex h-5 w-5 items-center justify-center rounded-full border-none bg-red-500/20 p-0 text-red-400 transition-colors hover:bg-red-500/40 hover:text-red-300"
+                            aria-label={t('common.clear')}
                         >
                             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                                 <path d="M2 2L8 8M8 2L2 8" />
@@ -230,6 +236,9 @@ export default function QuickLaunchDialogForm({
     isLaunching = false,
     submitError = '',
 }) {
+    const { t, language } = useI18n();
+    const cancelButtonAsset = language === 'id' ? cancelQuickLaunchButtonId : cancelQuickLaunchButton;
+    const launchButtonAsset = language === 'id' ? launchQuickLaunchButtonId : launchQuickLaunchButton;
     const [roiPosition, setRoiPosition] = useState(null);
     const [takeoffAltitude, setTakeoffAltitude] = useState(String(DEFAULT_TAKEOFF_ALTITUDE));
     const [flightAltitude, setFlightAltitude] = useState(String(DEFAULT_FLIGHT_ALTITUDE));
@@ -374,14 +383,22 @@ export default function QuickLaunchDialogForm({
     })();
 
     const displayRadius = spiralPhase === 'settingRadius' ? previewRadius : spiralRadiusMeters;
-    const dialogTitle = isLaunch ? 'Configure Takeoff' : 'Choose a location';
+    const dialogTitle = isLaunch ? t('dashboard.configureTakeoff') : t('dashboard.chooseLocation');
 
     useEffect(() => {
         if (!isOpen || !mapRef.current) {
             return;
         }
 
-        mapRef.current.setView(center, initialZoom, { animate: true });
+        const mapInstance = mapRef.current;
+        const timerId = window.setTimeout(() => {
+            mapInstance.invalidateSize();
+            mapInstance.setView(center, initialZoom, { animate: true });
+        }, 0);
+
+        return () => {
+            window.clearTimeout(timerId);
+        };
     }, [isOpen, initialZoom, center[0], center[1]]);
 
     if (!isOpen) {
@@ -391,31 +408,31 @@ export default function QuickLaunchDialogForm({
     const getMapInstruction = () => {
         if (isLaunch) {
             return launchWaypoint
-                ? 'Quick launch will take off from the home position'
-                : 'Home position is unavailable';
+                ? t('dashboard.quickLaunchHomePosition')
+                : t('dashboard.homePositionUnavailable');
         }
 
         if (isROI) {
-            return 'Click on the map to set ROI point';
+            return t('dashboard.clickMapSetRoi');
         }
 
         if (isSpiral) {
             if (spiralPhase === 'settingCenter') {
-                return 'Click on the map to set spiral center';
+                return t('dashboard.clickMapSetSpiralCenter');
             }
 
             if (spiralPhase === 'settingRadius') {
-                return 'Move mouse and click to set radius';
+                return t('dashboard.moveMouseSetRadius');
             }
 
             if (spiralWaypoints.length === 0) {
-                return 'Circle set. Click "Generate Waypoints" to create flight path';
+                return t('dashboard.circleSetGenerateWaypoints');
             }
 
-            return `${spiralWaypoints.length} waypoints generated`;
+            return t('dashboard.waypointsGenerated').replace('{count}', spiralWaypoints.length);
         }
 
-        return 'Choose a location';
+        return t('dashboard.chooseLocation');
     };
 
     const handleGenerateWaypoints = () => {
@@ -443,17 +460,17 @@ export default function QuickLaunchDialogForm({
         const waypointAltitude = isLaunch ? normalizedTakeoffAltitude : normalizedFlightAltitude;
 
         if (!Number.isFinite(normalizedTakeoffAltitude) || normalizedTakeoffAltitude < 0) {
-            setLocalError('Takeoff altitude must be 0 or greater.');
+            setLocalError(t('dashboard.missionErrorTakeoffAltitude'));
             return;
         }
 
         if (isSpiral && (!Number.isFinite(normalizedFlightAltitude) || normalizedFlightAltitude <= 0)) {
-            setLocalError('Flight altitude must be greater than 0.');
+            setLocalError(t('dashboard.missionErrorFlightAltitude'));
             return;
         }
 
         if (!Number.isFinite(normalizedTakeoffHoldDuration) || normalizedTakeoffHoldDuration < 0) {
-            setLocalError('Takeoff hold duration must be 0 or greater.');
+            setLocalError(t('dashboard.missionErrorTakeoffHold'));
             return;
         }
 
@@ -464,19 +481,19 @@ export default function QuickLaunchDialogForm({
             rawWaypoints = [];
         } else if (isROI) {
             if (!roiPosition) {
-                setLocalError('Select an ROI point on the map first.');
+                setLocalError(t('dashboard.missionErrorSelectRoi'));
                 return;
             }
 
             roi = roiPosition;
         } else if (isSpiral) {
             if (isSpiralOutOfBounds) {
-                setLocalError('Spiral exceeds geofence limit.');
+                setLocalError(t('dashboard.missionErrorSpiralFence'));
                 return;
             }
 
             if (spiralWaypoints.length === 0) {
-                setLocalError('Generate spiral waypoints first.');
+                setLocalError(t('dashboard.missionErrorGenerateSpiral'));
                 return;
             }
 
@@ -507,23 +524,23 @@ export default function QuickLaunchDialogForm({
     return (
         <div className="fixed inset-0 z-[2000] flex select-none items-center justify-center bg-[#0a0f18]/80 p-4 backdrop-blur-sm">
             <div
-                className="relative flex w-[840px] flex-col overflow-hidden border p-6 shadow-[0_0_50px_rgba(0,0,0,0.35)] backdrop-blur-md"
+                className="relative flex w-[840px] flex-col overflow-hidden rounded-[30px] border p-6 shadow-[0_0_50px_rgba(0,0,0,0.35)] backdrop-blur-md"
                 style={{ borderColor: '#FF383C', background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
             >
                 <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#FF383C] via-[#FF383C]/45 to-transparent" />
                 <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#FF383C] via-[#FF383C]/45 to-transparent" />
 
                 <div className="relative flex w-full flex-col gap-6">
-                    <h2 className="text-center font-tomorrow text-[18px] tracking-widest text-[#000000]">
+                    <h2 className="text-center font-inter text-[18px] tracking-widest text-[#000000]">
                         {dialogTitle}
                     </h2>
 
-                    <div className={`relative z-10 h-[400px] w-full overflow-hidden border border-[#FF383C] p-px ${isROI || isSpiral ? 'cursor-crosshair' : ''}`}>
+                    <div className={`relative z-10 h-[400px] w-full overflow-hidden rounded-[12px] border border-[#FF383C] p-px ${isROI || isSpiral ? 'cursor-crosshair' : ''}`}>
                         <div className="pointer-events-none absolute bottom-0 left-0 h-full w-px bg-gradient-to-t from-[#FF383C] via-[#FF383C]/35 to-transparent" />
                         <div className="pointer-events-none absolute bottom-0 right-0 h-full w-px bg-gradient-to-t from-[#FF383C] via-[#FF383C]/35 to-transparent" />
                         <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#FF383C]" />
 
-                        <div className="relative h-full w-full overflow-hidden">
+                        <div className="relative h-full w-full overflow-hidden rounded-[11px]">
                             <MapContainer
                                 center={center}
                                 zoom={initialZoom}
@@ -621,7 +638,7 @@ export default function QuickLaunchDialogForm({
                                         </svg>
                                     ) : null}
                                     {previewRadius} m
-                                    {isSpiralOutOfBounds ? <span className="text-[9px] opacity-80">OUT OF FENCE</span> : null}
+                                    {isSpiralOutOfBounds ? <span className="text-[9px] opacity-80">{t('dashboard.outOfFence')}</span> : null}
                                 </div>
                             </div>
                         ) : null}
@@ -635,7 +652,7 @@ export default function QuickLaunchDialogForm({
                                             <line x1="12" y1="9" x2="12" y2="13" />
                                             <line x1="12" y1="17" x2="12.01" y2="17" />
                                         </svg>
-                                        <span>Circle exceeds geofence limit</span>
+                                        <span>{t('dashboard.circleExceedsGeofence')}</span>
                                     </div>
                                 ) : null}
 
@@ -649,14 +666,14 @@ export default function QuickLaunchDialogForm({
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                                         </svg>
-                                        Generate Waypoints
+                                        {t('dashboard.generateWaypoints')}
                                     </button>
                                 ) : (
                                     <div className="flex items-center gap-1.5 rounded border border-[#7A0A0C] bg-[#EBEBEB] px-3 py-1.5 text-[11px] font-medium text-[#000000] shadow-lg">
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                             <polyline points="20 6 9 17 4 12" />
                                         </svg>
-                                        {spiralWaypoints.length} waypoints
+                                        {t('dashboard.waypointsGenerated').replace('{count}', spiralWaypoints.length)}
                                     </div>
                                 )}
 
@@ -668,22 +685,22 @@ export default function QuickLaunchDialogForm({
                                     <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                                         <path d="M2 2L8 8M8 2L2 8" />
                                     </svg>
-                                    Clear Circle
+                                    {t('dashboard.clearCircle')}
                                 </button>
                             </div>
                         ) : null}
 
-                        <svg className="pointer-events-none absolute inset-4 z-10 h-[calc(100%-32px)] w-[calc(100%-32px)]">
-                            <path d="M 12 0 L 6 0 Q 0 0 0 6 L 0 12" fill="none" stroke="#FF383C" strokeWidth="2" strokeLinecap="round" />
-                            <path d="M calc(100% - 12px) 0 L calc(100% - 6px) 0 Q 100% 0 100% 6 L 100% 12" fill="none" stroke="#FF383C" strokeWidth="2" strokeLinecap="round" />
-                            <path d="M 0 calc(100% - 12px) L 0 calc(100% - 6px) Q 0 100% 6 100% L 12 100%" fill="none" stroke="#FF383C" strokeWidth="2" strokeLinecap="round" />
-                            <path d="M 100% calc(100% - 12px) L 100% calc(100% - 6px) Q 100% 100% calc(100% - 6px) 100% L calc(100% - 12px) 100%" fill="none" stroke="#FF383C" strokeWidth="2" strokeLinecap="round" />
-                        </svg>
+                        <div className="pointer-events-none absolute inset-4 z-[450]">
+                            <div className="absolute left-0 top-0 h-3 w-3 border-l-2 border-t-2 border-[#FF383C]" />
+                            <div className="absolute right-0 top-0 h-3 w-3 border-r-2 border-t-2 border-[#FF383C]" />
+                            <div className="absolute bottom-0 left-0 h-3 w-3 border-b-2 border-l-2 border-[#FF383C]" />
+                            <div className="absolute bottom-0 right-0 h-3 w-3 border-b-2 border-r-2 border-[#FF383C]" />
+                        </div>
 
                         <div className="pointer-events-auto absolute bottom-8 left-1/2 z-[400] -translate-x-1/2 transform">
                             <div className="flex items-end justify-center gap-4">
                                 <div className="flex flex-col">
-                                    <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">Takeoff Altitude (M)</label>
+                                    <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">{t('dashboard.takeoffAltitudeMeter')}</label>
                                     <GradientFieldFrame className="h-[32px] w-[160px]">
                                         <input
                                             type="number"
@@ -698,7 +715,7 @@ export default function QuickLaunchDialogForm({
 
                                 {isSpiral ? (
                                     <div className="flex flex-col">
-                                        <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">Flight Altitude (M)</label>
+                                        <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">{t('dashboard.flightAltitude')}</label>
                                         <GradientFieldFrame className="h-[32px] w-[160px]">
                                             <input
                                                 type="number"
@@ -714,17 +731,17 @@ export default function QuickLaunchDialogForm({
 
                                 {isROI ? (
                                     <CoordinateField
-                                        label="ROI Coordinates"
+                                        label={t('dashboard.roiCoordinates')}
                                         position={roiPosition}
                                         accentClass="text-emerald-400"
                                         onClear={() => setRoiPosition(null)}
-                                        emptyLabel="Click map to set point"
+                                        emptyLabel={t('dashboard.clickMapToSetPoint')}
                                     />
                                 ) : null}
 
                                 {isLaunch || isROI ? (
                                     <div className="flex flex-col">
-                                        <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">Takeoff Hold Duration (S)</label>
+                                        <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">{t('dashboard.takeoffHoldDuration')}</label>
                                         <GradientFieldFrame className="h-[32px] w-[160px]">
                                             <input
                                                 type="number"
@@ -742,15 +759,15 @@ export default function QuickLaunchDialogForm({
                                 {isSpiral ? (
                                     <>
                                         <div className="flex flex-col">
-                                            <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">Radius (M)</label>
+                                            <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">{t('dashboard.radiusMeter')}</label>
                                             <GradientFieldFrame className="flex h-[32px] min-w-[100px] items-center px-3">
                                                 <span className={`font-mono text-[12px] ${displayRadius > 0 ? 'text-[#682F2F]' : 'text-[11px] italic text-[#565656]'}`}>
-                                                    {displayRadius > 0 ? `${displayRadius}` : 'Draw...'}
+                                                    {displayRadius > 0 ? `${displayRadius}` : t('dashboard.draw')}
                                                 </span>
                                             </GradientFieldFrame>
                                         </div>
                                         <div className="flex flex-col">
-                                            <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">Waypoints</label>
+                                            <label className="mb-2 px-2 text-center text-[10px] text-[#000000]">{t('dashboard.quickWaypoints')}</label>
                                             <GradientFieldFrame className="h-[32px] w-[80px]">
                                                 <input
                                                     type="number"
@@ -779,8 +796,8 @@ export default function QuickLaunchDialogForm({
                             className="w-full bg-transparent active:scale-[0.98]"
                         >
                             <img
-                                src={cancelQuickLaunchButton}
-                                alt="Cancel"
+                                src={cancelButtonAsset}
+                                alt={t('common.cancel')}
                                 className="aspect-[418/76] w-full object-contain transition duration-150 hover:brightness-110 hover:contrast-110"
                             />
                         </button>
@@ -792,9 +809,9 @@ export default function QuickLaunchDialogForm({
                             className={`w-full bg-transparent active:scale-[0.98] ${isLaunching ? 'cursor-not-allowed opacity-70' : ''}`}
                         >
                             <img
-                                src={launchQuickLaunchButton}
-                                alt="Launch"
-                                className="aspect-[418/76] w-full object-contain transition duration-150 hover:brightness-110 hover:contrast-110"
+                                src={launchButtonAsset}
+                                alt={t('dashboard.launch')}
+                                className="aspect-[418/76] w-full object-contain transition duration-150 hover:brightness-95 hover:contrast-105"
                             />
                         </button>
                     </div>

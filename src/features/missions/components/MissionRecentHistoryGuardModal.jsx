@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useI18n } from '../../../shared/i18n/I18nProvider';
 
 const modalStroke = '#FDB25780';
 const actionStroke = '#FBB2557A';
@@ -31,6 +32,7 @@ export default function MissionRecentHistoryGuardModal({
     onClose,
     onConfirm,
 }) {
+    const { t } = useI18n();
     useEffect(() => {
         if (!isOpen) return undefined;
 
@@ -49,10 +51,10 @@ export default function MissionRecentHistoryGuardModal({
     const timeZone = guardData.schedule_timezone || 'Asia/Jakarta';
     const recentHistory = guardData.recent_history || null;
     const detailRows = [
-        { label: 'Minimum Gap', value: guardData.minimum_gap_minutes != null ? `${guardData.minimum_gap_minutes} minutes` : null },
-        { label: 'Last Mission', value: recentHistory?.mission_name || null },
-        { label: 'Last Activity', value: recentHistory?.last_activity_at ? formatDateTime(recentHistory.last_activity_at, timeZone) : null },
-        { label: 'Available At', value: recentHistory?.available_at ? formatDateTime(recentHistory.available_at, timeZone) : null },
+        { label: t('conflict.minimumGap'), value: guardData.minimum_gap_minutes != null ? `${guardData.minimum_gap_minutes} minutes` : null },
+        { label: t('conflict.lastMission'), value: recentHistory?.mission_name || null },
+        { label: t('conflict.lastActivity'), value: recentHistory?.last_activity_at ? formatDateTime(recentHistory.last_activity_at, timeZone) : null },
+        { label: t('conflict.availableAt'), value: recentHistory?.available_at ? formatDateTime(recentHistory.available_at, timeZone) : null },
     ].filter((item) => item.value);
 
     return (
@@ -73,12 +75,12 @@ export default function MissionRecentHistoryGuardModal({
                 <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full" style={{ backgroundImage: dividerGradient }} />
 
                 <div className="px-6 py-6 sm:px-7 sm:py-7">
-                    <h2 className="text-[20px] font-medium uppercase tracking-[0.18em] text-white">Continue Mission Creation?</h2>
+                    <h2 className="text-[20px] font-medium uppercase tracking-[0.18em] text-white">{t('conflict.continueMissionCreation')}</h2>
 
                     <p className="mt-4 text-[13px] leading-6 text-[#F2E1C6]">
-                        The minimum gap from the most recent mission history has not been met.
+                        {t('conflict.minimumGapNotMet')}
                         <br />
-                        Do you want to continue creating this mission anyway?
+                        {t('conflict.continueCreateAnyway')}
                     </p>
 
                     {detailRows.length > 0 ? (
@@ -97,8 +99,8 @@ export default function MissionRecentHistoryGuardModal({
 
                     <div className="mt-5 border border-[#4A3723] bg-[#271f19] px-4 py-4 text-[12px] leading-6 text-[#F7E7D7]">
                         {recentHistory?.available_at
-                            ? `Mission creation will be available again after ${formatDateTime(recentHistory.available_at, timeZone)}.`
-                            : 'This mission is still within the minimum gap from the most recent mission history.'}
+                            ? t('conflict.availableAgainAfter').replace('{value}', formatDateTime(recentHistory.available_at, timeZone))
+                            : t('conflict.stillWithinMinimumGap')}
                     </div>
 
                     <div className="mt-7 flex justify-end gap-3">
@@ -109,7 +111,7 @@ export default function MissionRecentHistoryGuardModal({
                             className="h-[46px] min-w-[160px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                             style={{ borderColor: '#5E4B2D', background: 'linear-gradient(135deg, #242424 0%, #343434 100%)' }}
                         >
-                            Cancel
+                            {t('common.cancel')}
                         </button>
                         <button
                             type="button"
@@ -118,7 +120,7 @@ export default function MissionRecentHistoryGuardModal({
                             className="h-[46px] min-w-[190px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                             style={{ borderColor: actionStroke, background: 'linear-gradient(135deg, #7A4B16 0%, #A36B25 100%)' }}
                         >
-                            {isSubmitting ? 'Submitting...' : 'Continue'}
+                            {isSubmitting ? t('common.submit') : t('common.continue')}
                         </button>
                     </div>
                 </div>

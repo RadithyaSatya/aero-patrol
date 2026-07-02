@@ -6,6 +6,7 @@ import DroneInfoPanel from '../panels/DroneInfoPanel';
 import StreamButtonPanel from '../panels/StreamButtonPanel';
 import WeatherPanel from '../panels/WeatherPanel';
 import DockCamPanel from '../panels/DockCamPanel';
+import TelemetryPanel from '../panels/TelemetryPanel';
 import FlightStreamControlPanel from '../panels/FlightStreamControlPanel';
 import CameraJoystickPanel from '../panels/CameraJoystickPanel';
 import QuickLaunchDialog from '../components/QuickLaunchDialog';
@@ -15,14 +16,18 @@ import { buildMissionPayload } from '../../missions/utils/missionPayload';
 import MissionScheduleConflictModal from '../../missions/components/MissionScheduleConflictModal';
 import MissionRecentHistoryGuardModal from '../../missions/components/MissionRecentHistoryGuardModal';
 import useTelemetry from '../../../shared/hooks/useTelemetry';
-import cameraPanelBorder from '../../../assets/images/image_border_campanel_dashboard_white.png';
-import switchButtonImage from '../../../assets/images/btn_switch.png';
+import { useI18n } from '../../../shared/i18n/I18nProvider';
+import cameraPanelBorderSvg from '../../../assets/images/image_border_campanel_dashboard_white.svg?raw';
+import expandIcon from '../../../assets/images/icon_expand.svg';
+import switchIcon from '../../../assets/images/icon_switch.svg';
 
 const DASHBOARD_TELEMETRY_METRICS = [
     'vehicle_state',
     'location',
     'attitude',
     'battery',
+    'docking_status',
+    'uav_status',
     'gps',
     'link',
     'mission_progress',
@@ -32,6 +37,12 @@ const DASHBOARD_TELEMETRY_METRICS = [
 ];
 const STREAM_ELIGIBLE_RUNTIME_STATUSES = new Set(['preparingdock', 'safetofly', 'takeoff']);
 const STREAM_BLOCKED_RUNTIME_STATUSES = new Set(['landed', 'dockconfirmed', 'completed', 'failed', 'aborted']);
+const cameraPanelBorderMarkup = cameraPanelBorderSvg.replace(
+    '<svg ',
+    '<svg preserveAspectRatio="none" class="h-full w-full" '
+);
+const streamStylePanelBorder = 'linear-gradient(135deg, #FB5555 0%, #ED0000 18%, rgba(251, 85, 85, 0.42) 40%, rgba(251, 85, 85, 0.12) 56%, rgba(251, 85, 85, 0) 66%)';
+const streamStylePanelFill = 'linear-gradient(180deg, #F5F5F5 0%, #EDEDED 100%)';
 
 const EMPTY_ACTIVE_TRACK = Object.freeze({
     historyId: null,
@@ -183,11 +194,17 @@ const mergeTrackState = (currentTrack, nextTrack) => {
 };
 
 export default function DashboardPage() {
+    const { t } = useI18n();
+    const translate = (key, fallback, replacements = {}) => Object.entries(replacements).reduce(
+        (message, [replacementKey, replacementValue]) => message.replace(`{${replacementKey}}`, replacementValue),
+        t(key, fallback)
+    );
     const [isLaunchDialogOpen, setIsLaunchDialogOpen] = useState(false);
     const [isLaunchFormOpen, setIsLaunchFormOpen] = useState(false);
     const [selectedLaunchType, setSelectedLaunchType] = useState('ROI');
-    const [isMapPrimary, setIsMapPrimary] = useState(false);
+    const [isMapPrimary, setIsMapPrimary] = useState(true);
     const [isStreamMode, setIsStreamMode] = useState(false);
+    const [isPrimaryPanelExpanded, setIsPrimaryPanelExpanded] = useState(false);
     const [droneTrailById, setDroneTrailById] = useState({});
     const [isCreatingQuickLaunch, setIsCreatingQuickLaunch] = useState(false);
     const [quickLaunchSubmitError, setQuickLaunchSubmitError] = useState('');
@@ -215,21 +232,21 @@ export default function DashboardPage() {
                 if (data?.id) {
                     setSelectedDrone(data);
                 } else {
-                    setDroneError('No UAV Available');
+                    setDroneError(t('dashboard.errorNoUavAvailable'));
                 }
             } catch (error) {
                 console.error("Error fetching drone info:", error);
                 if (error.message === 'No authentication token found') {
-                    setDroneError('Not Authenticated');
+                    setDroneError(t('dashboard.errorNotAuthenticated'));
                 } else {
-                    setDroneError('Error Loading Data');
+                    setDroneError(t('dashboard.errorLoadingData'));
                 }
             } finally {
                 setIsDroneLoading(false);
             }
         };
         fetchDrone();
-    }, []);
+    }, [t]);
 
     const uavIds = selectedDrone?.id ? [selectedDrone.id] : [];
     const { telemetry, telemetryStatus, isConnected: isTelemetryConnected } = useTelemetry(uavIds, DASHBOARD_TELEMETRY_METRICS);
@@ -288,10 +305,10 @@ export default function DashboardPage() {
     const selectedDroneLabel = selectedDrone?.id ? `UAV #${selectedDrone.id}` : 'Selected UAV';
     const streamStatusLabel = telemetryRuntimeStatus
         || (isDroneInMission
-            ? 'In Flight'
+            ? t('dashboard.inFlight')
             : droneStatus.is_docked
-                ? 'Docked'
-                : 'Standby');
+                ? t('dashboard.docked')
+                : t('dashboard.standby'));
     const canAbortMission = Boolean(
         selectedDrone?.id &&
         activeMissionHistoryId != null &&
@@ -474,6 +491,10 @@ export default function DashboardPage() {
         }
     }, [canOpenStreamMode, selectedDrone?.id]);
 
+    useEffect(() => {
+        setIsPrimaryPanelExpanded(false);
+    }, [isStreamMode, selectedDrone?.id]);
+
     const handleActionPanelClick = () => {
         if (canOpenStreamMode) {
             setIsStreamMode((current) => !current);
@@ -488,12 +509,12 @@ export default function DashboardPage() {
 
     const handleAbortMission = useCallback(async () => {
         if (!selectedDrone?.id) {
-            setAbortMissionError('No UAV available for abort.');
+            setAbortMissionError(t('dashboard.errorNoUavAbort'));
             return;
         }
 
         if (activeMissionHistoryId == null) {
-            setAbortMissionError('Active mission history is not available yet.');
+            setAbortMissionError(t('dashboard.errorNoMissionHistory'));
             return;
         }
 
@@ -519,11 +540,11 @@ export default function DashboardPage() {
             refreshTrack();
         } catch (error) {
             console.error('Error aborting mission:', error);
-            setAbortMissionError(error.message || 'Failed to abort mission');
+            setAbortMissionError(error.message || t('dashboard.errorAbortMission'));
         } finally {
             setIsAbortingMission(false);
         }
-    }, [activeMissionHistoryId, refreshTrack, selectedDrone?.id]);
+    }, [activeMissionHistoryId, refreshTrack, selectedDrone?.id, t]);
 
     const publishCameraCommand = useCallback(async (payload) => {
         if (!selectedDrone?.id) {
@@ -547,11 +568,11 @@ export default function DashboardPage() {
             });
         } catch (error) {
             console.error('Error taking photo:', error);
-            setCameraCommandError(error.message || 'Failed to take picture');
+            setCameraCommandError(error.message || t('dashboard.errorTakePicture'));
         } finally {
             setIsCaptureCommandPending(false);
         }
-    }, [publishCameraCommand]);
+    }, [publishCameraCommand, t]);
 
     const handleStartRecording = useCallback(async () => {
         if (isCameraRecording) {
@@ -568,15 +589,15 @@ export default function DashboardPage() {
             });
         } catch (error) {
             console.error('Error starting recording:', error);
-            setCameraCommandError(error.message || 'Failed to start recording');
+            setCameraCommandError(error.message || t('dashboard.errorStartRecording'));
         } finally {
             setIsCameraRecordingCommandPending(false);
         }
-    }, [isCameraRecording, publishCameraCommand]);
+    }, [isCameraRecording, publishCameraCommand, t]);
 
     const handleZoomStep = useCallback(async (direction) => {
         if (!hasCameraZoomLevel) {
-            setCameraCommandError('Camera zoom level is not available yet.');
+            setCameraCommandError(t('dashboard.errorZoomUnavailable'));
             return;
         }
 
@@ -597,11 +618,11 @@ export default function DashboardPage() {
             });
         } catch (error) {
             console.error(`Error zooming ${direction}:`, error);
-            setCameraCommandError(error.message || `Failed to zoom ${direction}`);
+            setCameraCommandError(error.message || translate('dashboard.errorZoom', 'Failed to zoom {direction}', { direction }));
         } finally {
             setPending(false);
         }
-    }, [currentCameraZoomLevel, hasCameraZoomLevel, publishCameraCommand]);
+    }, [currentCameraZoomLevel, hasCameraZoomLevel, publishCameraCommand, t, translate]);
 
     const handleQuickLaunchTypeConfirm = (launchType) => {
         setSelectedLaunchType(launchType);
@@ -636,12 +657,12 @@ export default function DashboardPage() {
 
         try {
             if (!selectedDrone?.id) {
-                throw new Error('No UAV available for quick launch.');
+                throw new Error(t('missions.errorNoUavQuickLaunch'));
             }
 
             const payload = buildMissionPayload({
                 formValues: {
-                    missionName: `Quick Launch ${missionType}`,
+                    missionName: translate('dashboard.quickLaunchMissionName', 'Quick Launch {type}', { type: missionType }),
                     takeoffHoldDuration,
                     timeMode: 'now',
                 },
@@ -650,6 +671,7 @@ export default function DashboardPage() {
                 waypoints,
                 confirmRecentHistoryGuard: Boolean(options.confirmRecentHistoryGuard),
                 conflictResolutions: options.conflictResolutions,
+                translate,
             });
 
             await missionService.createMission(payload);
@@ -699,69 +721,93 @@ export default function DashboardPage() {
                 return;
             }
 
-            setQuickLaunchSubmitError(error.message || 'Failed to create quick launch mission');
+            setQuickLaunchSubmitError(error.message || t('missions.errorFailedQuickLaunch'));
         } finally {
             setIsCreatingQuickLaunch(false);
         }
     };
 
-    const primaryPanel = isMapPrimary
-        ? <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} fallbackPosition={fallbackMapPosition} showCompass />
-        : <MainVideoFeedPanel showCompass heading={selectedHeading} />;
-    const secondaryPanel = isMapPrimary
-        ? <MainVideoFeedPanel compact lightShell heading={selectedHeading} />
-        : <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} fallbackPosition={fallbackMapPosition} lightShell />;
-    const actionLabel = canOpenStreamMode ? 'Stream' : 'Quick Launch';
+    const renderPrimaryPanel = ({ expanded = false } = {}) => (
+        isMapPrimary
+            ? (
+                <MapViewPanel
+                    telemetry={selectedTelemetry}
+                    telemetryStatus={selectedTelemetryStatus}
+                    selectedDrone={selectedDrone}
+                    trailPositions={selectedTrail}
+                    fallbackPosition={fallbackMapPosition}
+                    showCompass
+                    radiusClassName={expanded ? 'rounded-[32px]' : 'rounded-[24px]'}
+                />
+            )
+            : <MainVideoFeedPanel showCompass heading={selectedHeading} radiusClassName={expanded ? 'rounded-[32px]' : 'rounded-[24px]'} />
+    );
+    const renderSecondaryPanel = () => (
+        isMapPrimary
+            ? <MainVideoFeedPanel compact lightShell heading={selectedHeading} radiusClassName="rounded-[12px]" />
+            : <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} fallbackPosition={fallbackMapPosition} lightShell radiusClassName="rounded-[12px]" />
+    );
+    const actionLabel = canOpenStreamMode ? t('dashboard.stream') : t('dashboard.quickLaunch');
 
     return (
-        <div className="h-[calc(100vh-104px)] w-full overflow-hidden">
+        <div className={`relative ${isStreamMode ? 'h-[calc(100vh-84px)]' : 'h-[calc(100vh-104px)]'} w-full overflow-hidden`}>
             {isStreamMode ? (
-                <div className="flex h-full w-full flex-col gap-[28px] p-[28px]">
-                    <div className="grid min-h-0 flex-1 grid-cols-[440px_minmax(0,1fr)] gap-[28px]">
-                        <div className="flex min-h-0 flex-col gap-[20px]">
-                            <div className="h-[220px] shrink-0">
-                                <WeatherPanel variant="stream" selectedDrone={selectedDrone} telemetry={selectedTelemetry} />
-                            </div>
-
-                            <div className="min-h-0 flex-1">
-                                <DockCamPanel variant="stream" />
-                            </div>
+                <div className={`grid h-full w-full grid-cols-[440px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_280px] gap-[28px] p-[28px] ${isPrimaryPanelExpanded ? 'invisible' : ''}`}>
+                    <div className="row-span-2 flex min-h-0 flex-col gap-[20px]">
+                        <div className="h-[220px] shrink-0">
+                            <WeatherPanel variant="stream" selectedDrone={selectedDrone} telemetry={selectedTelemetry} />
                         </div>
 
-                        <div className="relative min-h-0 overflow-hidden shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
-                            <img
-                                src={cameraPanelBorder}
-                                alt=""
-                                aria-hidden="true"
-                                className="pointer-events-none absolute inset-0 z-[450] h-full w-full select-none object-fill"
+                        <div className="min-h-0 flex-1">
+                            <TelemetryPanel
+                                telemetry={selectedTelemetry}
+                                telemetryStatus={selectedTelemetryStatus}
                             />
-                            <div className="absolute left-6 top-6 z-[500] flex items-center gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsStreamMode(false)}
-                                    className="rounded-[10px] border border-[#929292] bg-[#D2D2D2] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[#000000] transition-colors hover:bg-[#C7C7C7]"
-                                >
-                                    Overview
-                                </button>
-                            </div>
-                            <div className="absolute right-6 top-6 z-[500] rounded-[12px] border border-[#1ab394]/35 bg-black/55 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[#1ab394]">
-                                {streamStatusLabel}
-                            </div>
-                            <div className="h-full overflow-hidden p-[5px]">
-                                {primaryPanel}
-                            </div>
                         </div>
                     </div>
 
-                    <div className="grid h-[280px] shrink-0 grid-cols-[minmax(0,1fr)_380px] gap-[28px]">
+                    <div className="relative min-h-0 overflow-hidden rounded-[30px]">
+                        <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-0 z-[450] select-none"
+                            dangerouslySetInnerHTML={{ __html: cameraPanelBorderMarkup }}
+                        />
+                        <div className="absolute left-6 top-6 z-[500] flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setIsStreamMode(false)}
+                                className="rounded-[10px] border border-[#929292] bg-[#D2D2D2] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[#000000] transition-colors hover:bg-[#C7C7C7]"
+                            >
+                                {t('dashboard.overview')}
+                            </button>
+                        </div>
+                        <div className="absolute right-6 top-6 z-[500] rounded-[12px] border border-[#1ab394]/35 bg-black/55 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[#1ab394]">
+                            {streamStatusLabel}
+                        </div>
+                        <div className="h-full overflow-hidden p-[5px]">
+                            {renderPrimaryPanel()}
+                        </div>
+                        <button
+                            type="button"
+                            aria-label={isPrimaryPanelExpanded ? 'Collapse panel' : 'Expand panel'}
+                            onClick={() => setIsPrimaryPanelExpanded((current) => !current)}
+                            className="absolute bottom-6 left-6 z-[550] flex h-[44px] w-[44px] items-center justify-center rounded-full bg-black/50 transition-colors hover:bg-black/65"
+                        >
+                            <img
+                                src={expandIcon}
+                                alt=""
+                                aria-hidden="true"
+                                className={`h-[15px] w-[15px] object-contain transition-transform ${isPrimaryPanelExpanded ? 'rotate-180' : ''}`}
+                            />
+                        </button>
+                    </div>
+
+                    <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_340px] gap-[28px]">
                         <div className="min-h-0">
+                            <div className="h-full">
                                 <FlightStreamControlPanel
-                                    secondaryPanel={secondaryPanel}
+                                    secondaryPanel={renderSecondaryPanel()}
                                     onSwitchPanel={() => setIsMapPrimary((value) => !value)}
-                                    switchButtonImage={switchButtonImage}
-                                    telemetry={selectedTelemetry}
-                                    telemetryStatus={selectedTelemetryStatus}
-                                    isTelemetryConnected={isTelemetryConnected}
                                     onAbortMission={handleAbortMission}
                                     isAbortDisabled={!canAbortMission}
                                     isAbortingMission={isAbortingMission}
@@ -772,6 +818,7 @@ export default function DashboardPage() {
                                     isRecordDisabled={!isCameraConnected || isCameraRecording || isCameraRecordingCommandPending}
                                     cameraCommandError={cameraCommandError}
                                 />
+                            </div>
                         </div>
                         <div className="min-h-0">
                             <CameraJoystickPanel
@@ -785,7 +832,7 @@ export default function DashboardPage() {
                     </div>
                 </div>
             ) : (
-                <div className="grid h-full w-full grid-cols-[440px_minmax(0,1fr)] gap-[28px] p-[28px]">
+                <div className={`grid h-full w-full grid-cols-[440px_minmax(0,1fr)] gap-[28px] p-[28px] ${isPrimaryPanelExpanded ? 'invisible' : ''}`}>
                     <div className="flex min-h-0 flex-col gap-[28px]">
                         <div className="min-h-0 flex-1">
                             <DroneInfoPanel
@@ -799,44 +846,56 @@ export default function DashboardPage() {
                         </div>
 
                         <div
-                            className={`relative aspect-square w-full shrink-0 overflow-hidden border-l border-[#FF383C] p-3 ${(isLaunchDialogOpen || isLaunchFormOpen) ? 'invisible' : ''}`}
-                            style={{ background: 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)' }}
+                            className="relative aspect-square w-full shrink-0 overflow-hidden rounded-[30px] p-px"
+                            style={{ backgroundImage: streamStylePanelBorder }}
                         >
-                            <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-[#FF383C] via-[#FF383C]/45 to-transparent" />
-                            <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-[#FF383C] via-[#FF383C]/45 to-transparent" />
-                            <div className="relative h-full w-full overflow-hidden border-b border-[#FF383C] p-px">
-                                <div className="pointer-events-none absolute bottom-0 left-0 h-full w-px bg-gradient-to-t from-[#FF383C] via-[#FF383C]/45 to-transparent" />
-                                <div className="pointer-events-none absolute bottom-0 right-0 h-full w-px bg-gradient-to-t from-[#FF383C] via-[#FF383C]/45 to-transparent" />
-                                <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[#FF383C]" />
-                                {secondaryPanel}
-                                <button
-                                    type="button"
-                                    aria-label="Switch map and camera panels"
-                                    onClick={() => setIsMapPrimary((value) => !value)}
-                                    className="absolute bottom-3 left-3 z-[550] h-[44px] w-[44px] transition-transform hover:scale-105"
-                                >
-                                    <img
-                                        src={switchButtonImage}
-                                        alt=""
-                                        aria-hidden="true"
-                                        className="h-full w-full object-contain"
-                                    />
-                                </button>
+                            <div
+                                className="relative h-full w-full overflow-hidden rounded-[29px] p-3"
+                                style={{ background: streamStylePanelFill }}
+                            >
+                                <div className="relative h-full w-full overflow-hidden rounded-[24px] border-b border-[#FF383C] p-px">
+                                    {renderSecondaryPanel()}
+                                    <button
+                                        type="button"
+                                        aria-label={t('dashboard.switchPanels')}
+                                        onClick={() => setIsMapPrimary((value) => !value)}
+                                        className="absolute bottom-3 left-3 z-[550] flex h-[44px] w-[44px] items-center justify-center rounded-full bg-black/50 transition-colors hover:bg-black/65"
+                                    >
+                                        <img
+                                            src={switchIcon}
+                                            alt=""
+                                            aria-hidden="true"
+                                            className="h-[17px] w-[14px] object-contain"
+                                        />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <div className="flex min-h-0 flex-col gap-[28px]">
-                        <div className="relative min-h-0 flex-1 overflow-hidden shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
-                            <img
-                                src={cameraPanelBorder}
-                                alt=""
+                        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[30px]">
+                            <div
                                 aria-hidden="true"
-                                className="pointer-events-none absolute inset-0 z-[450] h-full w-full select-none object-fill"
+                                className="pointer-events-none absolute inset-0 z-[450] select-none"
+                                dangerouslySetInnerHTML={{ __html: cameraPanelBorderMarkup }}
                             />
                             <div className="h-full overflow-hidden p-[5px]">
-                                {primaryPanel}
+                                {renderPrimaryPanel()}
                             </div>
+                            <button
+                                type="button"
+                                aria-label={isPrimaryPanelExpanded ? 'Collapse panel' : 'Expand panel'}
+                                onClick={() => setIsPrimaryPanelExpanded((current) => !current)}
+                                className="absolute bottom-6 left-6 z-[550] flex h-[44px] w-[44px] items-center justify-center rounded-full bg-black/50 transition-colors hover:bg-black/65"
+                            >
+                                <img
+                                    src={expandIcon}
+                                    alt=""
+                                    aria-hidden="true"
+                                    className={`h-[15px] w-[15px] object-contain transition-transform ${isPrimaryPanelExpanded ? 'rotate-180' : ''}`}
+                                />
+                            </button>
                         </div>
 
                         <div className="grid h-[300px] shrink-0 grid-cols-[minmax(0,1fr)_280px] gap-[28px]">
@@ -854,6 +913,36 @@ export default function DashboardPage() {
                     </div>
                 </div>
             )}
+
+            {isPrimaryPanelExpanded ? (
+                <div className="absolute inset-0 z-[800] p-[28px]">
+                    <div className="relative h-full overflow-hidden rounded-[30px]">
+                        <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-0 z-[450] select-none"
+                            dangerouslySetInnerHTML={{ __html: cameraPanelBorderMarkup }}
+                        />
+                        <div className="h-full overflow-hidden rounded-[30px] p-[9px]">
+                            <div className="h-full overflow-hidden rounded-[32px]">
+                                {renderPrimaryPanel({ expanded: true })}
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            aria-label="Collapse panel"
+                            onClick={() => setIsPrimaryPanelExpanded(false)}
+                            className="absolute bottom-6 left-6 z-[550] flex h-[44px] w-[44px] items-center justify-center rounded-full bg-black/50 transition-colors hover:bg-black/65"
+                        >
+                            <img
+                                src={expandIcon}
+                                alt=""
+                                aria-hidden="true"
+                                className="h-[15px] w-[15px] rotate-180 object-contain"
+                            />
+                        </button>
+                    </div>
+                </div>
+            ) : null}
 
             <QuickLaunchDialog
                 isOpen={isLaunchDialogOpen}

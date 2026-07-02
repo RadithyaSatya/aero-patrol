@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useI18n } from '../../../shared/i18n/I18nProvider';
 
 const modalStroke = '#FD575780';
 const actionStroke = '#FB55557A';
@@ -92,6 +93,7 @@ export default function MissionScheduleConflictModal({
     onClose,
     onConfirm,
 }) {
+    const { t } = useI18n();
     const conflicts = useMemo(
         () => (Array.isArray(conflictData?.conflicts) ? conflictData.conflicts : []),
         [conflictData]
@@ -149,21 +151,21 @@ export default function MissionScheduleConflictModal({
                 <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full" style={{ backgroundImage: dividerGradient }} />
 
                 <div className="px-6 py-6 sm:px-7 sm:py-7">
-                    <h2 className="text-[20px] font-medium uppercase tracking-[0.18em] text-white">Schedule Conflict</h2>
+                    <h2 className="text-[20px] font-medium uppercase tracking-[0.18em] text-white">{t('conflict.scheduleConflict')}</h2>
 
                     <p className="mt-4 text-[13px] leading-6 text-[#F2D6D6]">
-                        {conflictData.error || 'Mission schedule conflicts with another scheduled run.'}
+                        {conflictData.error || t('conflict.missionScheduleConflict')}
                     </p>
 
                     <div
                         className="mt-5 border px-4 py-3 text-[12px] leading-6 text-[#FFD0D0]"
                         style={{ borderColor: actionStroke, backgroundColor: 'rgba(87, 20, 20, 0.28)' }}
                     >
-                        Minimum gap: {conflictData.minimum_gap_minutes ?? '-'} minutes
+                        {t('conflict.minimumGap')}: {conflictData.minimum_gap_minutes ?? '-'} minutes
                         <br />
-                        Window: {conflictData.window_days ?? '-'} days
+                        {t('conflict.window')}: {conflictData.window_days ?? '-'} days
                         <br />
-                        Resolution required: {conflictData.resolution_required ? 'Yes' : 'No'}
+                        {t('conflict.resolutionRequired')}: {conflictData.resolution_required ? t('common.yes') : t('common.no')}
                     </div>
 
                     <div className="mt-5 max-h-[420px] space-y-4 overflow-y-auto pr-1">
@@ -175,19 +177,19 @@ export default function MissionScheduleConflictModal({
                                 <div key={`${item.candidate_run_at}-${index}`} className="border border-[#4A2323] bg-[#271919] px-4 py-4">
                                     <div className="flex items-start justify-between gap-4">
                                         <div>
-                                            <div className="text-[11px] uppercase tracking-[0.18em] text-[#F4B2B2]">Candidate Run</div>
+                                            <div className="text-[11px] uppercase tracking-[0.18em] text-[#F4B2B2]">{t('conflict.candidateRun')}</div>
                                             <div className="mt-2 text-[13px] text-white">
                                                 {formatDateTime(item.candidate_run_at, item.schedule_timezone)}
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-[10px] uppercase tracking-[0.16em] text-[#F4B2B2]">Recommendation</div>
+                                            <div className="text-[10px] uppercase tracking-[0.16em] text-[#F4B2B2]">{t('conflict.recommendation')}</div>
                                             <div className="mt-2 text-[12px] text-white">
                                                 {recommendedSource === 'candidate'
-                                                    ? 'Use candidate mission'
+                                                    ? t('conflict.useCandidateMission')
                                                     : recommendedSource === 'existing'
-                                                        ? 'Use existing mission'
-                                                        : 'Manual selection required'}
+                                                        ? t('conflict.useExistingMission')
+                                                        : t('conflict.manualSelectionRequired')}
                                             </div>
                                         </div>
                                     </div>
@@ -210,9 +212,9 @@ export default function MissionScheduleConflictModal({
                                             <div className="flex items-center gap-3">
                                                 <input type="radio" readOnly checked={selectedValue === 'candidate'} className="h-4 w-4 accent-[#F97316]" />
                                                 <div>
-                                                    <div className="text-[12px] font-medium text-white">Winner: Candidate Mission</div>
+                                                    <div className="text-[12px] font-medium text-white">{t('conflict.winnerCandidateMission')}</div>
                                                     <div className="mt-1 text-[11px] text-[#F7E7E7]">
-                                                        Keep this new mission as the active occurrence for that time slot.
+                                                        {t('conflict.keepNewMissionActive')}
                                                     </div>
                                                 </div>
                                             </div>
@@ -242,7 +244,7 @@ export default function MissionScheduleConflictModal({
                                                         <div>
                                                             <div className="text-[12px] font-medium text-white">{occurrence.mission_name}</div>
                                                             <div className="mt-1 text-[11px] text-[#F7E7E7]">
-                                                                Run At: {formatDateTime(occurrence.run_at, item.schedule_timezone)}
+                                                                {t('conflict.runAt')}: {formatDateTime(occurrence.run_at, item.schedule_timezone)}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -257,7 +259,7 @@ export default function MissionScheduleConflictModal({
 
                     {hasUnresolvedConflict ? (
                         <div className="mt-5 border border-[#6B2F2F] bg-[#301919] px-4 py-3 text-[12px] text-[#FFD0D0]">
-                            Select a winner for each conflict before continuing mission creation.
+                            {t('conflict.selectWinnerEachConflict')}
                         </div>
                     ) : null}
 
@@ -269,7 +271,7 @@ export default function MissionScheduleConflictModal({
                             className="h-[46px] min-w-[160px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                             style={{ borderColor: actionStroke, background: 'linear-gradient(135deg, #242424 0%, #343434 100%)' }}
                         >
-                            Close
+                            {t('common.cancel')}
                         </button>
                         <button
                             type="button"
@@ -278,7 +280,7 @@ export default function MissionScheduleConflictModal({
                             className="h-[46px] min-w-[210px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                             style={{ borderColor: actionStroke, background: 'linear-gradient(135deg, #7A1E1E 0%, #A73030 100%)' }}
                         >
-                            {isSubmitting ? 'Submitting...' : 'Create With Resolution'}
+                            {isSubmitting ? t('common.submit') : t('common.continue')}
                         </button>
                     </div>
                 </div>

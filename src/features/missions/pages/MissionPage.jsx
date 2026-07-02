@@ -5,6 +5,7 @@ import MissionListPanel from '../panels/MissionListPanel';
 import MissionDetailPanel from '../panels/MissionDetailPanel';
 import MissionScheduleConflictModal from '../components/MissionScheduleConflictModal';
 import MissionRecentHistoryGuardModal from '../components/MissionRecentHistoryGuardModal';
+import { useI18n } from '../../../shared/i18n/I18nProvider';
 import DockCamPanel from '../../dashboard/panels/DockCamPanel';
 import { missionService, uavService } from '../../../services/api';
 import useTelemetry from '../../../shared/hooks/useTelemetry';
@@ -14,9 +15,14 @@ import {
     buildMissionPayload,
 } from '../utils/missionPayload';
 
-const MISSION_TELEMETRY_METRICS = ['location', 'attitude'];
+const MISSION_TELEMETRY_METRICS = ['location', 'attitude', 'battery'];
 
 export default function MissionPage() {
+    const { t } = useI18n();
+    const translate = (key, fallback, replacements = {}) => Object.entries(replacements).reduce(
+        (message, [replacementKey, replacementValue]) => message.replace(`{${replacementKey}}`, replacementValue),
+        t(key, fallback)
+    );
     const [isAddingMission, setIsAddingMission] = useState(false);
     const [waypoints, setWaypoints] = useState([]);
     const [takeoffAltitude, setTakeoffAltitude] = useState(DEFAULT_TAKEOFF_ALTITUDE);
@@ -173,6 +179,7 @@ export default function MissionPage() {
                 waypoints,
                 confirmRecentHistoryGuard: Boolean(options.confirmRecentHistoryGuard),
                 conflictResolutions: options.conflictResolutions,
+                translate,
             });
 
             await missionService.createMission(payload);
@@ -217,7 +224,7 @@ export default function MissionPage() {
                 return;
             }
 
-            setCreateMissionError(error.message || 'Failed to create mission');
+            setCreateMissionError(error.message || t('missions.errorFailedCreateMission'));
         } finally {
             setIsCreatingMission(false);
         }
@@ -225,9 +232,9 @@ export default function MissionPage() {
 
     return (
         <>
-            <div className="p-[28px] flex flex-row gap-[28px] w-full h-[calc(100vh-104px)] overflow-hidden">
+            <div className="p-[28px] flex flex-row gap-[28px] w-full h-[calc(100vh-84px)] overflow-hidden">
                 <div className="flex-1 flex flex-col gap-[28px] min-w-0">
-                    <div className="flex-1 border border-[#2a3240] overflow-hidden shadow-lg relative bg-[#181d25]">
+                    <div className="relative flex-1 overflow-hidden rounded-[30px] border border-[#2a3240] bg-[#181d25] shadow-lg">
                         <MissionMapPanel
                             waypoints={waypoints}
                             takeoffHoldDuration={missionFormValues.takeoffHoldDuration}
@@ -250,12 +257,14 @@ export default function MissionPage() {
                 <div className="w-[440px] shrink-0 min-h-0 flex flex-col gap-[28px]">
                     {isAddingMission ? (
                         <>
-                            <div className="flex-1 bg-[#222222] overflow-hidden shadow-lg min-h-0">
+                            <div className="min-h-0 flex-1 overflow-hidden rounded-[30px] bg-[#222222] shadow-lg">
                                 <WaypointSelectionPanel
                                     waypoints={waypoints}
                                     takeoffAltitude={takeoffAltitude}
                                     takeoffHoldDuration={missionFormValues.takeoffHoldDuration}
                                     selectedDrone={selectedDrone}
+                                    telemetry={selectedTelemetry}
+                                    telemetryStatus={selectedTelemetryStatus}
                                     onTakeoffAltitudeChange={setTakeoffAltitude}
                                     onTakeoffHoldDurationChange={handleTakeoffHoldDurationChange}
                                     onUpdateWaypoint={handleUpdateWaypoint}
@@ -263,7 +272,7 @@ export default function MissionPage() {
                                     onDeleteWaypoint={handleDeleteWaypoint}
                                 />
                             </div>
-                            <div className="h-[560px] shrink-0 overflow-hidden shadow-lg">
+                            <div className="h-[560px] shrink-0 overflow-hidden rounded-[30px] shadow-lg">
                                 <MissionDetailPanel
                                     waypointsCount={waypoints.length}
                                     onClearWaypoints={() => setWaypoints([])}
@@ -279,10 +288,10 @@ export default function MissionPage() {
                         </>
                     ) : (
                         <>
-                            <div className="h-[280px] shrink-0 overflow-hidden">
-                                <DockCamPanel variant="stream" streamBorderClassName="border-[0.5px]" />
+                            <div className="h-[280px] shrink-0 overflow-hidden rounded-[30px]">
+                                <DockCamPanel />
                             </div>
-                            <div className="flex-1 overflow-hidden min-h-0">
+                            <div className="min-h-0 flex-1 overflow-hidden rounded-[30px]">
                                 <MissionListPanel
                                     onAddMission={() => {
                                         setMissionFormValues(INITIAL_MISSION_FORM_VALUES);
