@@ -3,16 +3,31 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import appLogo from '../../assets/images/icon_app_white.svg';
 import droneMenuIcon from '../../assets/images/icon_drone_menu.svg';
 import homeMenuIcon from '../../assets/images/icon_home_menu.svg';
+import historyMenuIcon from '../../assets/images/icon_history_menu.svg';
 import livestreamMenuIcon from '../../assets/images/icon_livestream_menu.svg';
 import settingMenuIcon from '../../assets/images/icon_setting_menu.svg';
 import notificationIcon from '../../assets/images/icon_notification.svg';
 import dangerIcon from '../../assets/images/icon_danger.svg';
-import satelliteIcon from '../../assets/images/icon_satellite.svg';
 import { useI18n } from '../i18n/I18nProvider';
+import { authService, clearAuthStorage, SSO_LOGOUT_REDIRECT_URL } from '../../services/api';
 
-const HEADER_HEIGHT = 84;
+const HEADER_HEIGHT = 64;
 const SIDEBAR_COLLAPSED_WIDTH = 92;
-const SIDEBAR_EXPANDED_WIDTH = 236;
+const SIDEBAR_EXPANDED_WIDTH = 216;
+const NOTIFICATION_TYPES = {
+    reminder: 'mission_reminder',
+    terminal: 'mission_terminal',
+};
+
+const formatBadgeCount = (count) => {
+    const normalized = Number(count);
+
+    if (!Number.isFinite(normalized) || normalized <= 0) {
+        return null;
+    }
+
+    return normalized > 99 ? '99+' : String(normalized);
+};
 
 const UserIcon = ({ color = '#111111' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -33,51 +48,11 @@ const SidebarToggleIcon = ({ isCollapsed }) => (
     </svg>
 );
 
-const HeaderBatteryIcon = ({ percent = null }) => {
-    const hasValue = Number.isFinite(Number(percent));
-    const normalizedPercent = hasValue ? Math.max(0, Math.min(100, Number(percent))) : 0;
-    const fillHeight = Math.max(0, Math.round((normalizedPercent / 100) * 24));
-
-    return (
-        <div className="relative h-[44px] w-[24px] shrink-0">
-            <div className="absolute left-1/2 top-0 h-[5px] w-[9px] -translate-x-1/2 rounded-t-[3px] bg-[#D6DEEB]" />
-            <div className="absolute inset-x-0 bottom-0 top-[4px] rounded-[7px] bg-[#D6DEEB]" />
-            <div className="absolute inset-x-[3px] bottom-[5px] top-[9px] rounded-[4px] bg-white" />
-            <div
-                className={`absolute inset-x-[7px] bottom-[9px] rounded-[2px] transition-all duration-500 ${
-                    hasValue ? 'bg-[#8294B3]' : 'bg-[#D6DEEB]'
-                }`}
-                style={{ height: `${Math.min(24, Math.max(hasValue ? 4 : 10, fillHeight))}px` }}
-            />
-        </div>
-    );
-};
-
-const RcBarsIcon = ({ level = 0 }) => {
-    const activeColor = '#8294B3';
-    const inactiveColor = '#D6DEEB';
-    const bars = [1, 2, 3, 4];
-
-    return (
-        <div className="flex h-[18px] items-end gap-[2px]">
-            {bars.map((bar) => (
-                <div
-                    key={bar}
-                    className="w-[4px] rounded-t-[2px]"
-                    style={{
-                        height: `${bar * 4 + 2}px`,
-                        backgroundColor: bar <= level ? activeColor : inactiveColor,
-                    }}
-                />
-            ))}
-        </div>
-    );
-};
-
 const MENU_ITEMS = [
     { key: 'dashboard', labelKey: 'common.dashboard', fallbackLabel: 'Dashboard', to: '/dashboard', icon: homeMenuIcon },
     { key: 'missions', labelKey: 'missions.aespr', fallbackLabel: 'AESPR', to: '/missions', icon: droneMenuIcon },
-    { key: 'history', labelKey: 'common.history', fallbackLabel: 'History', to: '/history', icon: livestreamMenuIcon },
+    { key: 'history', labelKey: 'common.history', fallbackLabel: 'History', to: '/history', icon: historyMenuIcon },
+    { key: 'live-video', labelKey: 'common.liveVideo', fallbackLabel: 'Live Video', to: '/live-video', icon: livestreamMenuIcon },
     { key: 'settings', labelKey: 'common.settings', fallbackLabel: 'Settings', to: '/settings', icon: settingMenuIcon },
 ];
 
@@ -88,7 +63,7 @@ const MenuIcon = ({ icon, isActive }) => (
         src={icon}
         alt=""
         aria-hidden="true"
-        className="h-[22px] w-[22px] shrink-0 object-contain"
+        className="h-[17px] w-[17px] shrink-0 object-contain"
         style={isActive ? { filter: ACTIVE_ICON_FILTER } : undefined}
     />
 );
@@ -101,95 +76,361 @@ const matchesRoute = (pathname, path) => {
     return pathname === path || pathname.startsWith(`${path}/`);
 };
 
-const formatTelemetryLabel = (value = '') => value
-    .split('_')
-    .filter(Boolean)
-    .map((part) => part.toUpperCase())
-    .join(' ');
+const formatNotificationDate = (value, locale, options) => {
+    const parsed = Date.parse(value || '');
+    if (!Number.isFinite(parsed)) {
+        return '--';
+    }
+
+    return new Intl.DateTimeFormat(locale, options).format(new Date(parsed));
+};
+
+const formatRelativeTime = (diffMinutes, language, { future = false } = {}) => {
+    const absoluteMinutes = Math.abs(diffMinutes);
+
+    if (absoluteMinutes < 60) {
+        const value = Math.max(1, absoluteMinutes);
+        if (future) {
+            return language === 'id' ? `${value} menit lagi` : `in ${value} min`;
+        }
+
+        return language === 'id' ? `${value} menit lalu` : `${value} min ago`;
+    }
+
+    if (absoluteMinutes < 1440) {
+        const value = Math.floor(absoluteMinutes / 60);
+        if (future) {
+            return language === 'id' ? `${value} jam lagi` : `in ${value} hr`;
+        }
+
+        return language === 'id' ? `${value} jam lalu` : `${value} hr ago`;
+    }
+
+    const value = Math.floor(absoluteMinutes / 1440);
+    if (future) {
+        return language === 'id' ? `${value} hari lagi` : `in ${value} day${value === 1 ? '' : 's'}`;
+    }
+
+    return language === 'id' ? `${value} hari lalu` : `${value} day${value === 1 ? '' : 's'} ago`;
+};
+
+const getRelativeMinutesLabel = (notification, language) => {
+    const rawMinutes = Number(notification?.payload?.minutes);
+
+    if (Number.isFinite(rawMinutes) && rawMinutes > 0) {
+        return formatRelativeTime(rawMinutes, language, { future: true });
+    }
+
+    const runAtTimestamp = Date.parse(notification?.payload?.run_at || '');
+    if (!Number.isFinite(runAtTimestamp)) {
+        return '';
+    }
+
+    const diffMinutes = Math.round((runAtTimestamp - Date.now()) / 60000);
+
+    if (diffMinutes > 0) {
+        return formatRelativeTime(diffMinutes, language, { future: true });
+    }
+
+    if (diffMinutes === 0) {
+        return language === 'id' ? 'mulai sekarang' : 'starting now';
+    }
+
+    return formatRelativeTime(diffMinutes, language);
+};
+
+const getRelativeCreatedLabel = (value, language) => {
+    const timestamp = Date.parse(value || '');
+
+    if (!Number.isFinite(timestamp)) {
+        return '--';
+    }
+
+    const diffMs = Date.now() - timestamp;
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes <= 0) {
+        return 'now';
+    }
+
+    return formatRelativeTime(diffMinutes, language);
+};
+
+function NotificationItem({
+    notification,
+    type,
+    isActive,
+    isFirst,
+    isLast,
+    preserveUnreadAppearance = false,
+    locale,
+    language,
+    rootRef,
+    onVisible,
+    t,
+}) {
+    const itemRef = useRef(null);
+
+    useEffect(() => {
+        const target = itemRef.current;
+        const root = rootRef.current;
+
+        if (!isActive || !target || !root) {
+            return undefined;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        onVisible(notification);
+                    }
+                });
+            },
+            {
+                root,
+                threshold: 0.65,
+            }
+        );
+
+        observer.observe(target);
+
+        return () => observer.disconnect();
+    }, [isActive, notification, onVisible, rootRef]);
+
+    const relativeCreatedLabel = getRelativeCreatedLabel(notification?.created_at, language);
+    const createdAtLabel = formatNotificationDate(notification?.created_at, locale, {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+    const takeoffAtLabel = formatNotificationDate(notification?.payload?.run_at, locale, {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+    const isVisuallyRead = notification?.is_read && !preserveUnreadAppearance;
+
+    return (
+        <article
+            ref={itemRef}
+            className={`px-2 py-3 ${isVisuallyRead ? 'bg-[#F1F4F9]' : 'bg-white'} ${
+                isFirst ? 'rounded-t-[20px]' : ''
+            } ${
+                isLast ? 'rounded-b-[20px]' : ''
+            }`}
+        >
+            <div className="min-w-0 px-3">
+                {type === NOTIFICATION_TYPES.reminder ? (
+                    <>
+                        <div className="flex items-start justify-between gap-3">
+                            <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-[#151515]">
+                                {t('header.missionAlert')}
+                            </span>
+                            <span className="shrink-0 text-[11px] text-[#8A94A6]">
+                                {createdAtLabel}
+                            </span>
+                        </div>
+                        <div className="mt-2 min-w-0 truncate text-[13px] font-medium text-[#1B1E28]">
+                            {`${notification?.mission_name || t('header.untitledMission')} - ${takeoffAtLabel}`}
+                        </div>
+                        <div className="mt-1 text-[12px] font-medium text-[#C20000]">
+                            {language === 'id'
+                                ? `Drone takeoff ${getRelativeMinutesLabel(notification, language)}`
+                                : `Drone takeoff ${getRelativeMinutesLabel(notification, language)}`}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="truncate text-[13px] font-medium text-[#1B1E28]">
+                                    {notification?.mission_name || t('header.untitledMission')}
+                                </div>
+                                <span className="shrink-0 text-[11px] text-[#8A94A6]">
+                                    {relativeCreatedLabel}
+                                </span>
+                            </div>
+                        <div className="mt-1 overflow-hidden text-[12px] font-medium text-[#C20000] text-ellipsis whitespace-nowrap">
+                            {notification?.title || t('header.noTitle')}
+                        </div>
+                        <div
+                            className="mt-1 overflow-hidden text-[12px] font-medium leading-5 text-[#596273]"
+                            style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                            }}
+                        >
+                            {notification?.body || t('header.noDescription')}
+                        </div>
+                    </>
+                )}
+            </div>
+        </article>
+    );
+}
+
+function NotificationPanel({
+    panelType,
+    notifications,
+    hasNext,
+    isReady,
+    isInitialLoading,
+    isLoadingMore,
+    error,
+    onLoadMore,
+    onMarkVisibleRead,
+    language,
+    t,
+}) {
+    const locale = language === 'id' ? 'id-ID' : 'en-GB';
+    const scrollRef = useRef(null);
+    const sentinelRef = useRef(null);
+    const readBufferRef = useRef(new Set());
+    const flushTimeoutRef = useRef(null);
+    const filteredNotifications = notifications.filter((item) => item?.type === panelType);
+
+    useEffect(() => {
+        const root = scrollRef.current;
+        const sentinel = sentinelRef.current;
+
+        if (!root || !sentinel || !hasNext) {
+            return undefined;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting && !isLoadingMore) {
+                        onLoadMore();
+                    }
+                });
+            },
+            {
+                root,
+                threshold: 0.2,
+            }
+        );
+
+        observer.observe(sentinel);
+
+        return () => observer.disconnect();
+    }, [hasNext, isLoadingMore, onLoadMore]);
+
+    useEffect(() => () => {
+        if (flushTimeoutRef.current) {
+            clearTimeout(flushTimeoutRef.current);
+        }
+    }, []);
+
+    const enqueueVisibleNotification = (notification) => {
+        if (notification?.is_read !== false) {
+            return;
+        }
+
+        readBufferRef.current.add(Number(notification.id));
+
+        if (flushTimeoutRef.current) {
+            clearTimeout(flushTimeoutRef.current);
+        }
+
+        flushTimeoutRef.current = setTimeout(() => {
+            const ids = [...readBufferRef.current].filter((id) => Number.isFinite(id));
+            readBufferRef.current.clear();
+
+            if (ids.length > 0) {
+                void onMarkVisibleRead(ids);
+            }
+        }, 180);
+    };
+
+    const emptyLabel = panelType === NOTIFICATION_TYPES.terminal
+        ? t('header.noWarnings')
+        : t('header.noReminders');
+
+    return (
+        <div className="absolute right-0 top-[calc(100%+12px)] z-[1200] w-[380px] max-w-[calc(100vw-32px)] overflow-hidden rounded-[24px] border border-[#D5D5D5] bg-white shadow-[0_24px_60px_rgba(0,0,0,0.16)]">
+            <div ref={scrollRef} className="max-h-[480px] overflow-y-auto">
+                {isInitialLoading && !isReady ? (
+                    <div className="px-5 py-10 text-center text-[13px] text-[#8A94A6]">
+                        {t('header.loadingNotifications')}
+                    </div>
+                ) : null}
+
+                {!isInitialLoading && filteredNotifications.length === 0 ? (
+                    <div className="px-5 py-10 text-center text-[13px] text-[#8A94A6]">
+                        {emptyLabel}
+                    </div>
+                ) : null}
+
+                <div className="divide-y divide-[#ECEFF5]">
+                    {filteredNotifications.map((notification, index) => (
+                        <NotificationItem
+                            key={notification.id}
+                            notification={notification}
+                            type={panelType}
+                            isActive
+                            isFirst={index === 0}
+                            isLast={index === filteredNotifications.length - 1}
+                            preserveUnreadAppearance={notification?.preserveUnreadAppearance}
+                            locale={locale}
+                            language={language}
+                            rootRef={scrollRef}
+                            onVisible={enqueueVisibleNotification}
+                            t={t}
+                        />
+                    ))}
+                </div>
+
+                {error ? (
+                    <div className="px-5 py-4 text-[12px] text-[#C20000]">
+                        {error}
+                    </div>
+                ) : null}
+
+                <div ref={sentinelRef} className="h-0" />
+
+                {isLoadingMore ? (
+                    <div className="px-5 py-1 text-center text-[12px] text-[#8A94A6]">
+                        {t('header.loadingMoreNotifications')}
+                    </div>
+                ) : null}
+            </div>
+        </div>
+    );
+}
 
 export default function AppHeader({
     isSidebarCollapsed = false,
     onToggleSidebar,
-    telemetry = null,
-    telemetryStatus = null,
+    notificationCenter = null,
 }) {
     const { t, language } = useI18n();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [activeNotificationPanel, setActiveNotificationPanel] = useState(null);
+    const [stickyUnreadIds, setStickyUnreadIds] = useState([]);
     const settingsRef = useRef(null);
+    const notificationRef = useRef(null);
     const [currentTime, setCurrentTime] = useState(new Date());
     const location = useLocation();
     const navigate = useNavigate();
     const authUsername = localStorage.getItem('authUsername') || 'Aero Patrol';
-    const batteryTelemetry = telemetry?.battery || null;
-    const vehicleStateTelemetry = telemetry?.vehicle_state || null;
-    const dockingStatusTelemetry = telemetry?.docking_status || null;
-    const uavStatusTelemetry = telemetry?.uav_status || null;
-    const gpsTelemetry = telemetry?.gps || null;
-    const gps2Telemetry = telemetry?.gps2 || null;
-    const linkTelemetry = telemetry?.link || null;
-    const isBatteryFresh = Boolean(telemetryStatus?.metrics?.battery?.isFresh);
-    const isVehicleStateFresh = Boolean(telemetryStatus?.metrics?.vehicle_state?.isFresh);
-    const isDockingStatusFresh = Boolean(telemetryStatus?.metrics?.docking_status?.isFresh);
-    const isUavStatusFresh = Boolean(telemetryStatus?.metrics?.uav_status?.isFresh);
-    const isGpsFresh = Boolean(telemetryStatus?.metrics?.gps?.isFresh);
-    const isGps2Fresh = Boolean(telemetryStatus?.metrics?.gps2?.isFresh);
-    const isLinkFresh = Boolean(telemetryStatus?.metrics?.link?.isFresh);
-    const isDroneActive = Boolean(
-        (isVehicleStateFresh && vehicleStateTelemetry?.connected) || isBatteryFresh
-    );
-    const hasDockingBatterySnapshot = Boolean(
-        isUavStatusFresh && (
-            uavStatusTelemetry?.battery_percent != null ||
-            uavStatusTelemetry?.battery_voltage != null
-        )
-    );
-    const shouldUseDockingBatteryFallback = !isDroneActive && hasDockingBatterySnapshot;
-    const batteryPercent = shouldUseDockingBatteryFallback
-        ? (isUavStatusFresh ? uavStatusTelemetry?.battery_percent ?? null : null)
-        : (isBatteryFresh ? batteryTelemetry?.percent ?? null : null);
-    const batteryVoltage = shouldUseDockingBatteryFallback
-        ? (isUavStatusFresh ? uavStatusTelemetry?.battery_voltage ?? null : null)
-        : (isBatteryFresh ? batteryTelemetry?.voltage ?? null : null);
-    const batteryTemperature = shouldUseDockingBatteryFallback
-        ? (isDockingStatusFresh ? dockingStatusTelemetry?.temperature ?? null : null)
-        : (
-            isDockingStatusFresh
-                ? dockingStatusTelemetry?.temperature ?? null
-                : (
-                    isBatteryFresh
-                        ? (batteryTelemetry?.temperature ?? batteryTelemetry?.temp ?? batteryTelemetry?.battery_temperature ?? null)
-                        : null
-                )
-        );
-    const gpsSatellites = isGpsFresh ? Number(gpsTelemetry?.satellites) : null;
-    const gps2Satellites = isGps2Fresh ? Number(gps2Telemetry?.satellites) : null;
-    const hasDualGps = Number.isFinite(gpsSatellites) && Number.isFinite(gps2Satellites);
-    const gpsFixLabel = isGpsFresh
-        ? formatTelemetryLabel(String(gpsTelemetry?.fix_type_label || '').trim())
-        : '';
-    const gps2FixLabel = isGps2Fresh
-        ? formatTelemetryLabel(String(gps2Telemetry?.fix_type_label || '').trim())
-        : '';
-    const fixLabels = [gpsFixLabel, gps2FixLabel].filter(Boolean);
-    const rtkStatusLabel = (() => {
-        if (fixLabels.length === 0) {
-            return 'RTK';
-        }
-
-        const preferredRtkLabel = fixLabels.find((label) => /rtk/i.test(label));
-        if (preferredRtkLabel) {
-            return preferredRtkLabel;
-        }
-
-        return fixLabels[0];
-    })();
-    const satelliteCountValue = hasDualGps
-        ? gpsSatellites + gps2Satellites
-        : (Number.isFinite(gpsSatellites) ? gpsSatellites : Number.isFinite(gps2Satellites) ? gps2Satellites : null);
-    const rssiValue = isLinkFresh ? Number(linkTelemetry?.rssi) : null;
-    const rcLevel = Number.isFinite(rssiValue)
-        ? rssiValue >= 75 ? 4 : rssiValue >= 50 ? 3 : rssiValue >= 25 ? 2 : rssiValue >= 1 ? 1 : 0
+    const locale = language === 'id' ? 'id-ID' : 'en-GB';
+    const notificationItems = (notificationCenter?.notifications || []).map((item) => ({
+        ...item,
+        preserveUnreadAppearance: stickyUnreadIds.includes(Number(item?.id)),
+    }));
+    const unreadCountByType = notificationCenter?.unreadCountByType || {};
+    const terminalUnreadCount = Number.isFinite(Number(unreadCountByType[NOTIFICATION_TYPES.terminal]))
+        ? Math.max(0, Number(unreadCountByType[NOTIFICATION_TYPES.terminal]))
         : 0;
+    const reminderUnreadCount = Number.isFinite(Number(unreadCountByType[NOTIFICATION_TYPES.reminder]))
+        ? Math.max(0, Number(unreadCountByType[NOTIFICATION_TYPES.reminder]))
+        : 0;
+    const terminalBadgeLabel = formatBadgeCount(terminalUnreadCount);
+    const reminderBadgeLabel = formatBadgeCount(reminderUnreadCount);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -204,13 +445,30 @@ export default function AppHeader({
             if (settingsRef.current && !settingsRef.current.contains(event.target)) {
                 setIsSettingsOpen(false);
             }
+
+            if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+                setActiveNotificationPanel(null);
+                setStickyUnreadIds([]);
+            }
+        }
+
+        function handleEscape(event) {
+            if (event.key === 'Escape') {
+                setIsSettingsOpen(false);
+                setActiveNotificationPanel(null);
+                setStickyUnreadIds([]);
+            }
         }
 
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleEscape);
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleEscape);
+        };
     }, []);
 
-    const locale = language === 'id' ? 'id-ID' : 'en-GB';
     const timeStr = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     const dateStr = new Intl.DateTimeFormat(locale, {
         day: 'numeric',
@@ -218,20 +476,80 @@ export default function AppHeader({
         year: 'numeric',
     }).format(currentTime);
 
-    const handleLogout = () => {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('authUsername');
-        localStorage.removeItem('authUserId');
-        localStorage.removeItem('authRole');
-        localStorage.removeItem('deviceToken');
+    const handleLogout = async () => {
+        const authMethod = localStorage.getItem('authMethod') || 'local';
+
+        try {
+            await authService.logout();
+        } catch (error) {
+            console.error('Backend logout failed:', error);
+        }
+
+        if (authMethod === 'sso') {
+            try {
+                await authService.logoutSso();
+            } catch (error) {
+                console.error('SSO logout failed:', error);
+            }
+        }
+
+        clearAuthStorage();
         setIsSettingsOpen(false);
-        navigate('/login');
+
+        if (authMethod !== 'sso') {
+            navigate('/login');
+            return;
+        }
+
+        if (/^https?:\/\//i.test(SSO_LOGOUT_REDIRECT_URL)) {
+            window.location.assign(SSO_LOGOUT_REDIRECT_URL);
+            return;
+        }
+
+        navigate(SSO_LOGOUT_REDIRECT_URL);
     };
 
     const handleNavigateTo = (path) => {
         setIsSettingsOpen(false);
         navigate(path);
     };
+
+    const toggleNotificationPanel = (panelName) => {
+        setActiveNotificationPanel((previous) => {
+            const nextValue = previous === panelName ? null : panelName;
+
+            if (nextValue == null) {
+                setStickyUnreadIds([]);
+            }
+
+            return nextValue;
+        });
+        setIsSettingsOpen(false);
+    };
+
+    useEffect(() => {
+        if (!activeNotificationPanel) {
+            return;
+        }
+
+        const activeType = activeNotificationPanel === 'terminal'
+            ? NOTIFICATION_TYPES.terminal
+            : NOTIFICATION_TYPES.reminder;
+        const unreadIdsInOpenPanel = notificationItems
+            .filter((item) => item?.type === activeType && item?.is_read === false)
+            .map((item) => Number(item?.id))
+            .filter((id) => Number.isFinite(id));
+
+        if (unreadIdsInOpenPanel.length === 0) {
+            return;
+        }
+
+        setStickyUnreadIds((previous) => {
+            const next = new Set(previous);
+            unreadIdsInOpenPanel.forEach((id) => next.add(id));
+            return [...next];
+        });
+    }, [activeNotificationPanel, notificationItems]);
 
     return (
         <>
@@ -240,7 +558,7 @@ export default function AppHeader({
                 style={{ height: HEADER_HEIGHT }}
             >
                 <div className="flex min-w-0 items-center gap-3">
-                    <img src={appLogo} alt="Aero Patrol" className="h-[38px] w-auto shrink-0 object-contain md:h-[44px]" />
+                    <img src={appLogo} alt="Aero Patrol" className="h-[30px] w-auto shrink-0 object-contain md:h-[34px]" />
                     <div className="flex min-w-0 items-center gap-2 md:gap-3">
                         <div className="truncate font-inter text-[16px] font-bold leading-none text-[#151515] md:text-[19px] xl:text-[21px]">
                             {t('app.fullTitle')}
@@ -253,40 +571,6 @@ export default function AppHeader({
                 </div>
 
                 <div className="flex items-center gap-3 font-inter md:gap-4 xl:gap-5">
-                    <div className="hidden items-center gap-1 md:flex">
-                        <div className="flex flex-col items-start gap-[4px] text-[#8294B3]">
-                            <span className="max-w-[88px] truncate text-[11px] font-normal leading-none xl:max-w-[110px] xl:text-[11px]">
-                                {rtkStatusLabel}
-                            </span>
-                            <div className="flex items-center gap-2">
-                                <img src={satelliteIcon} alt="" aria-hidden="true" className="h-[18px] w-[18px] object-contain" />
-                                <span className="text-[14px] font-normal leading-none xl:text-[14px]">
-                                    {satelliteCountValue != null ? satelliteCountValue : '--'}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="ml-2 flex items-center gap-1.5 pt-[10px] text-[#8294B3]">
-                            <span className="text-[11px] font-normal leading-none xl:text-[11px]">RC</span>
-                            <RcBarsIcon level={rcLevel} />
-                        </div>
-                        <div className="flex items-center gap-2.5">
-                            <span className="min-w-[36px] text-right text-[14px] font-normal leading-none text-[#8294B3] xl:min-w-[40px] xl:text-[14px]">
-                                {batteryPercent != null ? `${Math.round(Number(batteryPercent))}%` : '--'}
-                            </span>
-                            <HeaderBatteryIcon percent={batteryPercent} />
-                            <div className="flex flex-col items-start leading-none text-[#8294B3]">
-                                <span className="text-[14px] font-normal xl:text-[14px]">
-                                    {batteryTemperature != null ? `${Number(batteryTemperature).toFixed(0)}°C` : '--°C'}
-                                </span>
-                                <span className="mt-[4px] text-[14px] font-normal xl:text-[14px]">
-                                    {batteryVoltage != null ? `${Number(batteryVoltage).toFixed(1)}V` : '--.-V'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="hidden h-8 w-px bg-[#E2E7F1] md:block" />
-
                     <div className="hidden flex-col items-end md:flex">
                         <span className="font-inter text-[11px] font-medium tracking-[0.04em] text-[#8294B3]">
                             UTC+7 • {dateStr}
@@ -296,24 +580,74 @@ export default function AppHeader({
                         </span>
                     </div>
 
-                    <div className="hidden h-8 w-px bg-[#E2E7F1] md:block" />
+                    <div className="hidden h-7 w-px bg-[#E2E7F1] md:block" />
 
                     <div className="flex items-center gap-3">
-                        <img
-                            src={dangerIcon}
-                            alt={t('header.dangerAlerts')}
-                            className="h-8 w-8 shrink-0 object-contain"
-                        />
+                        <div className="relative" ref={notificationRef}>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => toggleNotificationPanel('terminal')}
+                                    className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                                        activeNotificationPanel === 'terminal' ? 'bg-[#FFF0F0]' : 'bg-transparent hover:bg-[#F7F2F2]'
+                                    }`}
+                                    aria-label={t('header.warningNotifications')}
+                                >
+                                    <img
+                                        src={dangerIcon}
+                                        alt=""
+                                        aria-hidden="true"
+                                        className="h-7 w-7 shrink-0 object-contain"
+                                    />
+                                    {terminalBadgeLabel ? (
+                                        <span className="absolute -right-1 -top-1 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#C20000] px-1 text-[9px] font-semibold leading-none text-white">
+                                            {terminalBadgeLabel}
+                                        </span>
+                                    ) : null}
+                                </button>
 
-                        <div className="hidden h-8 w-px bg-[#E2E7F1] md:block" />
+                                <div className="hidden h-7 w-px bg-[#E2E7F1] md:block" />
 
-                        <img
-                            src={notificationIcon}
-                            alt={t('header.notifications')}
-                            className="h-8 w-8 shrink-0 object-contain"
-                        />
+                                <button
+                                    type="button"
+                                    onClick={() => toggleNotificationPanel('reminder')}
+                                    className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                                        activeNotificationPanel === 'reminder' ? 'bg-[#FFF0F0]' : 'bg-transparent hover:bg-[#F7F2F2]'
+                                    }`}
+                                    aria-label={t('header.reminderNotifications')}
+                                >
+                                    <img
+                                        src={notificationIcon}
+                                        alt=""
+                                        aria-hidden="true"
+                                        className="h-7 w-7 shrink-0 object-contain"
+                                    />
+                                    {reminderBadgeLabel ? (
+                                        <span className="absolute -right-1 -top-1 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#C20000] px-1 text-[9px] font-semibold leading-none text-white">
+                                            {reminderBadgeLabel}
+                                        </span>
+                                    ) : null}
+                                </button>
+                            </div>
 
-                        <div className="hidden h-8 w-px bg-[#E2E7F1] md:block" />
+                            {activeNotificationPanel ? (
+                                <NotificationPanel
+                                    panelType={activeNotificationPanel === 'terminal' ? NOTIFICATION_TYPES.terminal : NOTIFICATION_TYPES.reminder}
+                                    notifications={notificationItems}
+                                    hasNext={Boolean(notificationCenter?.hasNext)}
+                                    isReady={Boolean(notificationCenter?.isReady)}
+                                    isInitialLoading={Boolean(notificationCenter?.isInitialLoading)}
+                                    isLoadingMore={Boolean(notificationCenter?.isLoadingMore)}
+                                    error={notificationCenter?.error || null}
+                                    onLoadMore={() => void notificationCenter?.loadMore?.()}
+                                    onMarkVisibleRead={(ids) => notificationCenter?.markAsRead?.(ids)}
+                                    language={language}
+                                    t={t}
+                                />
+                            ) : null}
+                        </div>
+
+                        <div className="hidden h-7 w-px bg-[#E2E7F1] md:block" />
 
                         <span className="font-inter text-[14px] font-normal text-[#000000]">
                             {authUsername}
@@ -322,8 +656,12 @@ export default function AppHeader({
                         <div className="relative" ref={settingsRef}>
                             <button
                                 type="button"
-                                onClick={() => setIsSettingsOpen((prev) => !prev)}
-                                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F7F2F2] text-[#111111] transition-colors hover:bg-[#F1E7E7]"
+                                onClick={() => {
+                                    setIsSettingsOpen((prev) => !prev);
+                                    setActiveNotificationPanel(null);
+                                    setStickyUnreadIds([]);
+                                }}
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F7F2F2] text-[#111111] transition-colors hover:bg-[#F1E7E7]"
                                 aria-label={t('header.openProfileMenu')}
                             >
                                 <UserIcon color="#111111" />
@@ -353,7 +691,7 @@ export default function AppHeader({
             </header>
 
             <aside
-                className={`fixed left-0 z-[950] flex flex-col items-center bg-[#C20000] py-6 transition-[width,padding,border-radius] duration-300 ease-in-out ${isSidebarCollapsed ? 'px-3 rounded-tr-none' : 'px-4 rounded-tr-[28px]'}`}
+                className={`fixed left-0 z-[950] flex flex-col items-center bg-[#C20000] py-5 transition-[width,padding,border-radius] duration-300 ease-in-out ${isSidebarCollapsed ? 'rounded-tr-none px-3' : 'rounded-tr-[24px] px-3'}`}
                 style={{
                     top: HEADER_HEIGHT,
                     height: `calc(100vh - ${HEADER_HEIGHT}px)`,
@@ -368,23 +706,23 @@ export default function AppHeader({
                             <NavLink
                                 key={item.key}
                                 to={item.to}
-                                className={`flex h-[64px] w-full items-center rounded-[18px] transition-[background-color,box-shadow,padding] duration-300 ease-in-out ${
-                                    isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-5'
+                                className={`flex items-center rounded-[16px] transition-[background-color,box-shadow,padding,width,height] duration-300 ease-in-out ${
+                                    isSidebarCollapsed ? 'mx-auto h-[56px] w-[56px] justify-center px-0' : 'h-[58px] w-full justify-start px-3.5'
                                 } ${
                                     isActive ? 'bg-white shadow-[0_10px_24px_rgba(0,0,0,0.12)]' : 'bg-transparent hover:bg-[#D51A1A]'
                                 }`}
                             >
-                                <div className={`flex min-w-0 items-center ${isSidebarCollapsed ? 'justify-center gap-0' : 'gap-4'}`}>
+                                <div className={`flex min-w-0 items-center ${isSidebarCollapsed ? 'justify-center gap-0' : 'gap-2.5'}`}>
                                     <MenuIcon icon={item.icon} isActive={isActive} />
                                     <span
-                                        className={`${isActive ? 'text-[#C20000]' : 'text-white'} overflow-hidden whitespace-nowrap font-inter text-[16px] font-semibold transition-[max-width,opacity,margin] duration-300 ease-in-out`}
+                                        className={`${isActive ? 'text-[#C20000]' : 'text-white'} overflow-hidden whitespace-nowrap font-inter text-[15px] font-semibold transition-[max-width,opacity,margin] duration-300 ease-in-out`}
                                         style={{
-                                            maxWidth: isSidebarCollapsed ? '0px' : '140px',
+                                            maxWidth: isSidebarCollapsed ? '0px' : '126px',
                                             opacity: isSidebarCollapsed ? 0 : 1,
                                             marginLeft: isSidebarCollapsed ? '0px' : '0px',
                                         }}
                                     >
-                                            {t(item.labelKey, item.fallbackLabel)}
+                                        {t(item.labelKey, item.fallbackLabel)}
                                     </span>
                                 </div>
                             </NavLink>
@@ -395,7 +733,7 @@ export default function AppHeader({
                 <button
                     type="button"
                     onClick={onToggleSidebar}
-                    className="absolute top-1/2 right-0 flex h-[32px] w-[26px] -translate-y-1/2 items-center justify-start rounded-l-full bg-white pl-[3px]"
+                    className="absolute right-0 top-1/2 flex h-[32px] w-[26px] -translate-y-1/2 items-center justify-start rounded-l-full bg-white pl-[3px]"
                     aria-label={isSidebarCollapsed ? t('header.expandSidebar') : t('header.collapseSidebar')}
                 >
                     <SidebarToggleIcon isCollapsed={isSidebarCollapsed} />

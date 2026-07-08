@@ -288,7 +288,8 @@ export default function HistoryPage() {
     };
 
     return (
-        <div className="h-[calc(100vh-84px)] w-full overflow-hidden p-[28px]">
+        <div className="app-page">
+            <div className="app-page__inner h-full overflow-hidden">
             <div
                 className="font-inter relative flex h-full w-full flex-col overflow-hidden rounded-[34px] border px-8 py-8 shadow-lg"
                 style={{ borderColor: panelStroke, background: panelBackground }}
@@ -326,7 +327,7 @@ export default function HistoryPage() {
                                     value={missionNameInput}
                                     onChange={(event) => setMissionNameInput(event.target.value)}
                                     placeholder={t('historyPage.searchMissionName')}
-                                    className="h-[48px] w-[332px] rounded-[8px] border border-[#E2E2E2] bg-[#FFFFFF] pl-12 pr-4 text-[14px] text-[#000000] outline-none transition-colors placeholder:text-[#A0A7B4] focus:border-[#D6D6D6]"
+                                    className="h-[48px] w-[clamp(260px,22vw,332px)] rounded-[8px] border border-[#E2E2E2] bg-[#FFFFFF] pl-12 pr-4 text-[14px] text-[#000000] outline-none transition-colors placeholder:text-[#A0A7B4] focus:border-[#D6D6D6]"
                                 />
                             </div>
 
@@ -349,7 +350,8 @@ export default function HistoryPage() {
                                     type="date"
                                     value={scheduleDate}
                                     onChange={(event) => setScheduleDate(event.target.value)}
-                                    className="h-[48px] w-[184px] rounded-[8px] border border-[#E2E2E2] bg-[#FFFFFF] pl-12 pr-4 text-[14px] text-[#000000] outline-none transition-colors focus:border-[#D6D6D6]"
+                                    className={`mission-picker-input h-[48px] w-[clamp(168px,14vw,184px)] rounded-[8px] border border-[#E2E2E2] bg-[#FFFFFF] pl-12 pr-4 text-[14px] outline-none transition-colors focus:border-[#D6D6D6] ${scheduleDate ? 'text-[#000000]' : 'text-[#A0A7B4]'}`}
+                                    style={{ colorScheme: 'light' }}
                                 />
                             </div>
                         </div>
@@ -474,6 +476,7 @@ export default function HistoryPage() {
                         </PaginationBox>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     );

@@ -12,7 +12,7 @@ import { useI18n } from '../../../shared/i18n/I18nProvider';
 const HISTORY_DETAIL_STORAGE_KEY = 'historyDetail:selectedItem';
 const panelStroke = '#FFB3B3';
 const panelBackground = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
-const mapStroke = '#682F2F';
+const mapStroke = '#BCBCBC';
 const HISTORY_TRAJECTORY_ZOOM = 18;
 const cameraPanelBorderMarkup = cameraPanelBorderSvg.replace(
     '<svg ',
@@ -367,7 +367,7 @@ export default function HistoryDetailPage() {
 
     if (!historyItem) {
         return (
-            <div className="flex h-[calc(100vh-84px)] items-center justify-center p-[28px]">
+            <div className="app-page flex items-center justify-center">
                 <div className="rounded-[24px] border border-[#FFB3B3] bg-white px-8 py-6 text-center text-[#5F5F5F] shadow-lg">
                     <div className="text-[18px] font-medium text-[#1F1F1F]">{t('historyPage.noHistorySelected')}</div>
                     <button
@@ -383,8 +383,8 @@ export default function HistoryDetailPage() {
     }
 
     return (
-        <div className="h-[calc(100vh-84px)] w-full overflow-hidden p-[28px]">
-            <div className="flex h-full gap-6">
+        <div className="app-page">
+            <div className="app-page__inner flex h-full gap-[clamp(18px,2vw,24px)] overflow-hidden">
                 <div className="min-w-0 flex-1">
                     <button
                         type="button"
@@ -433,7 +433,7 @@ export default function HistoryDetailPage() {
                     </div>
                 </div>
 
-                <div className="flex w-[38%] min-w-[420px] flex-col gap-5">
+                <div className="flex w-[clamp(380px,34vw,560px)] min-w-[380px] flex-col gap-5">
                     <div
                         className="font-inter flex min-h-0 flex-1 flex-col overflow-hidden rounded-[30px] border p-6 shadow-lg"
                         style={{ borderColor: panelStroke, background: panelBackground }}

@@ -247,6 +247,7 @@ const buildMissionPayload = ({
     waypoints,
     confirmRecentHistoryGuard = false,
     conflictResolutions = [],
+    omitZeroTakeoffHoldDuration = false,
     translate = defaultTranslate,
 }) => {
     const missionName = String(formValues.missionName ?? '').trim();
@@ -311,7 +312,10 @@ const buildMissionPayload = ({
         }
     }
 
-    if (normalizedTakeoffHoldDuration != null) {
+    if (
+        normalizedTakeoffHoldDuration != null
+        && (!omitZeroTakeoffHoldDuration || normalizedTakeoffHoldDuration > 0)
+    ) {
         payload.takeoff_hold_duration = normalizedTakeoffHoldDuration;
     }
 

@@ -1,21 +1,16 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import MainVideoFeedPanel from '../panels/MainVideoFeedPanel';
-import MapViewPanel from '../panels/MapViewPanel';
-import MissionListPanel from '../panels/MissionListPanel';
-import DroneInfoPanel from '../panels/DroneInfoPanel';
-import StreamButtonPanel from '../panels/StreamButtonPanel';
-import QuickLaunchDialog from '../components/QuickLaunchDialog';
-import QuickLaunchDialogForm from '../components/QuickLaunchDialogForm';
-import { missionService, telemetryService, uavService } from '../../../services/api';
-import { buildMissionPayload } from '../../missions/utils/missionPayload';
-import MissionScheduleConflictModal from '../../missions/components/MissionScheduleConflictModal';
-import MissionRecentHistoryGuardModal from '../../missions/components/MissionRecentHistoryGuardModal';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import MainVideoFeedPanel from '../../dashboard/panels/MainVideoFeedPanel';
+import MapViewPanel from '../../dashboard/panels/MapViewPanel';
+import WeatherPanel from '../../dashboard/panels/WeatherPanel';
+import TelemetryPanel from '../../dashboard/panels/TelemetryPanel';
+import FlightStreamControlPanel from '../../dashboard/panels/FlightStreamControlPanel';
+import CameraJoystickPanel from '../../dashboard/panels/CameraJoystickPanel';
+import AbortMissionConfirmModal from '../components/AbortMissionConfirmModal';
+import { telemetryService, uavService } from '../../../services/api';
 import useTelemetry from '../../../shared/hooks/useTelemetry';
 import { useI18n } from '../../../shared/i18n/I18nProvider';
 import cameraPanelBorderSvg from '../../../assets/images/image_border_campanel_dashboard.svg?raw';
 import expandIcon from '../../../assets/images/icon_expand.svg';
-import switchIcon from '../../../assets/images/icon_switch.svg';
 
 const DASHBOARD_TELEMETRY_METRICS = [
     'vehicle_state',
@@ -32,17 +27,13 @@ const DASHBOARD_TELEMETRY_METRICS = [
     'mission_status',
     'camera_state',
 ];
-const HTTP_STREAM_ELIGIBLE_MISSION_STATUSES = new Set(['preparingdock', 'safetofly', 'takeoff', 'inprogress']);
-const STREAM_ELIGIBLE_RUNTIME_STATUSES = new Set(['preparing', 'preparingdock', 'safetofly', 'takeoff']);
+
+const ABORT_ELIGIBLE_RUNTIME_STATUSES = new Set(['preparing', 'preparingdock', 'safetofly', 'takeoff']);
 const STREAM_BLOCKED_RUNTIME_STATUSES = new Set(['landed', 'dockconfirmed', 'completed', 'failed', 'aborted']);
 const cameraPanelBorderMarkup = cameraPanelBorderSvg.replace(
     '<svg ',
     '<svg preserveAspectRatio="none" class="h-full w-full" '
 );
-const streamStylePanelBorder = 'linear-gradient(135deg, #FB5555 0%, #ED0000 18%, rgba(251, 85, 85, 0.42) 40%, rgba(251, 85, 85, 0.12) 56%, rgba(251, 85, 85, 0) 66%)';
-const streamStylePanelFill = 'linear-gradient(180deg, #F5F5F5 0%, #EDEDED 100%)';
-const ACTION_PANEL_MODE_SWITCH_DELAY_MS = 450;
-const ACTION_PANEL_HTTP_POLL_MS = 5000;
 
 const EMPTY_ACTIVE_TRACK = Object.freeze({
     historyId: null,
@@ -193,39 +184,28 @@ const mergeTrackState = (currentTrack, nextTrack) => {
     };
 };
 
-export default function DashboardPage() {
+export default function LiveVideoPage() {
     const { t } = useI18n();
     const translate = (key, fallback, replacements = {}) => Object.entries(replacements).reduce(
         (message, [replacementKey, replacementValue]) => message.replace(`{${replacementKey}}`, replacementValue),
         t(key, fallback)
     );
-    const [isLaunchDialogOpen, setIsLaunchDialogOpen] = useState(false);
-    const [isLaunchFormOpen, setIsLaunchFormOpen] = useState(false);
-    const [selectedLaunchType, setSelectedLaunchType] = useState('ROI');
+    const [selectedDrone, setSelectedDrone] = useState(null);
+    const [isDroneLoading, setIsDroneLoading] = useState(true);
+    const [droneError, setDroneError] = useState('');
+    const [droneTrailById, setDroneTrailById] = useState({});
     const [isMapPrimary, setIsMapPrimary] = useState(true);
     const [isPrimaryPanelExpanded, setIsPrimaryPanelExpanded] = useState(false);
-    const [droneTrailById, setDroneTrailById] = useState({});
-    const [isCreatingQuickLaunch, setIsCreatingQuickLaunch] = useState(false);
-    const [quickLaunchSubmitError, setQuickLaunchSubmitError] = useState('');
-    const [missionListRefreshKey, setMissionListRefreshKey] = useState(0);
-    const [quickLaunchScheduleConflictState, setQuickLaunchScheduleConflictState] = useState(null);
-    const [quickLaunchRecentHistoryGuardState, setQuickLaunchRecentHistoryGuardState] = useState(null);
     const [isAbortingMission, setIsAbortingMission] = useState(false);
+    const [isAbortConfirmOpen, setIsAbortConfirmOpen] = useState(false);
     const [abortMissionError, setAbortMissionError] = useState('');
     const [isCameraRecordingCommandPending, setIsCameraRecordingCommandPending] = useState(false);
     const [isCaptureCommandPending, setIsCaptureCommandPending] = useState(false);
     const [isZoomInCommandPending, setIsZoomInCommandPending] = useState(false);
     const [isZoomOutCommandPending, setIsZoomOutCommandPending] = useState(false);
     const [cameraCommandError, setCameraCommandError] = useState('');
-    const [actionPanelMode, setActionPanelMode] = useState('quick_launch');
-    const [hasHttpStreamMissionSignal, setHasHttpStreamMissionSignal] = useState(false);
-
-    const [selectedDrone, setSelectedDrone] = useState(null);
-    const [isDroneLoading, setIsDroneLoading] = useState(true);
-    const [droneError, setDroneError] = useState('');
     const trackRequestVersionRef = useRef(0);
     const activeMissionKeyRef = useRef('');
-    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchDrone = async () => {
@@ -237,7 +217,7 @@ export default function DashboardPage() {
                     setDroneError(t('dashboard.errorNoUavAvailable'));
                 }
             } catch (error) {
-                console.error("Error fetching drone info:", error);
+                console.error('Error fetching drone info:', error);
                 if (error.message === 'No authentication token found') {
                     setDroneError(t('dashboard.errorNotAuthenticated'));
                 } else {
@@ -247,12 +227,12 @@ export default function DashboardPage() {
                 setIsDroneLoading(false);
             }
         };
+
         fetchDrone();
     }, [t]);
 
     const uavIds = selectedDrone?.id ? [selectedDrone.id] : [];
-    const { telemetry, telemetryStatus, isConnected: isTelemetryConnected } = useTelemetry(uavIds, DASHBOARD_TELEMETRY_METRICS);
-
+    const { telemetry, telemetryStatus } = useTelemetry(uavIds, DASHBOARD_TELEMETRY_METRICS);
     const selectedTelemetry = selectedDrone ? telemetry[selectedDrone.id] : null;
     const selectedTelemetryStatus = selectedDrone ? telemetryStatus[selectedDrone.id] : null;
     const droneStatus = selectedDrone?.status || {};
@@ -278,21 +258,17 @@ export default function DashboardPage() {
         droneStatus.is_in_flight ??
         (telemetryVehicleState.armed && telemetryVehicleState.landed_state !== 'LANDED')
     );
-    const hasMissionTelemetrySignal = Boolean(
-        missionStatusHistoryId != null ||
-        missionStatusMissionId != null ||
-        telemetryHistoryId != null ||
-        telemetryRuntimeStatus
-    );
-    const isStreamBlockedByRuntimeStatus = STREAM_BLOCKED_RUNTIME_STATUSES.has(normalizedRuntimeStatus);
-    const isStreamAllowedByRuntimeStatus = STREAM_ELIGIBLE_RUNTIME_STATUSES.has(normalizedRuntimeStatus);
-    const canOpenStreamMode = !isStreamBlockedByRuntimeStatus && (
-        hasHttpStreamMissionSignal ||
-        isStreamAllowedByRuntimeStatus ||
+    const isDroneActiveForStream = Boolean(
+        (isVehicleStateFresh && telemetryVehicleState.connected === true) ||
+        isCameraStateFresh ||
+        isLocationFresh ||
+        isBatteryFresh ||
+        isLinkFresh ||
         isDroneInMission ||
-        (hasMissionTelemetrySignal && !telemetryRuntimeStatus)
+        telemetryVehicleState.armed === true ||
+        droneStatus.is_in_flight
     );
-    const nextActionPanelMode = canOpenStreamMode ? 'stream' : 'quick_launch';
+    const canOpenStreamMode = isDroneActiveForStream;
     const selectedLocation = selectedTelemetry?.location || {};
     const selectedHeading = isLocationFresh && selectedLocation.heading != null ? Number(selectedLocation.heading) : 0;
     const selectedTrack = selectedDrone ? (droneTrailById[selectedDrone.id] || EMPTY_ACTIVE_TRACK) : EMPTY_ACTIVE_TRACK;
@@ -302,7 +278,25 @@ export default function DashboardPage() {
     const fallbackMapPosition = lastTrackedPoint
         ? [lastTrackedPoint.latitude, lastTrackedPoint.longitude]
         : null;
-    const selectedDroneLabel = selectedDrone?.id ? `UAV #${selectedDrone.id}` : 'Selected UAV';
+    const streamStatusLabel = telemetryRuntimeStatus
+        || (isDroneInMission
+            ? t('dashboard.inFlight')
+            : droneStatus.is_docked
+                ? t('dashboard.docked')
+                : '');
+    const canAbortMission = Boolean(
+        selectedDrone?.id &&
+        activeMissionHistoryId != null &&
+        ABORT_ELIGIBLE_RUNTIME_STATUSES.has(normalizedRuntimeStatus)
+    );
+    const currentCameraZoomLevel = Number(telemetryCameraState.zoom_level);
+    const hasCameraZoomLevel = isCameraStateFresh && Number.isFinite(currentCameraZoomLevel);
+    const isCameraConnected = isCameraStateFresh && telemetryCameraState.connected === true;
+    const isCameraRecording = isCameraStateFresh && (
+        telemetryCameraState.recording_state === 1
+        || String(telemetryCameraState.recording_label || '').toLowerCase() === 'on'
+    );
+
     const refreshTrack = useCallback(async () => {
         if (!selectedDrone?.id) {
             return;
@@ -363,67 +357,8 @@ export default function DashboardPage() {
         missionStatusMissionId,
         telemetryRuntimeStatus,
         isDroneInMission,
-        selectedTrack.historyId
+        selectedTrack.historyId,
     ]);
-
-    useEffect(() => {
-        if (!selectedDrone?.id) {
-            setHasHttpStreamMissionSignal(false);
-            return undefined;
-        }
-
-        let isCancelled = false;
-
-        const pollMissionRuns = async () => {
-            try {
-                const data = await missionService.getMissionRuns({
-                    page: 1,
-                    limit: 20,
-                    uavId: selectedDrone.id,
-                    upcoming: 'today',
-                });
-
-                if (isCancelled) {
-                    return;
-                }
-
-                const items = Array.isArray(data?.items) ? data.items : [];
-                const hasEligibleMission = items.some((mission) => (
-                    HTTP_STREAM_ELIGIBLE_MISSION_STATUSES.has(normalizeRuntimeStatus(mission?.status))
-                ));
-
-                setHasHttpStreamMissionSignal(hasEligibleMission);
-            } catch (error) {
-                if (isCancelled) {
-                    return;
-                }
-
-                console.error('Error polling mission runs for action panel state:', error);
-            }
-        };
-
-        pollMissionRuns();
-        const intervalId = window.setInterval(pollMissionRuns, ACTION_PANEL_HTTP_POLL_MS);
-
-        return () => {
-            isCancelled = true;
-            window.clearInterval(intervalId);
-        };
-    }, [selectedDrone?.id]);
-
-    useEffect(() => {
-        if (actionPanelMode === nextActionPanelMode) {
-            return undefined;
-        }
-
-        const timeoutId = window.setTimeout(() => {
-            setActionPanelMode(nextActionPanelMode);
-        }, ACTION_PANEL_MODE_SWITCH_DELAY_MS);
-
-        return () => {
-            window.clearTimeout(timeoutId);
-        };
-    }, [actionPanelMode, nextActionPanelMode]);
 
     useEffect(() => {
         if (!selectedDrone?.id) {
@@ -448,15 +383,14 @@ export default function DashboardPage() {
         }
 
         refreshTrack();
-        setMissionListRefreshKey((current) => current + 1);
     }, [
         selectedDrone?.id,
         missionStatusMissionId,
         missionStatusHistoryId,
         telemetryHistoryId,
-        telemetryRuntimeStatus,
         selectedTrack.missionId,
         selectedTrack.historyId,
+        telemetryRuntimeStatus,
         refreshTrack,
     ]);
 
@@ -505,7 +439,7 @@ export default function DashboardPage() {
                     historyId: activeHistoryId,
                     lastRecordedAt: nextLastRecordedAt,
                     points: dedupeTrackPoints([...(baseTrack.points || []), livePoint]),
-                }
+                },
             };
         });
     }, [
@@ -530,121 +464,135 @@ export default function DashboardPage() {
         setIsPrimaryPanelExpanded(false);
     }, [selectedDrone?.id]);
 
-    const handleActionPanelClick = useCallback(() => {
-        if (actionPanelMode === 'stream') {
-            navigate('/live-video');
+    const handleAbortMission = useCallback(async () => {
+        if (!selectedDrone?.id) {
+            setAbortMissionError(t('dashboard.errorNoUavAbort'));
             return;
         }
 
-        setQuickLaunchSubmitError('');
-        setQuickLaunchScheduleConflictState(null);
-        setQuickLaunchRecentHistoryGuardState(null);
-        setIsLaunchDialogOpen(true);
-    }, [actionPanelMode, navigate]);
-
-    const handleQuickLaunchTypeConfirm = (launchType) => {
-        setSelectedLaunchType(launchType);
-        setQuickLaunchSubmitError('');
-        setQuickLaunchScheduleConflictState(null);
-        setQuickLaunchRecentHistoryGuardState(null);
-        setIsLaunchDialogOpen(false);
-        setIsLaunchFormOpen(true);
-    };
-
-    const handleQuickLaunchBack = () => {
-        if (isCreatingQuickLaunch) {
+        if (activeMissionHistoryId == null) {
+            setAbortMissionError(t('dashboard.errorNoMissionHistory'));
             return;
         }
 
-        setQuickLaunchSubmitError('');
-        setQuickLaunchScheduleConflictState(null);
-        setQuickLaunchRecentHistoryGuardState(null);
-        setIsLaunchFormOpen(false);
-        setIsLaunchDialogOpen(true);
-    };
+        setAbortMissionError('');
+        setIsAbortConfirmOpen(true);
+    }, [activeMissionHistoryId, selectedDrone?.id, t]);
 
-    const handleQuickLaunchLaunch = async ({ missionType, takeoffAltitude, takeoffHoldDuration, roi, waypoints }, options = {}) => {
-        setQuickLaunchSubmitError('');
-        if (!options.keepScheduleConflictModal) {
-            setQuickLaunchScheduleConflictState(null);
+    const handleConfirmAbortMission = useCallback(async () => {
+        if (!selectedDrone?.id) {
+            setAbortMissionError(t('dashboard.errorNoUavAbort'));
+            setIsAbortConfirmOpen(false);
+            return;
         }
-        if (!options.keepRecentHistoryGuardModal) {
-            setQuickLaunchRecentHistoryGuardState(null);
+
+        if (activeMissionHistoryId == null) {
+            setAbortMissionError(t('dashboard.errorNoMissionHistory'));
+            setIsAbortConfirmOpen(false);
+            return;
         }
-        setIsCreatingQuickLaunch(true);
+
+        setAbortMissionError('');
+        setIsAbortConfirmOpen(false);
+        setIsAbortingMission(true);
 
         try {
-            if (!selectedDrone?.id) {
-                throw new Error(t('missions.errorNoUavQuickLaunch'));
-            }
-
-            const payload = buildMissionPayload({
-                formValues: {
-                    missionName: translate('dashboard.quickLaunchMissionName', 'Quick Launch {type}', { type: missionType }),
-                    takeoffHoldDuration,
-                    timeMode: 'now',
+            await telemetryService.publishMetric({
+                uavId: selectedDrone.id,
+                metric: 'mission_event',
+                payload: {
+                    history_id: activeMissionHistoryId,
+                    event: 'mission_aborted',
+                    message: 'frontend_abort_request',
                 },
-                takeoffAltitude,
-                roi,
-                waypoints,
-                confirmRecentHistoryGuard: Boolean(options.confirmRecentHistoryGuard),
-                conflictResolutions: options.conflictResolutions,
-                omitZeroTakeoffHoldDuration: true,
-                translate,
             });
 
-            await missionService.createMission(payload);
-            setMissionListRefreshKey((current) => current + 1);
-            setQuickLaunchScheduleConflictState(null);
-            setQuickLaunchRecentHistoryGuardState(null);
-            setIsLaunchFormOpen(false);
-            setIsLaunchDialogOpen(false);
+            refreshTrack();
         } catch (error) {
-            console.error('Error creating quick launch mission:', error);
-
-            if (error?.code === 'mission_schedule_conflict') {
-                setQuickLaunchRecentHistoryGuardState(null);
-                setQuickLaunchScheduleConflictState({
-                    details: error.details || {
-                        error: error.message,
-                    },
-                    retryArgs: {
-                        missionType,
-                        takeoffAltitude,
-                        takeoffHoldDuration,
-                        roi,
-                        waypoints,
-                        confirmRecentHistoryGuard: Boolean(options.confirmRecentHistoryGuard),
-                        conflictResolutions: Array.isArray(options.conflictResolutions) ? options.conflictResolutions : [],
-                    },
-                });
-                return;
-            }
-
-            if (error?.code === 'mission_recent_history_guard') {
-                setQuickLaunchScheduleConflictState(null);
-                setQuickLaunchRecentHistoryGuardState({
-                    details: error.details || {
-                        message: error.message,
-                    },
-                    retryArgs: {
-                        missionType,
-                        takeoffAltitude,
-                        takeoffHoldDuration,
-                        roi,
-                        waypoints,
-                        confirmRecentHistoryGuard: Boolean(options.confirmRecentHistoryGuard),
-                        conflictResolutions: Array.isArray(options.conflictResolutions) ? options.conflictResolutions : [],
-                    },
-                });
-                return;
-            }
-
-            setQuickLaunchSubmitError(error.message || t('missions.errorFailedQuickLaunch'));
+            console.error('Error aborting mission:', error);
+            setAbortMissionError(error.message || t('dashboard.errorAbortMission'));
         } finally {
-            setIsCreatingQuickLaunch(false);
+            setIsAbortingMission(false);
         }
-    };
+    }, [activeMissionHistoryId, refreshTrack, selectedDrone?.id, t]);
+
+    const publishCameraCommand = useCallback(async (payload) => {
+        if (!selectedDrone?.id) {
+            throw new Error('No UAV available for camera command.');
+        }
+
+        await telemetryService.publishMetric({
+            uavId: selectedDrone.id,
+            metric: 'camera_command',
+            payload,
+        });
+    }, [selectedDrone?.id]);
+
+    const handleTakePicture = useCallback(async () => {
+        setCameraCommandError('');
+        setIsCaptureCommandPending(true);
+
+        try {
+            await publishCameraCommand({
+                command: 'take_photo',
+            });
+        } catch (error) {
+            console.error('Error taking photo:', error);
+            setCameraCommandError(error.message || t('dashboard.errorTakePicture'));
+        } finally {
+            setIsCaptureCommandPending(false);
+        }
+    }, [publishCameraCommand, t]);
+
+    const handleStartRecording = useCallback(async () => {
+        if (isCameraRecording) {
+            return;
+        }
+
+        setCameraCommandError('');
+        setIsCameraRecordingCommandPending(true);
+
+        try {
+            await publishCameraCommand({
+                command: 'set_recording',
+                enabled: true,
+            });
+        } catch (error) {
+            console.error('Error starting recording:', error);
+            setCameraCommandError(error.message || t('dashboard.errorStartRecording'));
+        } finally {
+            setIsCameraRecordingCommandPending(false);
+        }
+    }, [isCameraRecording, publishCameraCommand, t]);
+
+    const handleZoomStep = useCallback(async (direction) => {
+        if (!hasCameraZoomLevel) {
+            setCameraCommandError(t('dashboard.errorZoomUnavailable'));
+            return;
+        }
+
+        const nextZoomLevel = direction === 'in'
+            ? currentCameraZoomLevel + 1
+            : Math.max(0, currentCameraZoomLevel - 1);
+        const setPending = direction === 'in'
+            ? setIsZoomInCommandPending
+            : setIsZoomOutCommandPending;
+
+        setCameraCommandError('');
+        setPending(true);
+
+        try {
+            await publishCameraCommand({
+                command: 'set_zoom_level',
+                zoom_level: Number(nextZoomLevel.toFixed(1)),
+            });
+        } catch (error) {
+            console.error(`Error zooming ${direction}:`, error);
+            setCameraCommandError(error.message || translate('dashboard.errorZoom', 'Failed to zoom {direction}', { direction }));
+        } finally {
+            setPending(false);
+        }
+    }, [currentCameraZoomLevel, hasCameraZoomLevel, publishCameraCommand, t, translate]);
 
     const renderPrimaryPanel = ({ expanded = false } = {}) => (
         isMapPrimary
@@ -656,102 +604,107 @@ export default function DashboardPage() {
                     trailPositions={selectedTrail}
                     fallbackPosition={fallbackMapPosition}
                     showCompass
+                    showControls={false}
                     radiusClassName={expanded ? 'rounded-[32px]' : 'rounded-[24px]'}
                 />
             )
             : <MainVideoFeedPanel showCompass heading={selectedHeading} radiusClassName={expanded ? 'rounded-[32px]' : 'rounded-[24px]'} />
     );
+
     const renderSecondaryPanel = () => (
         isMapPrimary
             ? <MainVideoFeedPanel compact lightShell heading={selectedHeading} radiusClassName="rounded-[12px]" />
-            : <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} fallbackPosition={fallbackMapPosition} lightShell radiusClassName="rounded-[12px]" />
+            : <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} fallbackPosition={fallbackMapPosition} showControls={false} lightShell radiusClassName="rounded-[12px]" />
     );
-    const actionLabel = actionPanelMode === 'stream' ? t('dashboard.stream') : t('dashboard.quickLaunch');
-    const isActionPanelStreamMode = actionPanelMode === 'stream';
+    const availabilityMessage = isDroneLoading
+        ? t('loading', 'Loading...')
+        : (droneError || t('dashboard.liveVideoRequiresDroneOn'));
+    const isStreamInteractionDisabled = !canOpenStreamMode;
 
     return (
-        <div className="app-page app-page--compact-header relative">
+        <div className="app-page relative">
             <div className="app-page__inner relative h-full">
             <div
-                className={`grid h-full w-full gap-[clamp(18px,2vw,28px)] ${isPrimaryPanelExpanded ? 'invisible' : ''}`}
+                className={`grid h-full w-full grid-rows-[minmax(0,1fr)_clamp(200px,24vh,216px)] gap-[clamp(18px,2vw,28px)] ${isPrimaryPanelExpanded ? 'invisible' : ''}`}
                 style={{ gridTemplateColumns: 'clamp(300px, 22vw, 420px) minmax(0, 1fr)' }}
             >
-                <div className="flex min-h-0 flex-col gap-[clamp(18px,2vw,28px)] overflow-hidden">
-                    <div className="min-h-[320px] shrink-0 basis-[clamp(320px,42vh,460px)]">
-                        <DroneInfoPanel
-                            selectedDrone={selectedDrone}
-                            isLoading={isDroneLoading}
-                            errorMsg={droneError}
-                            telemetry={selectedTelemetry}
-                            telemetryStatus={selectedTelemetryStatus}
-                            isTelemetryConnected={isTelemetryConnected}
-                        />
+                <div className="row-span-2 flex min-h-0 flex-col gap-[clamp(18px,1.8vw,20px)]">
+                    <div className="h-[clamp(220px,24vh,260px)] shrink-0">
+                        <WeatherPanel variant="stream" selectedDrone={selectedDrone} telemetry={selectedTelemetry} />
                     </div>
 
-                    <div
-                        className="relative min-h-0 flex-1 overflow-hidden rounded-[30px] p-px"
-                        style={{ backgroundImage: streamStylePanelBorder }}
-                    >
-                        <div
-                            className="relative h-full w-full overflow-hidden rounded-[29px] p-3"
-                            style={{ background: streamStylePanelFill }}
-                        >
-                            <div className="relative h-full w-full overflow-hidden rounded-[24px] border-b border-[#FF383C] p-px">
-                                {renderSecondaryPanel()}
-                                <button
-                                    type="button"
-                                    aria-label={t('dashboard.switchPanels')}
-                                    onClick={() => setIsMapPrimary((value) => !value)}
-                                    className="absolute bottom-3 left-3 z-[550] flex h-[44px] w-[44px] items-center justify-center rounded-full bg-black/50 transition-colors hover:bg-black/65"
-                                >
-                                    <img
-                                        src={switchIcon}
-                                        alt=""
-                                        aria-hidden="true"
-                                        className="h-[17px] w-[14px] object-contain"
-                                    />
-                                </button>
-                            </div>
-                        </div>
+                    <div className="min-h-0 flex-1">
+                        <TelemetryPanel
+                            telemetry={selectedTelemetry}
+                            telemetryStatus={selectedTelemetryStatus}
+                        />
                     </div>
                 </div>
 
-                <div className="flex min-h-0 flex-col gap-[clamp(18px,2vw,28px)]">
-                    <div className="relative min-h-0 flex-1 overflow-hidden rounded-[30px]">
-                        <div
-                            aria-hidden="true"
-                            className="pointer-events-none absolute inset-0 z-[450] select-none"
-                            dangerouslySetInnerHTML={{ __html: cameraPanelBorderMarkup }}
-                        />
-                        <div className="h-full overflow-hidden p-[5px]">
-                            {renderPrimaryPanel()}
+                <div className="relative min-h-0 overflow-hidden rounded-[30px]">
+                    <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 z-[450] select-none"
+                        dangerouslySetInnerHTML={{ __html: cameraPanelBorderMarkup }}
+                    />
+                    {isStreamInteractionDisabled ? (
+                        <div className="absolute left-6 top-6 z-[500] rounded-[12px] border border-[#B0B0B0] bg-black/55 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#D7D7D7]">
+                            {availabilityMessage}
                         </div>
-                        <button
-                            type="button"
-                            aria-label={isPrimaryPanelExpanded ? 'Collapse panel' : 'Expand panel'}
-                            onClick={() => setIsPrimaryPanelExpanded((current) => !current)}
-                            className="absolute bottom-6 left-6 z-[550] flex h-[44px] w-[44px] items-center justify-center rounded-full bg-black/50 transition-colors hover:bg-black/65"
-                        >
-                            <img
-                                src={expandIcon}
-                                alt=""
-                                aria-hidden="true"
-                                className={`h-[15px] w-[15px] object-contain transition-transform ${isPrimaryPanelExpanded ? 'rotate-180' : ''}`}
-                            />
-                        </button>
+                    ) : null}
+                    {streamStatusLabel ? (
+                        <div className="absolute right-6 top-6 z-[500] rounded-[12px] border border-[#1ab394]/35 bg-black/55 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[#1ab394]">
+                            {streamStatusLabel}
+                        </div>
+                    ) : null}
+                    <div className="h-full overflow-hidden p-[5px]">
+                        {renderPrimaryPanel()}
                     </div>
+                    <button
+                        type="button"
+                        aria-label={isPrimaryPanelExpanded ? 'Collapse panel' : 'Expand panel'}
+                        onClick={() => setIsPrimaryPanelExpanded((current) => !current)}
+                        className="absolute bottom-6 left-6 z-[550] flex h-[44px] w-[44px] items-center justify-center rounded-full bg-black/50 transition-colors hover:bg-black/65"
+                    >
+                        <img
+                            src={expandIcon}
+                            alt=""
+                            aria-hidden="true"
+                            className={`h-[15px] w-[15px] object-contain transition-transform ${isPrimaryPanelExpanded ? 'rotate-180' : ''}`}
+                        />
+                    </button>
+                </div>
 
-                    <div className="grid h-[clamp(250px,26vh,300px)] shrink-0 grid-cols-[minmax(0,1fr)_clamp(240px,18vw,280px)] gap-[clamp(18px,2vw,28px)]">
-                        <div className="min-h-0">
-                            <MissionListPanel uavId={selectedDrone?.id} refreshKey={missionListRefreshKey} />
-                        </div>
-                        <div className="min-h-0">
-                            <StreamButtonPanel
-                                label={actionLabel}
-                                onClick={handleActionPanelClick}
-                                isActive={isActionPanelStreamMode}
+                <div
+                    className="grid min-h-0 gap-[clamp(30px,2.6vw,44px)]"
+                    style={{ gridTemplateColumns: 'minmax(460px, 1fr) clamp(250px, 18vw, 340px)' }}
+                >
+                    <div className="min-h-0">
+                        <div className="h-full">
+                            <FlightStreamControlPanel
+                                secondaryPanel={renderSecondaryPanel()}
+                                onSwitchPanel={() => setIsMapPrimary((value) => !value)}
+                                compact
+                                onAbortMission={handleAbortMission}
+                                isAbortDisabled={isStreamInteractionDisabled || !canAbortMission}
+                                isAbortingMission={isAbortingMission}
+                                abortMissionError={abortMissionError}
+                                onTakePicture={handleTakePicture}
+                                onStartRecording={handleStartRecording}
+                                isCaptureDisabled={isStreamInteractionDisabled || !isCameraConnected || isCaptureCommandPending}
+                                isRecordDisabled={isStreamInteractionDisabled || !isCameraConnected || isCameraRecording || isCameraRecordingCommandPending}
+                                cameraCommandError={cameraCommandError}
                             />
                         </div>
+                    </div>
+                    <div className="min-h-0">
+                        <CameraJoystickPanel
+                            uavId={isStreamInteractionDisabled ? null : (selectedDrone?.id ?? null)}
+                            onZoomIn={() => handleZoomStep('in')}
+                            onZoomOut={() => handleZoomStep('out')}
+                            isZoomInDisabled={isStreamInteractionDisabled || !isCameraConnected || !hasCameraZoomLevel || isZoomInCommandPending}
+                            isZoomOutDisabled={isStreamInteractionDisabled || !isCameraConnected || !hasCameraZoomLevel || isZoomOutCommandPending}
+                        />
                     </div>
                 </div>
             </div>
@@ -786,67 +739,11 @@ export default function DashboardPage() {
                 </div>
             ) : null}
 
-            <QuickLaunchDialog
-                isOpen={isLaunchDialogOpen}
-                onClose={() => {
-                    if (isCreatingQuickLaunch) {
-                        return;
-                    }
-
-                    setQuickLaunchSubmitError('');
-                    setQuickLaunchScheduleConflictState(null);
-                    setQuickLaunchRecentHistoryGuardState(null);
-                    setIsLaunchDialogOpen(false);
-                }}
-                onConfirm={handleQuickLaunchTypeConfirm}
-            />
-
-            <QuickLaunchDialogForm
-                isOpen={isLaunchFormOpen}
-                missionType={selectedLaunchType}
-                selectedDrone={selectedDrone}
-                telemetry={selectedTelemetry}
-                telemetryStatus={selectedTelemetryStatus}
-                onClose={handleQuickLaunchBack}
-                onLaunch={handleQuickLaunchLaunch}
-                isLaunching={isCreatingQuickLaunch}
-                submitError={quickLaunchSubmitError}
-            />
-
-            <MissionScheduleConflictModal
-                isOpen={Boolean(quickLaunchScheduleConflictState)}
-                conflictData={quickLaunchScheduleConflictState?.details}
-                isSubmitting={isCreatingQuickLaunch}
-                onClose={() => setQuickLaunchScheduleConflictState(null)}
-                onConfirm={(conflictResolutions) => {
-                    if (!quickLaunchScheduleConflictState?.retryArgs) {
-                        return;
-                    }
-
-                    handleQuickLaunchLaunch(quickLaunchScheduleConflictState.retryArgs, {
-                        confirmRecentHistoryGuard: Boolean(quickLaunchScheduleConflictState.retryArgs.confirmRecentHistoryGuard),
-                        conflictResolutions,
-                        keepScheduleConflictModal: true,
-                    });
-                }}
-            />
-
-            <MissionRecentHistoryGuardModal
-                isOpen={Boolean(quickLaunchRecentHistoryGuardState)}
-                guardData={quickLaunchRecentHistoryGuardState?.details}
-                isSubmitting={isCreatingQuickLaunch}
-                onClose={() => setQuickLaunchRecentHistoryGuardState(null)}
-                onConfirm={() => {
-                    if (!quickLaunchRecentHistoryGuardState?.retryArgs) {
-                        return;
-                    }
-
-                    handleQuickLaunchLaunch(quickLaunchRecentHistoryGuardState.retryArgs, {
-                        confirmRecentHistoryGuard: true,
-                        conflictResolutions: quickLaunchRecentHistoryGuardState.retryArgs.conflictResolutions,
-                        keepRecentHistoryGuardModal: true,
-                    });
-                }}
+            <AbortMissionConfirmModal
+                isOpen={isAbortConfirmOpen}
+                isSubmitting={isAbortingMission}
+                onClose={() => setIsAbortConfirmOpen(false)}
+                onConfirm={handleConfirmAbortMission}
             />
             </div>
         </div>

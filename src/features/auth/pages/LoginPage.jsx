@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { authService, clearAuthStorage, persistAuthProfile } from '../../../services/api';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { authService, clearAuthStorage, persistAuthProfile, persistAuthSession } from '../../../services/api';
 import loginBackground from '../../../assets/images/image_background_login_white.png';
 import formBorderBackground from '../../../assets/images/image_border_form_login.png';
 import loginButton from '../../../assets/images/btn_login.svg';
@@ -13,7 +13,20 @@ export default function LoginPage() {
     const [errorMsg, setErrorMsg] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
+    const handledSsoCodeRef = useRef(null);
     const { t } = useI18n();
+
+    const finalizeLogin = async (authPayload) => {
+        if (!authPayload?.token) {
+            throw new Error('Token not received from server');
+        }
+
+        localStorage.setItem('authToken', authPayload.token);
+        persistAuthSession(authPayload);
+        const currentUser = await authService.getMe();
+        persistAuthProfile(currentUser);
+    };
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -22,16 +35,8 @@ export default function LoginPage() {
 
         try {
             const data = await authService.login(username, password);
-
-            if (data.token) {
-                localStorage.setItem('authToken', data.token);
-                const currentUser = await authService.getMe();
-                persistAuthProfile(currentUser);
-                navigate('/dashboard');
-            } else {
-                throw new Error('Token not received from server');
-            }
-
+            await finalizeLogin(data);
+            navigate('/dashboard');
         } catch (error) {
             clearAuthStorage();
             setErrorMsg(error.message);
@@ -39,6 +44,36 @@ export default function LoginPage() {
             setIsLoading(false);
         }
     };
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const ssoCode = params.get('code');
+
+        if (!ssoCode || handledSsoCodeRef.current === ssoCode) {
+            return;
+        }
+
+        handledSsoCodeRef.current = ssoCode;
+
+        const handleSsoLogin = async () => {
+            setErrorMsg('');
+            setIsLoading(true);
+
+            try {
+                const data = await authService.ssoLogin(ssoCode);
+                await finalizeLogin(data);
+                navigate('/dashboard', { replace: true });
+            } catch (error) {
+                clearAuthStorage();
+                setErrorMsg(error.message);
+                navigate('/login', { replace: true });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        handleSsoLogin();
+    }, [location.search, navigate]);
 
     return (
         <div
@@ -72,7 +107,9 @@ export default function LoginPage() {
 
                     <div className="relative z-10 flex h-full flex-col justify-center px-10 py-12">
                         <h2 className="text-xl font-medium text-black mb-1 tracking-wide">{t('auth.loginTitle')}</h2>
-                        <p className="text-[#222222] text-xs mb-8">{t('auth.loginSubtitle')}</p>
+                        <p className="text-[#222222] text-xs mb-8">
+                            {new URLSearchParams(location.search).get('code') ? t('auth.ssoSigningIn') : t('auth.loginSubtitle')}
+                        </p>
 
                         <form onSubmit={handleLogin} className="font-inter space-y-5 text-left">
                             {errorMsg && (
@@ -106,7 +143,7 @@ export default function LoginPage() {
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className={`relative mx-auto flex w-full max-w-[290px] aspect-[534/76] items-center justify-center overflow-hidden rounded-[2px] shadow-lg transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                    className={`relative mx-auto flex w-full max-w-[290px] aspect-[534/76] items-center justify-center overflow-hidden rounded-[2px] transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                                 >
                                     {isLoading ? (
                                         <span className="relative z-10 font-inter text-sm font-medium tracking-wider text-white">{t('auth.loggingIn')}</span>

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Circle, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, Circle, GeoJSON, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import droneIconImage from '../../../assets/images/icon_drone.svg';
@@ -17,6 +17,7 @@ import {
     formatWind,
     getWeatherPresentation,
 } from '../../../shared/utils/weather';
+import { resolveTelemetryBattery } from '../../../shared/utils/telemetryBattery';
 import {
     formatFlightDuration,
     formatMissionDistance,
@@ -24,6 +25,14 @@ import {
     getMissionProfileLengthMeters,
 } from '../utils/missionMetrics';
 import { useI18n } from '../../../shared/i18n/I18nProvider';
+import geofenceData from '../../../services/geofence.json';
+import {
+    buildGeofenceMaskGeoJson,
+    geofenceAreaPathOptions,
+    geofenceMaskPathOptions,
+    geofenceRadiusPathOptions,
+} from '../../../shared/utils/geofence';
+import { IS_GEOFENCE_JSON_ENABLED } from '../../../shared/config/geofenceConfig';
 
 // Fix Leaflet's default icon path issues
 delete L.Icon.Default.prototype._getIconUrl;
@@ -58,17 +67,12 @@ const createDroneIcon = (heading) => new L.DivIcon({
 
 const createWaypointIcon = (number) => new L.DivIcon({
     className: 'custom-waypoint-icon',
-    html: `<div class="w-5 h-5 rounded-full bg-[#682F2F] border border-[#682F2F] text-white text-[10px] font-bold flex items-center justify-center shadow-lg">${number}</div>`,
+    html: `<div class="w-5 h-5 rounded-full bg-[#FD5050] border border-[#FD5050] text-white text-[10px] font-bold flex items-center justify-center shadow-lg">${number}</div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10]
 });
 
-const geofencePathOptions = {
-    color: '#E1BA95',
-    fillColor: '#9616161A',
-    fillOpacity: 1,
-    weight: 0.3
-};
+const geofenceMaskData = buildGeofenceMaskGeoJson(geofenceData);
 
 const overlayTopStroke = 'linear-gradient(90deg, #ED0000 0%, rgba(237,0,0,0.2) 50%, #ED0000 100%)';
 const overlayBottomStroke = 'linear-gradient(90deg, rgba(237,0,0,0.2) 0%, #ED0000 22%, #ED0000 100%)';
@@ -76,6 +80,17 @@ const overlayDividerStroke = 'linear-gradient(90deg, rgba(251,85,85,0.18) 0%, #E
 const panelBackground = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
 const panelBorderImage = 'conic-gradient(from 0deg at 50% 50%, rgba(251,85,85,0) 0deg 22deg, #FB5555 72deg, #ED0000 142deg, #ED0000 196deg, rgba(251,85,85,0) 214deg 252deg, #FB5555 304deg, #ED0000 342deg, rgba(251,85,85,0) 360deg)';
 const INITIAL_MAP_ZOOM = 18;
+
+const formatDurationMinutes = (durationSeconds, unitLabel = 'min') => {
+    const normalizedDuration = Number(durationSeconds);
+
+    if (!Number.isFinite(normalizedDuration) || normalizedDuration <= 0) {
+        return '--';
+    }
+
+    const minutes = normalizedDuration / 60;
+    return `${Number.isInteger(minutes) ? minutes : minutes.toFixed(1)} ${unitLabel}`;
+};
 
 // Component to handle map clicks for adding waypoints
 function MapClickHandler({ onAddWaypoint }) {
@@ -221,14 +236,6 @@ export default function MissionMapPanel({
         missionRun?.run_at || missionDetail?.schedule,
         missionRun?.schedule_timezone || missionDetail?.schedule_timezone
     );
-    const topDetailItems = [
-        { label: t('common.status'), value: missionRun?.status || missionDetail?.status || '-' },
-        { label: t('missions.schedule'), value: formatScheduleType(missionRun?.schedule_type || missionDetail?.schedule_type || '', t) },
-        { label: t('missions.runAt'), value: missionDateTime },
-        { label: t('missions.takeoffHold'), value: missionDetail?.takeoff_hold_duration != null ? `${missionDetail.takeoff_hold_duration} s` : '-' },
-        { label: t('missions.waypoints'), value: `${activeWaypoints.length}` },
-    ];
-
     const rtlAnchorPosition = dockPosition;
     const linePositions = activeWaypoints
         .map((wp) => toLatLng(wp.latitude ?? wp.lat, wp.longitude ?? wp.lng))
@@ -243,7 +250,14 @@ export default function MissionMapPanel({
         takeoffHoldDuration: isViewMode ? missionDetail?.takeoff_hold_duration : takeoffHoldDuration,
         waypoints: activeWaypoints,
     });
-    const batteryPercent = selectedDrone?.status?.battery_percent;
+    const batteryState = resolveTelemetryBattery(telemetry, telemetryStatus);
+    const topDetailItems = [
+        { label: t('missions.flightEstimationMin'), value: formatDurationMinutes(estimatedFlightDurationSeconds, t('missions.minuteAbbreviation')) },
+        { label: t('missions.schedule'), value: formatScheduleType(missionRun?.schedule_type || missionDetail?.schedule_type || '', t) },
+        { label: t('missions.flightDistance'), value: formatMissionDistance(missionLengthMeters) },
+        { label: t('missions.takeoffHold'), value: missionDetail?.takeoff_hold_duration != null ? `${missionDetail.takeoff_hold_duration} s` : '-' },
+    ];
+    const batteryPercent = batteryState.percent;
     const batteryLabel = batteryPercent != null
         ? `${batteryPercent}% (${batteryPercent >= 60 ? t('missions.good') : batteryPercent >= 30 ? t('missions.moderate') : t('missions.low')})`
         : '--';
@@ -312,11 +326,19 @@ export default function MissionMapPanel({
                 <MapClickHandler onAddWaypoint={onAddWaypoint} />
 
                 {dockPosition && maxRange != null ? (
-                    <Circle center={dockPosition} radius={maxRange} pathOptions={geofencePathOptions} />
+                    <Circle center={dockPosition} radius={maxRange} pathOptions={geofenceRadiusPathOptions} />
+                ) : null}
+
+                {IS_GEOFENCE_JSON_ENABLED && Array.isArray(geofenceMaskData?.features) && geofenceMaskData.features.length > 0 ? (
+                    <GeoJSON data={geofenceMaskData} style={geofenceMaskPathOptions} />
+                ) : null}
+
+                {IS_GEOFENCE_JSON_ENABLED && Array.isArray(geofenceData?.features) && geofenceData.features.length > 0 ? (
+                    <GeoJSON data={geofenceData} style={geofenceAreaPathOptions} />
                 ) : null}
 
                 {allLines.length > 1 ? (
-                    <Polyline positions={allLines} color="#682F2F" weight={2} dashArray="4, 6" />
+                    <Polyline positions={allLines} color="#BCBCBC" weight={2} dashArray="4, 6" />
                 ) : null}
 
                 {dockPosition && (
@@ -494,7 +516,7 @@ export default function MissionMapPanel({
                         <div className="grid grid-cols-2 gap-y-4 gap-x-2 mb-4">
                             <div className="flex flex-col">
                                 <span className="text-[#454545] text-[10px] mb-1">{t('missions.batteryLevel')}</span>
-                                <span className="text-[#1F1F1F] text-[11px] font-semibold">{batteryLabel}</span>
+                                <span className="text-[#1F1F1F] text-[11px] font-medium">{batteryLabel}</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-[#454545] text-[10px] mb-1">{t('missions.missionEstimation')}</span>
@@ -502,7 +524,7 @@ export default function MissionMapPanel({
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-[#454545] text-[10px] mb-1">{t('missions.flightSpeed')}</span>
-                                <span className="text-[#1F1F1F] text-[11px] font-semibold">{flightSpeedLabel}</span>
+                                <span className="text-[#1F1F1F] text-[11px] font-medium">{flightSpeedLabel}</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-[#454545] text-[10px] mb-1">{t('missions.missionLength')}</span>

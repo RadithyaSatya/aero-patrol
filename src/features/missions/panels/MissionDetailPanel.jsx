@@ -116,21 +116,21 @@ function InlineDurationField({ value, onChange, suffix, placeholder, prefixLabel
 
     return (
         <div className="flex h-[40px] min-w-0 items-center gap-2 text-[11px] text-[#565656]">
-            <span className="shrink whitespace-nowrap">{prefixLabel}</span>
+            <span className="min-w-0 flex-1 whitespace-nowrap text-[10px] leading-none">{prefixLabel}</span>
             <input
                 type="number"
                 value={value}
                 onChange={handleChange}
                 placeholder={placeholder}
-                className="h-[28px] w-[56px] shrink-0 rounded-[12px] border px-2 text-center text-[12px] text-[#000000] outline-none"
+                className="h-[36px] w-[56px] shrink-0 rounded-[12px] border px-2 text-center text-[12px] text-[#000000] outline-none"
                 style={{ borderColor: fieldBorder, background: fieldFill }}
             />
-            <span className="shrink whitespace-nowrap">{suffix}</span>
+            <span className="shrink-0 whitespace-nowrap">{suffix}</span>
         </div>
     );
 }
 
-function TimeInputField({ value, onChange, placeholder = 'Start Time' }) {
+function TimeInputField({ value, onChange, placeholder = 'Start Time', className = '' }) {
     const { t } = useI18n();
     const inputRef = useRef(null);
 
@@ -148,7 +148,7 @@ function TimeInputField({ value, onChange, placeholder = 'Start Time' }) {
 
     return (
         <div
-            className={`${inputShellTallClass} gap-2 pr-3 cursor-pointer`}
+            className={`${inputShellTallClass} ${className} gap-2 pr-3 cursor-pointer`}
             style={{ background: fieldFill, borderColor: fieldBorder }}
             onClick={handleOpenPicker}
         >
@@ -161,7 +161,7 @@ function TimeInputField({ value, onChange, placeholder = 'Start Time' }) {
                 value={value}
                 onChange={onChange}
                 placeholder={placeholder || t('common.startTime')}
-                className="mission-time-input w-full min-w-0 bg-transparent text-[13px] text-[#000000] outline-none"
+                className={`mission-picker-input w-full min-w-0 bg-transparent text-[13px] outline-none ${value ? 'text-[#000000]' : 'text-[#565656]'}`}
                 style={{ colorScheme: 'light' }}
                 onClick={(event) => {
                     event.stopPropagation();
@@ -203,7 +203,7 @@ function DateInputField({ value, onChange, placeholder = 'Select Date' }) {
                 value={value}
                 onChange={onChange}
                 placeholder={placeholder || t('missions.selectDate')}
-                className="w-full min-w-0 bg-transparent text-[13px] text-[#000000] outline-none"
+                className={`mission-picker-input w-full min-w-0 bg-transparent text-[13px] outline-none ${value ? 'text-[#000000]' : 'text-[#565656]'}`}
                 style={{ colorScheme: 'light' }}
                 onClick={(event) => {
                     event.stopPropagation();
@@ -214,14 +214,14 @@ function DateInputField({ value, onChange, placeholder = 'Select Date' }) {
     );
 }
 
-function AddTimeButton({ onClick }) {
+function AddTimeButton({ onClick, className = '' }) {
     const { t } = useI18n();
 
     return (
         <button
             type="button"
             onClick={onClick}
-            className="flex h-[38px] w-fit items-center gap-2 border px-4 text-[11px] font-medium uppercase tracking-[0.16em] text-[#000000] transition-colors hover:bg-[#A8A8A8]"
+            className={`flex min-h-[38px] items-center justify-center gap-2 border px-4 py-2 text-center text-[11px] font-medium uppercase leading-tight tracking-[0.16em] text-[#000000] transition-colors hover:bg-[#A8A8A8] ${className}`}
             style={{ borderColor: fieldBorder, background: fieldFill }}
         >
             <PlusIcon />
@@ -441,18 +441,22 @@ export default function MissionDetailPanel({
 
                 {timeMode === 'one_time' ? (
                     <div className="grid grid-cols-2 gap-4">
-                        <TextField
-                            label={t('common.date')}
-                            type="date"
-                            value={oneTimeDate}
-                            onChange={(event) => setOneTimeDate(event.target.value)}
-                        />
-                        <TextField
-                            label={t('common.startTime')}
-                            type="time"
-                            value={oneTimeStartTime}
-                            onChange={(event) => setOneTimeStartTime(event.target.value)}
-                        />
+                        <div className="flex flex-col">
+                            <FieldLabel>{t('common.date')}</FieldLabel>
+                            <DateInputField
+                                value={oneTimeDate}
+                                onChange={(event) => setOneTimeDate(event.target.value)}
+                                placeholder={t('missions.selectDate')}
+                            />
+                        </div>
+                        <div className="flex flex-col">
+                            <FieldLabel>{t('common.startTime')}</FieldLabel>
+                            <TimeInputField
+                                value={oneTimeStartTime}
+                                onChange={(event) => setOneTimeStartTime(event.target.value)}
+                                placeholder={t('common.startTime')}
+                            />
+                        </div>
                     </div>
                 ) : null}
 
@@ -469,8 +473,10 @@ export default function MissionDetailPanel({
                                         <TimeInputField
                                             value={dailyStartTime}
                                             onChange={(event) => setDailyStartTime(event.target.value)}
+                                            className="max-w-[132px]"
                                         />
                                         <AddTimeButton
+                                            className="w-[132px]"
                                             onClick={() => appendTimeEntry(dailyStartTime, setDailyStartTime, setDailyTimes)}
                                         />
                                     </div>
@@ -520,13 +526,15 @@ export default function MissionDetailPanel({
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-[132px_minmax(0,1fr)] gap-4">
                                     <div className="flex flex-col gap-2">
                                         <TimeInputField
                                             value={weeklyStartTime}
                                             onChange={(event) => setWeeklyStartTime(event.target.value)}
+                                            className="max-w-[132px]"
                                         />
                                         <AddTimeButton
+                                            className="w-[132px]"
                                             onClick={() => appendTimeEntry(weeklyStartTime, setWeeklyStartTime, setWeeklyTimes)}
                                         />
                                     </div>
@@ -583,13 +591,15 @@ export default function MissionDetailPanel({
                                     </button>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-[132px_minmax(0,1fr)] gap-4">
                                     <div className="flex flex-col gap-2">
                                         <TimeInputField
                                             value={monthlyStartTime}
                                             onChange={(event) => setMonthlyStartTime(event.target.value)}
+                                            className="max-w-[132px]"
                                         />
                                         <AddTimeButton
+                                            className="w-[132px]"
                                             onClick={() => appendTimeEntry(monthlyStartTime, setMonthlyStartTime, setMonthlyTimes)}
                                         />
                                     </div>

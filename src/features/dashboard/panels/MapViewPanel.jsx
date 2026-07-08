@@ -1,10 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, Circle, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import navUpIcon from '../../../assets/images/icon_nav_up.svg';
 import droneIconImage from '../../../assets/images/icon_drone.svg';
 import droneCenterMissionIcon from '../../../assets/images/icon_drone_center_mission_white.svg';
+import geofenceData from '../../../services/geofence.json';
+import {
+    buildGeofenceMaskGeoJson,
+    geofenceAreaPathOptions,
+    geofenceMaskPathOptions,
+    geofenceRadiusPathOptions,
+} from '../../../shared/utils/geofence';
+import { IS_GEOFENCE_JSON_ENABLED } from '../../../shared/config/geofenceConfig';
 
 // Fix Leaflet's default icon path issues
 delete L.Icon.Default.prototype._getIconUrl;
@@ -43,17 +51,12 @@ const createDroneIcon = (heading) => new L.DivIcon({
 
 const createWaypointIcon = (number) => new L.DivIcon({
     className: 'custom-waypoint-icon',
-    html: `<div class="w-5 h-5 rounded-full bg-[#682F2F] border border-[#682F2F] text-white text-[10px] font-bold flex items-center justify-center shadow-lg">${number}</div>`,
+    html: `<div class="w-5 h-5 rounded-full bg-[#FD5050] border border-[#FD5050] text-white text-[10px] font-bold flex items-center justify-center shadow-lg">${number}</div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10]
 });
 
-const geofencePathOptions = {
-    color: '#E1BA95',
-    fillColor: '#9616161A',
-    fillOpacity: 1,
-    weight: 0.3
-};
+const geofenceMaskData = buildGeofenceMaskGeoJson(geofenceData);
 
 const toFiniteCoordinate = (value) => {
     const parsed = Number(value);
@@ -203,6 +206,7 @@ export default function MapViewPanel({
     trailPositions = [],
     fallbackPosition = null,
     showCompass = false,
+    showControls = true,
     lightShell = false,
     radiusClassName = 'rounded-[24px]',
 }) {
@@ -336,9 +340,17 @@ export default function MapViewPanel({
                     <Circle
                         center={homePosition}
                         radius={maxRange}
-                        pathOptions={geofencePathOptions}
+                        pathOptions={geofenceRadiusPathOptions}
                     />
                 )}
+
+                {IS_GEOFENCE_JSON_ENABLED && Array.isArray(geofenceMaskData?.features) && geofenceMaskData.features.length > 0 ? (
+                    <GeoJSON data={geofenceMaskData} style={geofenceMaskPathOptions} />
+                ) : null}
+
+                {IS_GEOFENCE_JSON_ENABLED && Array.isArray(geofenceData?.features) && geofenceData.features.length > 0 ? (
+                    <GeoJSON data={geofenceData} style={geofenceAreaPathOptions} />
+                ) : null}
 
                 {/* Home Marker */}
                 {homePosition && (
@@ -363,26 +375,28 @@ export default function MapViewPanel({
                 )}
             </MapContainer>
 
-            <div className="absolute top-[60vh] left-4 z-[450] flex flex-col">
-                <div className="flex flex-col gap-1">
-                    <MapControlButton onClick={handleRecenter} disabled={!dronePosition} aria-label="Center drone on map">
-                        <img
-                            src={droneCenterMissionIcon}
-                            alt=""
-                            aria-hidden="true"
-                            className="h-5 w-5 object-contain"
-                        />
-                    </MapControlButton>
-                    <MapControlButton onClick={handleZoomIn} aria-label="Zoom in">
-                        <span className="text-[24px] leading-none text-black">+</span>
-                    </MapControlButton>
+            {showControls ? (
+                <div className="absolute top-[60vh] left-4 z-[450] flex flex-col">
+                    <div className="flex flex-col gap-1">
+                        <MapControlButton onClick={handleRecenter} disabled={!dronePosition} aria-label="Center drone on map">
+                            <img
+                                src={droneCenterMissionIcon}
+                                alt=""
+                                aria-hidden="true"
+                                className="h-5 w-5 object-contain"
+                            />
+                        </MapControlButton>
+                        <MapControlButton onClick={handleZoomIn} aria-label="Zoom in">
+                            <span className="text-[24px] leading-none text-black">+</span>
+                        </MapControlButton>
+                    </div>
+                    <div className="mt-2">
+                        <MapControlButton onClick={handleZoomOut} aria-label="Zoom out">
+                            <span className="text-[24px] leading-none text-black">-</span>
+                        </MapControlButton>
+                    </div>
                 </div>
-                <div className="mt-2">
-                    <MapControlButton onClick={handleZoomOut} aria-label="Zoom out">
-                        <span className="text-[24px] leading-none text-black">-</span>
-                    </MapControlButton>
-                </div>
-            </div>
+            ) : null}
 
             {showCompass ? <CompassOverlay heading={heading} /> : null}
         </div>

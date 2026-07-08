@@ -11,11 +11,11 @@ export default function AboutPage() {
 
     return (
         <div
-            className="relative h-[calc(100vh-84px)] w-full overflow-hidden bg-[#F1F4F9] bg-cover bg-center bg-no-repeat font-inter"
+            className="app-page relative bg-[#F1F4F9] bg-cover bg-center bg-no-repeat font-inter"
             style={{ backgroundImage: `url(${pageBackground})` }}
         >
-            <div className="relative z-10 flex h-full w-full items-center justify-center p-[28px]">
-                <div className="w-full max-w-[1200px] flex items-center justify-between gap-[100px]">
+            <div className="app-page__inner relative z-10 flex h-full items-center justify-center">
+                <div className="flex w-full max-w-[1320px] items-center justify-between gap-[clamp(36px,6vw,100px)]">
 
                     {/* LEFT SIDE: Logo & Name */}
                     <div className="flex flex-1 flex-col items-center justify-center text-center">

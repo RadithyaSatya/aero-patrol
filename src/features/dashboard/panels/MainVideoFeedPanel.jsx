@@ -64,12 +64,9 @@ export default function MainVideoFeedPanel({
                 playsInline
                 controls={false}
                 className="absolute inset-0 h-full w-full object-cover"
+                fallbackClassName="bg-[#D0D0D0]"
+                fallbackTextClassName="text-[#5F5F5F]"
             />
-
-            {/* Top Left Badge */}
-            <div className={`absolute bg-black/60 uppercase flex items-center justify-center ${compact ? 'left-5 top-5 px-2 py-1' : 'left-7 top-7 px-3 py-1.5'}`}>
-                <span className="text-[#F94343] text-[11px] font-bold tracking-widest">DRONE CAM</span>
-            </div>
 
             {showCompass ? <CompassOverlay heading={heading} /> : null}
         </div>

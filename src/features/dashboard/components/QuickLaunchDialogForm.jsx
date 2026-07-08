@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Circle, MapContainer, Marker, Polyline, TileLayer, useMapEvents } from 'react-leaflet';
+import { Circle, MapContainer, Marker, Polyline, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import droneIconImage from '../../../assets/images/icon_drone.svg';
@@ -8,6 +8,14 @@ import cancelQuickLaunchButtonId from '../../../assets/images/btn_cancel_quickla
 import launchQuickLaunchButton from '../../../assets/images/btn_launch_quicklaunch.svg';
 import launchQuickLaunchButtonId from '../../../assets/images/btn_launch_quicklaunch_id.svg';
 import { useI18n } from '../../../shared/i18n/I18nProvider';
+import geofenceData from '../../../services/geofence.json';
+import {
+    buildGeofenceMaskGeoJson,
+    geofenceAreaPathOptions,
+    geofenceMaskPathOptions,
+    geofenceRadiusPathOptions,
+} from '../../../shared/utils/geofence';
+import { IS_GEOFENCE_JSON_ENABLED } from '../../../shared/config/geofenceConfig';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -19,6 +27,7 @@ L.Icon.Default.mergeOptions({
 const DEFAULT_TAKEOFF_ALTITUDE = 25;
 const DEFAULT_FLIGHT_ALTITUDE = 25;
 const DEFAULT_TAKEOFF_HOLD_DURATION = '0';
+const TAKEOFF_ONLY_MISSION_TYPES = new Set(['Launch', 'Hover']);
 
 const normalizeNumericInputValue = (value, fallback = '0') => {
     if (value === '') {
@@ -95,12 +104,7 @@ const createSpiralWaypointIcon = (number) => new L.DivIcon({
     iconAnchor: [11, 11],
 });
 
-const geofencePathOptions = {
-    color: '#E1BA95',
-    fillColor: '#9616161A',
-    fillOpacity: 1,
-    weight: 0.3,
-};
+const geofenceMaskData = buildGeofenceMaskGeoJson(geofenceData);
 
 function getDistanceMeters(latlng1, latlng2) {
     const R = 6371000;
@@ -256,7 +260,7 @@ export default function QuickLaunchDialogForm({
     const mapInteractionRef = useRef(null);
     const mapRef = useRef(null);
 
-    const isLaunch = missionType === 'Launch';
+    const isLaunch = TAKEOFF_ONLY_MISSION_TYPES.has(missionType);
     const isROI = missionType === 'ROI';
     const isSpiral = missionType === 'Spiral';
 
@@ -559,7 +563,13 @@ export default function QuickLaunchDialogForm({
                                 />
                                 <MapInteractionHandler onClickRef={mapInteractionRef} />
                                 {dockPosition && fenceRadius != null ? (
-                                    <Circle center={dockPosition} radius={fenceRadius} pathOptions={geofencePathOptions} />
+                                    <Circle center={dockPosition} radius={fenceRadius} pathOptions={geofenceRadiusPathOptions} />
+                                ) : null}
+                                {IS_GEOFENCE_JSON_ENABLED && Array.isArray(geofenceMaskData?.features) && geofenceMaskData.features.length > 0 ? (
+                                    <GeoJSON data={geofenceMaskData} style={geofenceMaskPathOptions} />
+                                ) : null}
+                                {IS_GEOFENCE_JSON_ENABLED && Array.isArray(geofenceData?.features) && geofenceData.features.length > 0 ? (
+                                    <GeoJSON data={geofenceData} style={geofenceAreaPathOptions} />
                                 ) : null}
                                 {dockPosition ? (
                                     <Marker position={dockPosition} icon={dockIcon} />

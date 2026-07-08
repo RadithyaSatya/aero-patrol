@@ -14,8 +14,8 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="flex h-[calc(100vh-84px)] w-full overflow-hidden bg-[#F1F4F9] font-inter">
-            <div className="h-full w-full p-[28px]">
+        <div className="app-page flex overflow-hidden bg-[#F1F4F9] font-inter">
+            <div className="app-page__inner h-full">
                 <div
                     className="relative flex h-full w-full overflow-hidden rounded-[34px] border border-[#FFB3B3] bg-cover bg-center bg-no-repeat px-8 py-8"
                     style={{ backgroundImage: `url(${pageBackground})` }}

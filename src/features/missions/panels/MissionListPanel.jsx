@@ -441,7 +441,11 @@ export default function MissionListPanel({
                     ) : null}
 
                     {!pagination.hasNext && missionRuns.length > 0 ? (
-                        <div className="px-2 py-3 text-center text-[11px] text-[#5F5F5F]">{t('missions.endOfMissions')}</div>
+                        <div className="px-2">
+                            <div className={`${tableLayoutClass} text-[11px] text-[#5F5F5F]`}>
+                                <div className="col-span-5 py-3 text-center">{t('missions.endOfMissions')}</div>
+                            </div>
+                        </div>
                     ) : null}
 
                     {errorMsg && missionRuns.length > 0 ? (

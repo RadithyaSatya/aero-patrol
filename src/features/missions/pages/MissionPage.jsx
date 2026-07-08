@@ -15,7 +15,7 @@ import {
     buildMissionPayload,
 } from '../utils/missionPayload';
 
-const MISSION_TELEMETRY_METRICS = ['location', 'attitude', 'battery'];
+const MISSION_TELEMETRY_METRICS = ['location', 'attitude', 'battery', 'vehicle_state', 'uav_status'];
 
 export default function MissionPage() {
     const { t } = useI18n();
@@ -232,8 +232,9 @@ export default function MissionPage() {
 
     return (
         <>
-            <div className="p-[28px] flex flex-row gap-[28px] w-full h-[calc(100vh-84px)] overflow-hidden">
-                <div className="flex-1 flex flex-col gap-[28px] min-w-0">
+            <div className="app-page">
+                <div className="app-page__inner flex h-full flex-row gap-[clamp(18px,2vw,28px)] overflow-hidden">
+                <div className="flex min-w-0 flex-1 flex-col gap-[clamp(18px,2vw,28px)]">
                     <div className="relative flex-1 overflow-hidden rounded-[30px] border border-[#2a3240] bg-[#181d25] shadow-lg">
                         <MissionMapPanel
                             waypoints={waypoints}
@@ -254,7 +255,7 @@ export default function MissionPage() {
                     </div>
                 </div>
 
-                <div className="w-[440px] shrink-0 min-h-0 flex flex-col gap-[28px]">
+                <div className="min-h-0 w-[clamp(360px,26vw,440px)] shrink-0 flex flex-col gap-[clamp(18px,2vw,28px)]">
                     {isAddingMission ? (
                         <>
                             <div className="min-h-0 flex-1 overflow-hidden rounded-[30px] bg-[#222222] shadow-lg">
@@ -272,7 +273,7 @@ export default function MissionPage() {
                                     onDeleteWaypoint={handleDeleteWaypoint}
                                 />
                             </div>
-                            <div className="h-[560px] shrink-0 overflow-hidden rounded-[30px] shadow-lg">
+                            <div className="h-[clamp(420px,48vh,560px)] shrink-0 overflow-hidden rounded-[30px] shadow-lg">
                                 <MissionDetailPanel
                                     waypointsCount={waypoints.length}
                                     onClearWaypoints={() => setWaypoints([])}
@@ -314,6 +315,7 @@ export default function MissionPage() {
                             </div>
                         </>
                     )}
+                </div>
                 </div>
             </div>
 

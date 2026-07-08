@@ -71,9 +71,10 @@ const DPadControl = () => (
 
 export default function ActiveMissionPage() {
     return (
-        <div className="p-[28px] flex flex-col gap-[20px] w-full h-[calc(100vh-84px)] overflow-hidden">
+        <div className="app-page">
+            <div className="app-page__inner flex h-full w-full flex-col gap-[clamp(18px,1.8vw,20px)] overflow-hidden">
             {/* UPPER AREA: Main Video + Right Sidebar */}
-            <div className="flex-1 flex gap-[20px] min-h-0">
+            <div className="flex min-h-0 flex-1 gap-[clamp(18px,1.8vw,20px)]">
                 {/* Main Video Feed */}
                 <div className="flex-1 rounded-[24px] border border-[#2a3240] overflow-hidden shadow-lg bg-black relative group">
                     <MainVideoFeedPanel />
@@ -87,7 +88,7 @@ export default function ActiveMissionPage() {
                 </div>
 
                 {/* Right Sidebar: Dock Cam + Weather */}
-                <div className="w-[340px] shrink-0 flex flex-col gap-[20px]">
+                <div className="flex w-[clamp(280px,22vw,340px)] shrink-0 flex-col gap-[clamp(18px,1.8vw,20px)]">
                     {/* Dock Cam */}
                     <div className="h-[220px] rounded-[24px] border border-[#2a3240] overflow-hidden shadow-lg bg-[#111827]">
                         <DockCamPanel />
@@ -100,9 +101,9 @@ export default function ActiveMissionPage() {
             </div>
 
             {/* BOTTOM AREA: Control Bar */}
-            <div className="h-[220px] shrink-0 flex gap-[20px] items-stretch">
+            <div className="flex h-[clamp(200px,24vh,220px)] shrink-0 items-stretch gap-[clamp(18px,1.8vw,20px)]">
                 {/* 1. Map View (Left) */}
-                <div className="w-[380px] shrink-0 rounded-[24px] border border-[#2a3240] overflow-hidden shadow-lg bg-[#111827] relative">
+                <div className="relative w-[clamp(300px,24vw,380px)] shrink-0 overflow-hidden rounded-[24px] border border-[#2a3240] bg-[#111827] shadow-lg">
                     <MapViewPanel />
                 </div>
 
@@ -183,6 +184,7 @@ export default function ActiveMissionPage() {
 
                 {/* 3. D-Pad (Right) */}
                 <DPadControl />
+            </div>
             </div>
         </div>
     );

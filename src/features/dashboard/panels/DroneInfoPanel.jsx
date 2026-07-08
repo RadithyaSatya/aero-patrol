@@ -11,6 +11,7 @@ import {
     getWeatherPresentation,
 } from '../../../shared/utils/weather';
 import { useI18n } from '../../../shared/i18n/I18nProvider';
+import { resolveTelemetryBattery } from '../../../shared/utils/telemetryBattery';
 
 const batteryBorderMarkup = batteryBorderSvg.replace(
     '<svg ',
@@ -21,7 +22,7 @@ const STREAM_PANEL_FILL = 'linear-gradient(180deg, #F5F5F5 0%, #EDEDED 100%)';
 const STREAM_PANEL_BORDER = 'linear-gradient(135deg, #FB5555 0%, #ED0000 18%, rgba(251, 85, 85, 0.42) 40%, rgba(251, 85, 85, 0.12) 56%, rgba(251, 85, 85, 0) 66%)';
 
 const WeatherBadge = ({ label, value }) => (
-    <div className="flex items-center justify-between rounded-[12px] border border-[#A8A8A8] bg-[#EBEBEB] px-3 py-2 text-[10px]">
+    <div className="flex items-center justify-between rounded-[12px] border border-[#A8A8A8] bg-[#EBEBEB] px-[clamp(8px,0.9vw,12px)] py-[clamp(6px,0.7vw,8px)] text-[clamp(9px,0.68vw,10px)]">
         <span className="text-[#555555]">{label}</span>
         <span className="font-inter text-[#1F1F1F]">{value}</span>
     </div>
@@ -59,36 +60,19 @@ export default function DroneInfoPanel({
     const { t } = useI18n();
     // Extract telemetry from metric-keyed structure
     const location = telemetry?.location || {};
-    const batteryData = telemetry?.battery || {};
-    const dockingStatus = telemetry?.docking_status || {};
-    const uavStatus = telemetry?.uav_status || {};
     const gps = telemetry?.gps || {};
     const vehicleState = telemetry?.vehicle_state || {};
     const attitude = telemetry?.attitude || {};
     const link = telemetry?.link || {};
     const missionProgress = telemetry?.mission_progress || {};
     const isLocationFresh = Boolean(telemetryStatus?.metrics?.location?.isFresh);
-    const isBatteryFresh = Boolean(telemetryStatus?.metrics?.battery?.isFresh);
-    const isDockingStatusFresh = Boolean(telemetryStatus?.metrics?.docking_status?.isFresh);
-    const isUavStatusFresh = Boolean(telemetryStatus?.metrics?.uav_status?.isFresh);
+    const batteryState = resolveTelemetryBattery(telemetry, telemetryStatus);
+    const isBatteryFresh = batteryState.isBatteryFresh;
     const isGpsFresh = Boolean(telemetryStatus?.metrics?.gps?.isFresh);
     const isVehicleStateFresh = Boolean(telemetryStatus?.metrics?.vehicle_state?.isFresh);
     const isLinkFresh = Boolean(telemetryStatus?.metrics?.link?.isFresh);
     const hasVehicleConnectedState = typeof vehicleState.connected === 'boolean';
-    const isDroneActive = Boolean(
-        (isVehicleStateFresh && vehicleState.connected) || isBatteryFresh
-    );
-    const hasDockingBatterySnapshot = Boolean(
-        isUavStatusFresh && (
-            uavStatus?.battery_percent != null ||
-            uavStatus?.battery_voltage != null
-        )
-    );
-    const shouldUseDockingBatteryFallback = !isDroneActive && hasDockingBatterySnapshot;
-
-    const battery = shouldUseDockingBatteryFallback
-        ? (isUavStatusFresh ? (uavStatus.battery_percent ?? null) : null)
-        : (isBatteryFresh ? (batteryData.percent ?? null) : null);
+    const battery = batteryState.percent;
     const altitude = isLocationFresh ? (location.altitude ?? null) : null;
     const speed = isLocationFresh ? (location.ground_speed ?? null) : null;
     const heading = isLocationFresh ? (location.heading ?? null) : null;
@@ -101,9 +85,7 @@ export default function DroneInfoPanel({
     const isArmed = isVehicleStateFresh ? (vehicleState.armed ?? null) : null;
     const landedState = isVehicleStateFresh ? (vehicleState.landed_state ?? null) : null;
     const rssi = isLinkFresh ? (link.rssi ?? null) : null;
-    const voltage = shouldUseDockingBatteryFallback
-        ? (isUavStatusFresh ? (uavStatus.battery_voltage ?? null) : null)
-        : (isBatteryFresh ? (batteryData.voltage ?? null) : null);
+    const voltage = batteryState.voltage;
     const { weatherData, weatherError, isLoading: isWeatherLoading } = useWeatherForecast({
         selectedDrone,
         telemetry,
@@ -137,19 +119,19 @@ export default function DroneInfoPanel({
             style={{ backgroundImage: STREAM_PANEL_BORDER }}
         >
             <div
-                className="grid h-full w-full grid-rows-[auto_auto_1fr] gap-4 overflow-hidden rounded-[29px] px-5 py-5"
+                className="grid h-full w-full grid-rows-[auto_auto_1fr] gap-[clamp(10px,1vw,16px)] overflow-hidden rounded-[29px] px-[clamp(14px,1.35vw,20px)] py-[clamp(14px,1.35vw,20px)]"
                 style={{ background: STREAM_PANEL_FILL }}
             >
                 {/* Header Section */}
                 <div className="relative z-10 flex items-start justify-between">
                     <div className="flex min-w-0 flex-col text-left">
                         {isLoading ? (
-                            <h2 className="text-[#1F1F1F] text-[18px] font-bold tracking-wide">{t('common.loading')}</h2>
+                            <h2 className="text-[#1F1F1F] text-[clamp(16px,1.45vw,18px)] font-bold tracking-wide">{t('common.loading')}</h2>
                         ) : errorMsg ? (
-                            <h2 className="text-red-400 text-[18px] font-bold tracking-wide text-sm">{errorMsg}</h2>
+                            <h2 className="text-red-500 text-[clamp(14px,1.3vw,18px)] font-bold tracking-wide text-sm">{errorMsg}</h2>
                         ) : (
                             <>
-                                <h2 className="truncate text-[#1F1F1F] text-[18px] font-bold tracking-wide">
+                                <h2 className="truncate text-[#1F1F1F] text-[clamp(16px,1.45vw,18px)] font-bold tracking-wide">
                                     {droneLabel}
                                 </h2>
                                 <span className={`mt-[2px] text-[10px] tracking-wider ${connectionColorClass}`}>
@@ -158,14 +140,14 @@ export default function DroneInfoPanel({
                             </>
                         )}
                     </div>
-                    <img src={droneImage} alt="Drone" className="h-10 w-auto shrink-0 object-contain drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]" />
+                    <img src={droneImage} alt="Drone" className="h-[clamp(32px,2.8vw,40px)] w-auto shrink-0 object-contain drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]" />
                 </div>
 
                 {/* Battery Section */}
                 <div className="relative z-10 flex flex-col gap-2 pt-1 text-left">
                     <div className="h-px w-full bg-gradient-to-r from-transparent via-[#FF383C] to-transparent" />
                     <h3 className="text-[#000000] text-xs font-semibold tracking-wide">{t('dashboard.battery')}</h3>
-                    <div className="relative flex min-h-[72px] items-center justify-between px-4 py-3">
+                    <div className="relative flex min-h-[72px] items-center justify-between px-[clamp(10px,1vw,16px)] py-[clamp(10px,0.9vw,12px)]">
                         <div
                             aria-hidden="true"
                             className="pointer-events-none absolute inset-0 select-none"
@@ -177,13 +159,13 @@ export default function DroneInfoPanel({
                                 fillColor={batteryStatus.barColor}
                                 shellColor={batteryStatus.shellColor}
                             />
-                            <span className="font-inter text-sm font-bold tracking-wider text-[#000000]">{batteryStatus.text}</span>
+                            <span className="font-inter text-[clamp(12px,1vw,14px)] font-bold tracking-wider text-[#000000]">{batteryStatus.text}</span>
                         </div>
                         <div className="relative z-10 flex flex-col items-end">
-                            <span className={`text-[11px] font-bold tracking-wide ${batteryStatus.color}`}>
+                            <span className={`text-[clamp(10px,0.8vw,11px)] font-bold tracking-wide ${batteryStatus.color}`}>
                                 {battery !== null ? (battery >= 60 ? t('dashboard.good') : battery >= 30 ? t('dashboard.moderate') : t('dashboard.low')) : '--'}
                             </span>
-                            <span className={`text-[9px] font-medium tracking-wide ${batteryStatus.color}`}>
+                            <span className={`text-[clamp(8px,0.62vw,9px)] font-medium tracking-wide ${batteryStatus.color}`}>
                                 {voltage !== null ? `${voltage.toFixed(1)}V` : batteryStatus.label}
                             </span>
                         </div>
@@ -193,29 +175,29 @@ export default function DroneInfoPanel({
                 {/* Weather Section */}
                 <div className="relative z-10 flex min-h-0 flex-col gap-2 text-left">
                     <h3 className="text-[#2A2A2A] text-xs font-semibold tracking-wide">{t('common.weather')}</h3>
-                    <div className="flex min-h-0 flex-1 flex-col justify-between rounded-[30px] border border-[#A8A8A8] bg-[rgba(197,197,197,0.5)] p-4">
-                        <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-3">
+                    <div className="flex min-h-0 flex-1 flex-col justify-between rounded-[30px] border border-[#A8A8A8] bg-[rgba(197,197,197,0.5)] p-[clamp(10px,1vw,16px)]">
+                        <div className="flex justify-between items-start gap-[clamp(8px,0.8vw,12px)]">
+                            <div className="flex items-center gap-[clamp(8px,0.8vw,12px)]">
                                 <img
                                     src={currentWeatherPresentation.icon}
                                     alt={currentWeatherLabel}
-                                    className="h-[52px] w-[52px] shrink-0 object-contain"
+                                    className="h-[clamp(38px,3vw,52px)] w-[clamp(38px,3vw,52px)] shrink-0 object-contain"
                                 />
-                                <span className="font-inter text-2xl font-bold tracking-wider text-[#1F1F1F]">
+                                <span className="font-inter text-[clamp(20px,1.9vw,24px)] font-bold tracking-wider text-[#1F1F1F]">
                                     {isWeatherLoading ? '--' : formatTemperature(currentWeather.temperature_2m)}
                                 </span>
                             </div>
-                            <div className="flex flex-col items-end">
-                                <span className="text-[#1F1F1F] text-[13px] font-bold tracking-wide leading-tight">
+                            <div className="flex min-w-0 flex-col items-end">
+                                <span className="truncate text-[#1F1F1F] text-[clamp(11px,0.95vw,13px)] font-bold tracking-wide leading-tight">
                                     {isWeatherLoading ? t('common.loading') : weatherError ? t('missions.weatherError') : currentWeatherLabel}
                                 </span>
-                                <span className="font-inter mt-[2px] text-[10px] tracking-wide text-[#555555]">
+                                <span className="font-inter mt-[2px] text-[clamp(8px,0.7vw,10px)] tracking-wide text-[#555555]">
                                     {formatHour(currentWeather.time)}
                                 </span>
                             </div>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-2 gap-2">
+                        <div className="mt-[clamp(8px,0.9vw,12px)] grid grid-cols-2 gap-[clamp(6px,0.7vw,8px)]">
                             <WeatherBadge label={t('dashboard.gust')} value={isWeatherLoading ? '--' : formatWind(currentWeather.wind_gusts_10m)} />
                             <WeatherBadge label={t('dashboard.wind')} value={isWeatherLoading ? '--' : formatWind(currentWeather.wind_speed_10m)} />
                             <WeatherBadge label={t('dashboard.humid')} value={isWeatherLoading ? '--' : formatHumidity(currentWeather.relative_humidity_2m)} />

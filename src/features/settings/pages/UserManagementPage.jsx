@@ -373,7 +373,8 @@ export default function UserManagementPage() {
     };
 
     return (
-        <div className="h-[calc(100vh-84px)] w-full p-[28px]">
+        <div className="app-page">
+            <div className="app-page__inner h-full">
             <PanelShell className="flex h-full flex-col gap-4" showBottomDivider={false}>
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -395,7 +396,7 @@ export default function UserManagementPage() {
                                 value={usernameInput}
                                 onChange={(event) => setUsernameInput(event.target.value)}
                                 placeholder="Search username"
-                                className="h-[42px] w-[300px] border border-[#929292] bg-[#D2D2D2] pl-10 pr-4 text-[12px] text-[#000000] outline-none transition-colors placeholder:text-[#565656] focus:border-[#929292]"
+                                className="h-[42px] w-[clamp(240px,22vw,300px)] border border-[#929292] bg-[#D2D2D2] pl-10 pr-4 text-[12px] text-[#000000] outline-none transition-colors placeholder:text-[#565656] focus:border-[#929292]"
                             />
                         </div>
 
@@ -567,6 +568,8 @@ export default function UserManagementPage() {
                     </PaginationBox>
                 </div>
             </PanelShell>
+
+            </div>
 
             <CreateUserModal
                 isOpen={isCreateModalOpen}

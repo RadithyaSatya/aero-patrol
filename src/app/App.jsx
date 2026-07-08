@@ -6,15 +6,18 @@ import MissionPage from '../features/missions/pages/MissionPage'
 import ActiveMissionPage from '../features/missions/pages/ActiveMissionPage'
 import HistoryPage from '../features/history/pages/HistoryPage'
 import HistoryDetailPage from '../features/history/pages/HistoryDetailPage'
+import LiveVideoPage from '../features/live-video/pages/LiveVideoPage'
 import AboutPage from '../features/settings/pages/AboutPage'
 import SettingsPage from '../features/settings/pages/SettingsPage'
 import UserManagementPage from '../features/settings/pages/UserManagementPage'
 import LoginPage from '../features/auth/pages/LoginPage'
 import useTelemetry from '../shared/hooks/useTelemetry'
+import useNotifications from '../shared/hooks/useNotifications'
 import { authService, clearAuthStorage, persistAuthProfile, uavService } from '../services/api'
 
 const SIDEBAR_COLLAPSED_WIDTH = 92;
-const SIDEBAR_EXPANDED_WIDTH = 236;
+const SIDEBAR_EXPANDED_WIDTH = 216;
+const CONTENT_GUTTER_COMPENSATION = 18;
 
 function GuestRoute({ children, hasAuthToken }) {
   if (hasAuthToken) {
@@ -50,12 +53,20 @@ function App() {
   const useDefaultPageBackground = !isLoginPage && !isBackgroundImagePage;
   const hasAuthToken = Boolean(localStorage.getItem('authToken'));
   const shouldShowAppChrome = !isLoginPage && hasAuthToken;
-  const sidebarPadding = isSidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+  const sidebarPadding = Math.max(
+    0,
+    (isSidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH) - CONTENT_GUTTER_COMPENSATION
+  );
   const headerUavIds = headerUavId ? [headerUavId] : [];
   const { telemetry: headerTelemetry, telemetryStatus: headerTelemetryStatus } = useTelemetry(
     headerUavIds,
-    ['battery', 'gps', 'gps2', 'link', 'vehicle_state', 'docking_status', 'uav_status']
+    ['battery', 'gps', 'gps2', 'link', 'vehicle_state', 'docking_status', 'uav_status', 'notification']
   );
+  const notificationCenter = useNotifications({
+    enabled: hasAuthToken,
+    realtimeNotification: headerUavId ? headerTelemetry[headerUavId]?.notification : null,
+    uavId: headerUavId ?? undefined,
+  });
 
   const validateSession = useCallback(async () => {
     const token = localStorage.getItem('authToken');
@@ -131,6 +142,7 @@ function App() {
           onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
           telemetry={headerUavId ? headerTelemetry[headerUavId] : null}
           telemetryStatus={headerUavId ? headerTelemetryStatus[headerUavId] : null}
+          notificationCenter={notificationCenter}
         />
       ) : null}
       <div
@@ -145,6 +157,7 @@ function App() {
           <Route path="/missions/active" element={<ProtectedRoute hasAuthToken={hasAuthToken}><ActiveMissionPage /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute hasAuthToken={hasAuthToken}><HistoryPage /></ProtectedRoute>} />
           <Route path="/history/:historyId" element={<ProtectedRoute hasAuthToken={hasAuthToken}><HistoryDetailPage /></ProtectedRoute>} />
+          <Route path="/live-video" element={<ProtectedRoute hasAuthToken={hasAuthToken}><LiveVideoPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute hasAuthToken={hasAuthToken}><SettingsPage /></ProtectedRoute>} />
           <Route path="/about" element={<ProtectedRoute hasAuthToken={hasAuthToken}><AboutPage /></ProtectedRoute>} />
           <Route

@@ -3,9 +3,9 @@ import { useI18n } from '../../../shared/i18n/I18nProvider';
 
 const modalStroke = '#FF383C';
 const actionStroke = '#ED0000';
-const modalBackground = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
-const cancelBackground = '#571414';
-const confirmBackground = 'linear-gradient(135deg, #242424 0%, #343434 100%)';
+const modalBackground = 'linear-gradient(180deg, #F7F7F7 0%, #ECECEC 100%)';
+const cancelBackground = 'linear-gradient(180deg, #FFFFFF 0%, #F3F3F3 100%)';
+const confirmBackground = 'linear-gradient(180deg, #FFFFFF 0%, #ECECEC 100%)';
 const dividerGradient = 'linear-gradient(90deg, rgba(253,87,87,0.05) 0%, rgba(253,87,87,0.5) 50%, rgba(253,87,87,0.05) 100%)';
 
 export default function DeleteMissionModal({
@@ -34,13 +34,13 @@ export default function DeleteMissionModal({
 
     return (
         <div
-            className="font-tomorrow fixed inset-0 z-[2100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-[2px]"
+            className="font-inter fixed inset-0 z-[2100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-[2px]"
             onClick={() => {
                 if (!isSubmitting) onClose();
             }}
         >
             <div
-                className="relative flex w-full max-w-[560px] flex-col overflow-hidden border shadow-[0_28px_70px_rgba(0,0,0,0.58)]"
+                className="relative flex w-full max-w-[560px] flex-col overflow-hidden rounded-[28px] border shadow-[0_28px_70px_rgba(0,0,0,0.58)]"
                 style={{ borderColor: modalStroke, background: modalBackground }}
                 onClick={(event) => event.stopPropagation()}
             >
@@ -58,8 +58,8 @@ export default function DeleteMissionModal({
 
                     {errorMsg ? (
                         <div
-                            className="mt-5 border px-4 py-3 text-[12px] text-[#B42323]"
-                            style={{ borderColor: '#7F3434', backgroundColor: '#EBDDDD' }}
+                            className="mt-5 rounded-[20px] border px-4 py-3 text-[12px] text-[#B42323]"
+                            style={{ borderColor: '#D79C9C', backgroundColor: '#F9EAEA' }}
                         >
                             {errorMsg}
                         </div>
@@ -70,8 +70,8 @@ export default function DeleteMissionModal({
                             type="button"
                             onClick={onClose}
                             disabled={isSubmitting}
-                            className="h-[46px] min-w-[140px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-[#FFFFFF] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                            style={{ borderColor: actionStroke, backgroundColor: cancelBackground }}
+                            className="h-[46px] min-w-[140px] rounded-[14px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-[#4A4A4A] shadow-[0_8px_18px_rgba(0,0,0,0.08)] transition duration-200 hover:-translate-y-[1px] hover:brightness-[0.99] hover:shadow-[0_12px_22px_rgba(0,0,0,0.14)] disabled:cursor-not-allowed disabled:opacity-60"
+                            style={{ borderColor: '#D7D7D7', background: cancelBackground }}
                         >
                             {t('common.cancel')}
                         </button>
@@ -79,7 +79,7 @@ export default function DeleteMissionModal({
                             type="button"
                             onClick={onConfirm}
                             disabled={isSubmitting}
-                            className="h-[46px] min-w-[160px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-[#FFFFFF] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="h-[46px] min-w-[160px] rounded-[14px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-[#B42323] shadow-[0_8px_18px_rgba(180,35,35,0.10)] transition duration-200 hover:-translate-y-[1px] hover:brightness-[0.98] hover:shadow-[0_12px_24px_rgba(180,35,35,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
                             style={{ borderColor: actionStroke, background: confirmBackground }}
                         >
                             {isSubmitting ? t('missions.deleting') : t('missions.deleteMission')}

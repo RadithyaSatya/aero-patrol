@@ -29,7 +29,7 @@ const StorageCard = ({ value, label, isIndonesian = false }) => (
                     aria-hidden="true"
                     className="h-6 w-6 shrink-0 object-contain"
                 />
-                <span className={`truncate font-medium text-[#1F1F1F] ${isIndonesian ? 'text-[13px] tracking-[0.04em]' : 'text-[16px] tracking-wide'}`}>{label}</span>
+                <span className={`truncate font-medium text-[#1F1F1F] ${isIndonesian ? 'text-[14px] tracking-[0.04em]' : 'text-[14px] tracking-wide'}`}>{label}</span>
             </div>
             <span className="ml-3 shrink-0 text-[16px] font-medium tracking-wide text-[#1F1F1F]">{value}</span>
         </div>
@@ -39,6 +39,7 @@ const StorageCard = ({ value, label, isIndonesian = false }) => (
 export default function FlightStreamControlPanel({
     secondaryPanel,
     onSwitchPanel,
+    compact = false,
     onAbortMission = null,
     isAbortDisabled = false,
     isAbortingMission = false,
@@ -54,11 +55,30 @@ export default function FlightStreamControlPanel({
     const actionLabelClassName = isIndonesian
         ? 'text-[13px] tracking-[0.08em]'
         : 'text-[16px] tracking-[0.16em]';
+    const outerGapClassName = compact ? 'gap-4' : 'gap-5';
+    const panelPaddingClassName = compact ? 'p-2.5' : 'p-3';
+    const rightColumnClassName = compact ? 'grid-rows-[minmax(0,0.95fr)_minmax(0,0.7fr)_72px]' : 'grid-rows-3';
+    const rightColumnGapClassName = compact ? 'gap-2.5' : 'gap-3';
+    const panelColumns = compact
+        ? 'minmax(280px, 0.9fr) minmax(0, 1.1fr)'
+        : 'minmax(280px, 0.9fr) minmax(0, 1.1fr)';
+    const switchButtonClassName = compact
+        ? 'absolute bottom-2.5 left-2.5 z-[550] flex h-[36px] w-[36px] items-center justify-center rounded-full bg-black/50 transition-colors hover:bg-black/65'
+        : 'absolute bottom-3 left-3 z-[550] flex h-[40px] w-[40px] items-center justify-center rounded-full bg-black/50 transition-colors hover:bg-black/65';
+    const abortLabelClassName = compact
+        ? 'absolute inset-[5px] flex items-center justify-center px-7 py-2 text-center text-[14px] font-medium tracking-[0.05em] text-[#DA0000]'
+        : 'absolute inset-[6px] flex items-center justify-center px-8 py-2.5 text-center text-[15px] font-medium tracking-[0.06em] text-[#DA0000]';
 
     return (
         <div className="font-inter relative h-full w-full overflow-hidden rounded-[30px] p-px select-none" style={{ backgroundImage: BOTTOM_PANEL_BORDER }}>
-            <div className="grid h-full grid-cols-[280px_minmax(0,1fr)] gap-5 overflow-hidden rounded-[29px] p-3" style={{ background: PANEL_BACKGROUND }}>
-                <div className="flex min-w-0 flex-col gap-2">
+            <div
+                className={`grid h-full overflow-hidden rounded-[29px] ${outerGapClassName} ${panelPaddingClassName}`}
+                style={{
+                    background: PANEL_BACKGROUND,
+                    gridTemplateColumns: panelColumns,
+                }}
+            >
+                <div className={`flex min-w-0 flex-col gap-2 ${compact ? 'p-1.5' : 'p-2'}`}>
                     <div
                         className="relative flex-1 overflow-hidden rounded-[12px] p-px"
                         style={{ backgroundImage: SWITCH_PANEL_BORDER_IMAGE }}
@@ -71,7 +91,7 @@ export default function FlightStreamControlPanel({
                             type="button"
                             onClick={onSwitchPanel}
                             aria-label={t('dashboard.switchPanels')}
-                            className="absolute bottom-3 left-3 z-[550] flex h-[40px] w-[40px] items-center justify-center rounded-full bg-black/50 transition-colors hover:bg-black/65"
+                            className={switchButtonClassName}
                         >
                             <img
                                 src={switchIcon}
@@ -83,9 +103,9 @@ export default function FlightStreamControlPanel({
                     </div>
                 </div>
 
-                <div className="flex min-w-0 flex-col gap-3">
+                <div className={`grid min-w-0 ${rightColumnClassName} ${rightColumnGapClassName}`}>
                     <div
-                        className="flex-1 overflow-hidden rounded-[12px] p-[0.68px]"
+                        className="overflow-hidden rounded-[12px] p-[0.68px]"
                         style={{ backgroundImage: ACTION_WRAPPER_BORDER_IMAGE }}
                     >
                         <div className="grid h-full grid-cols-2 gap-2 rounded-[11.32px] p-1.5" style={{ background: LIGHT_PANEL_BACKGROUND }}>
@@ -128,30 +148,32 @@ export default function FlightStreamControlPanel({
                         </div>
                     </div>
 
-                    <div className="min-h-0 flex-1">
+                    <div className="min-h-0">
                         <StorageCard value="140/100GB" label={t('dashboard.storageCapacity')} isIndonesian={isIndonesian} />
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={onAbortMission}
-                        disabled={isAbortDisabled || isAbortingMission}
-                        className={`relative aspect-[414/67] w-full shrink-0 items-center justify-center overflow-hidden px-0 py-0 transition-transform ${
-                            isAbortDisabled || isAbortingMission
-                                ? 'cursor-not-allowed opacity-60'
-                                : 'hover:scale-[1.01] active:scale-[0.99]'
-                        }`}
-                    >
-                        <img
-                            src={buttonBorderGrey}
-                            alt=""
-                            aria-hidden="true"
-                            className="absolute inset-0 h-full w-full object-contain"
-                        />
-                        <span className="absolute inset-0 flex items-center justify-center px-6 text-center text-[15px] font-medium tracking-[0.06em] text-[#DA0000]">
-                            {isAbortingMission ? t('dashboard.abortingMission') : t('dashboard.abortMission')}
-                        </span>
-                    </button>
+                    <div className="h-full">
+                        <button
+                            type="button"
+                            onClick={onAbortMission}
+                            disabled={isAbortDisabled || isAbortingMission}
+                            className={`relative h-full w-full items-center justify-center overflow-hidden px-0 py-0 transition-transform ${
+                                isAbortDisabled || isAbortingMission
+                                    ? 'cursor-not-allowed opacity-60'
+                                    : 'hover:scale-[1.01] active:scale-[0.99]'
+                            }`}
+                        >
+                            <img
+                                src={buttonBorderGrey}
+                                alt=""
+                                aria-hidden="true"
+                                className="absolute inset-0 h-full w-full object-contain"
+                            />
+                            <span className={abortLabelClassName}>
+                                {isAbortingMission ? t('dashboard.abortingMission') : t('dashboard.abortMission')}
+                            </span>
+                        </button>
+                    </div>
                     {abortMissionError ? (
                         <p className="text-[11px] tracking-wide text-[#7A0A0C]">{abortMissionError}</p>
                     ) : null}

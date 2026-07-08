@@ -91,18 +91,70 @@ body {
   font-family: "Inter", sans-serif;
 }
 
-.mission-time-input {
+:root {
+  --app-page-max-width: 1680px;
+  --app-page-padding-left: clamp(28px, 2.2vw, 36px);
+  --app-page-padding-right: clamp(24px, 1.9vw, 30px);
+  --app-page-padding-y: clamp(18px, 2vw, 28px);
+  --app-page-gap: clamp(18px, 2vw, 28px);
+}
+
+.app-page {
+  width: 100%;
+  height: calc(100vh - 64px);
+  overflow: hidden;
+  padding:
+    var(--app-page-padding-y)
+    var(--app-page-padding-right)
+    var(--app-page-padding-y)
+    var(--app-page-padding-left);
+}
+
+.app-page--compact-header {
+  height: calc(100vh - 84px);
+}
+
+.app-page__inner {
+  width: min(100%, var(--app-page-max-width));
+  height: 100%;
+  margin: 0 auto;
+}
+
+@media (min-width: 1800px) {
+  :root {
+    --app-page-padding-left: 32px;
+    --app-page-padding-right: 24px;
+  }
+
+  .app-page__inner {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+.mission-picker-input {
   appearance: none;
   -webkit-appearance: none;
   min-width: 0;
 }
 
-.mission-time-input::-webkit-calendar-picker-indicator {
+.mission-picker-input::-webkit-calendar-picker-indicator {
   display: none;
   -webkit-appearance: none;
+  opacity: 0;
 }
 
-.mission-time-input::-webkit-clear-button,
-.mission-time-input::-webkit-inner-spin-button {
+.mission-picker-input::-webkit-clear-button,
+.mission-picker-input::-webkit-inner-spin-button {
   display: none;
+}
+
+.mission-picker-input::-webkit-datetime-edit {
+  color: inherit;
+}
+
+.mission-picker-input::-webkit-date-and-time-value {
+  text-align: left;
 }

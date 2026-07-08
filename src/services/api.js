@@ -1,12 +1,30 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://api-xflight.kumalabs.tech';
 export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://api-xflight.kumalabs.tech';
+export const SSO_LOGOUT_REDIRECT_URL = import.meta.env.VITE_SSO_LOGOUT_REDIRECT_URL || '/login';
+const SSO_LOGOUT_URL = import.meta.env.VITE_SSO_LOGOUT_URL || 'https://sso-oauth.connectmesh.io/v1/auth/logout';
+const SSO_LOGOUT_ALL = import.meta.env.VITE_SSO_LOGOUT_ALL === 'true';
+const FRIENDLY_NETWORK_ERROR_MESSAGE = 'Unable to connect. Try again.';
+const FRIENDLY_TIMEOUT_ERROR_MESSAGE = 'Request timed out. Try again.';
 
 export const clearAuthStorage = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUsername');
     localStorage.removeItem('authUserId');
     localStorage.removeItem('authRole');
+    localStorage.removeItem('authMethod');
+    localStorage.removeItem('authSsoUserId');
     localStorage.removeItem('deviceToken');
+};
+
+export const persistAuthSession = (session = {}) => {
+    const authMethod = session.auth_method === 'sso' ? 'sso' : 'local';
+    localStorage.setItem('authMethod', authMethod);
+
+    if (session.sso_user_id) {
+        localStorage.setItem('authSsoUserId', String(session.sso_user_id));
+    } else {
+        localStorage.removeItem('authSsoUserId');
+    }
 };
 
 export const persistAuthProfile = (profile = {}) => {
@@ -58,147 +76,293 @@ const parseFilenameFromDisposition = (contentDisposition, fallbackName) => {
     return fallbackName;
 };
 
-const fetchBlobResponse = async (url, fallbackName) => {
-    const response = await fetch(url, {
-        headers: getAuthHeaders(),
-    });
+const normalizeRequestErrorMessage = (message, fallbackMessage = 'Something went wrong.') => {
+    const normalizedMessage = String(message || '').trim();
 
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || 'Failed to fetch file');
+    if (!normalizedMessage) {
+        return fallbackMessage;
     }
 
-    const blob = await response.blob();
-    const filename = parseFilenameFromDisposition(
-        response.headers.get('Content-Disposition'),
-        fallbackName
-    );
+    if (/failed to fetch|networkerror|load failed|network request failed/i.test(normalizedMessage)) {
+        return FRIENDLY_NETWORK_ERROR_MESSAGE;
+    }
 
-    return {
-        blob,
-        filename,
-        contentType: response.headers.get('Content-Type') || blob.type || '',
-    };
+    if (/timeout|timed out|aborterror/i.test(normalizedMessage)) {
+        return FRIENDLY_TIMEOUT_ERROR_MESSAGE;
+    }
+
+    return normalizedMessage;
 };
 
-export const authService = {
-    login: async (username, password) => {
-        const response = await fetch(`${API_BASE_URL}/auth/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ username, password }),
-        });
+const createRequestError = (message, fallbackMessage, extras = {}) => {
+    const error = new Error(normalizeRequestErrorMessage(message, fallbackMessage));
 
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.error || 'Login failed');
+    Object.entries(extras).forEach(([key, value]) => {
+        if (value !== undefined) {
+            error[key] = value;
         }
-        return data;
-    },
+    });
 
-    getMe: async () => {
-        const response = await fetch(`${API_BASE_URL}/users/me`, {
+    return error;
+};
+
+const rethrowFriendlyError = (error, fallbackMessage) => {
+    if (error instanceof Error) {
+        throw createRequestError(error.message, fallbackMessage, {
+            status: error.status,
+            code: error.code,
+            details: error.details,
+        });
+    }
+
+    throw createRequestError('', fallbackMessage);
+};
+
+const fetchBlobResponse = async (url, fallbackName) => {
+    try {
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
-        });
-
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            const error = new Error(data.error || data.message || 'Failed to fetch current user');
-            error.status = response.status;
-            throw error;
-        }
-
-        return data;
-    },
-
-    getWsToken: async () => {
-        const token = localStorage.getItem('authToken');
-        if (!token) throw new Error('No authentication token found');
-
-        const response = await fetch(`${API_BASE_URL}/auth/ws-token`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Failed to get WebSocket token');
+            throw createRequestError(errorData.error || errorData.message, 'Unable to download the file right now.', {
+                status: response.status,
+            });
         }
 
-        return response.json();
+        const blob = await response.blob();
+        const filename = parseFilenameFromDisposition(
+            response.headers.get('Content-Disposition'),
+            fallbackName
+        );
+
+        return {
+            blob,
+            filename,
+            contentType: response.headers.get('Content-Type') || blob.type || '',
+        };
+    } catch (error) {
+        rethrowFriendlyError(error, 'Unable to download the file right now.');
+    }
+};
+
+export const authService = {
+    login: async (username, password) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error, 'Unable to sign in right now.', {
+                    status: response.status,
+                });
+            }
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to sign in right now.');
+        }
+    },
+
+    ssoLogin: async (code) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/sso-login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ code }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error || data.message, 'Unable to sign in with SSO right now.', {
+                    status: response.status,
+                });
+            }
+
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to sign in with SSO right now.');
+        }
+    },
+
+    logout: async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error || data.message, 'Unable to sign out right now.', {
+                    status: response.status,
+                });
+            }
+
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to sign out right now.');
+        }
+    },
+
+    logoutSso: async () => {
+        try {
+            const query = SSO_LOGOUT_ALL ? '?all=true' : '';
+            const response = await fetch(`${SSO_LOGOUT_URL}${query}`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error || data.message, 'Unable to sign out from SSO right now.', {
+                    status: response.status,
+                });
+            }
+
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to sign out from SSO right now.');
+        }
+    },
+
+    getMe: async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/users/me`, {
+                headers: getAuthHeaders(),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error || data.message, 'Unable to load your profile right now.', {
+                    status: response.status,
+                });
+            }
+
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load your profile right now.');
+        }
+    },
+
+    getWsToken: async () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) throw new Error('No authentication token found');
+
+            const response = await fetch(`${API_BASE_URL}/auth/ws-token`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw createRequestError(errorData.error, 'Unable to prepare the live connection right now.', {
+                    status: response.status,
+                });
+            }
+
+            return response.json();
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to prepare the live connection right now.');
+        }
     }
 };
 
 export const uavService = {
     getUav: async () => {
-        const token = localStorage.getItem('authToken');
-        if (!token) throw new Error('No authentication token found');
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_BASE_URL}/uav`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+            const response = await fetch(`${API_BASE_URL}/uav`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw createRequestError(errorData.error, 'Unable to load drone data right now.', {
+                    status: response.status,
+                });
             }
-        });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Failed to fetch UAV');
+            return response.json();
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load drone data right now.');
         }
-
-        return response.json();
     }
 };
 
 export const dockingService = {
     getDocking: async () => {
-        const token = localStorage.getItem('authToken');
-        if (!token) throw new Error('No authentication token found');
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_BASE_URL}/docking`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+            const response = await fetch(`${API_BASE_URL}/docking`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw createRequestError(errorData.error, 'Unable to load dock data right now.', {
+                    status: response.status,
+                });
             }
-        });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Failed to fetch docking');
+            return response.json();
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load dock data right now.');
         }
-
-        return response.json();
     }
 };
 
 export const userService = {
     getUsers: async ({ page = 1, limit = 50, username = '' } = {}) => {
-        const token = localStorage.getItem('authToken');
-        if (!token) throw new Error('No authentication token found');
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) throw new Error('No authentication token found');
 
-        const params = new URLSearchParams({
-            page: String(page),
-            limit: String(limit),
-        });
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(limit),
+            });
 
-        if (username) {
-            params.set('username', username);
-        }
-
-        const response = await fetch(`${API_BASE_URL}/users?${params.toString()}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+            if (username) {
+                params.set('username', username);
             }
-        });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Failed to fetch users');
+            const response = await fetch(`${API_BASE_URL}/users?${params.toString()}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw createRequestError(errorData.error, 'Unable to load users right now.', {
+                    status: response.status,
+                });
+            }
+
+            return response.json();
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load users right now.');
         }
-
-        return response.json();
     },
 
     createUser: async (payload) => {
@@ -219,60 +383,76 @@ export const userService = {
             headers['X-Device-Token'] = deviceToken;
         }
 
-        const response = await fetch(`${API_BASE_URL}/users`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload),
-        });
+        try {
+            const response = await fetch(`${API_BASE_URL}/users`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload),
+            });
 
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to create user');
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error, 'Unable to create the user right now.', {
+                    status: response.status,
+                });
+            }
+
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to create the user right now.');
         }
-
-        return data;
     },
 
     deleteUser: async (userId) => {
-        const token = localStorage.getItem('authToken');
-        if (!token) throw new Error('No authentication token found');
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
+            const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error, 'Unable to delete the user right now.', {
+                    status: response.status,
+                });
             }
-        });
 
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            const error = new Error(data.error || 'Failed to delete user');
-            error.status = response.status;
-            throw error;
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to delete the user right now.');
         }
-
-        return data;
     }
 };
 
 export const missionService = {
     getMissions: async (page = 1, limit = 50, uavId = '') => {
-        const token = localStorage.getItem('authToken');
-        if (!token) throw new Error('No authentication token found');
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) throw new Error('No authentication token found');
 
-        const uavParam = uavId ? `&uav_id=${uavId}` : '';
-        const response = await fetch(`${API_BASE_URL}/missions/me?page=${page}&limit=${limit}${uavParam}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+            const uavParam = uavId ? `&uav_id=${uavId}` : '';
+            const response = await fetch(`${API_BASE_URL}/missions/me?page=${page}&limit=${limit}${uavParam}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw createRequestError(errorData.error, 'Unable to load missions right now.', {
+                    status: response.status,
+                });
             }
-        });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Failed to fetch missions');
+            return response.json();
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load missions right now.');
         }
-
-        return response.json();
     },
 
     getMissionRuns: async ({
@@ -284,156 +464,300 @@ export const missionService = {
         sortBy,
         sortOrder,
     } = {}) => {
-        const token = localStorage.getItem('authToken');
-        if (!token) throw new Error('No authentication token found');
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) throw new Error('No authentication token found');
 
-        const params = new URLSearchParams({
-            page: String(page),
-            limit: String(limit),
-            upcoming,
-        });
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(limit),
+                upcoming,
+            });
 
-        if (uavId) {
-            params.set('uav_id', String(uavId));
-        }
-
-        if (upcoming === 'later' && Number.isInteger(days) && days > 0) {
-            params.set('days', String(days));
-        }
-
-        if (sortBy) {
-            params.set('sort_by', String(sortBy));
-        }
-
-        if (sortOrder) {
-            params.set('sort_order', String(sortOrder));
-        }
-
-        const response = await fetch(`${API_BASE_URL}/mission-runs?${params.toString()}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+            if (uavId) {
+                params.set('uav_id', String(uavId));
             }
-        });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Failed to fetch mission runs');
+            if (upcoming === 'later' && Number.isInteger(days) && days > 0) {
+                params.set('days', String(days));
+            }
+
+            if (sortBy) {
+                params.set('sort_by', String(sortBy));
+            }
+
+            if (sortOrder) {
+                params.set('sort_order', String(sortOrder));
+            }
+
+            const response = await fetch(`${API_BASE_URL}/mission-runs?${params.toString()}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw createRequestError(errorData.error, 'Unable to load mission schedules right now.', {
+                    status: response.status,
+                });
+            }
+
+            return response.json();
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load mission schedules right now.');
         }
-
-        return response.json();
     },
 
     getMissionById: async (missionId) => {
-        const token = localStorage.getItem('authToken');
-        if (!token) throw new Error('No authentication token found');
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_BASE_URL}/missions/${missionId}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+            const response = await fetch(`${API_BASE_URL}/missions/${missionId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw createRequestError(errorData.error || errorData.message, 'Unable to load mission details right now.', {
+                    status: response.status,
+                });
             }
-        });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || errorData.message || 'Failed to fetch mission detail');
+            return response.json();
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load mission details right now.');
         }
-
-        return response.json();
     },
 
     createMission: async (payload) => {
-        const token = localStorage.getItem('authToken');
-        if (!token) throw new Error('No authentication token found');
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_BASE_URL}/missions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
+            const response = await fetch(`${API_BASE_URL}/missions`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
 
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            const error = new Error(data.error || data.message || 'Failed to create mission');
-            error.code = data.code;
-            error.details = data;
-            throw error;
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error || data.message, 'Unable to create the mission right now.', {
+                    status: response.status,
+                    code: data.code,
+                    details: data,
+                });
+            }
+
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to create the mission right now.');
         }
-
-        return data;
     },
 
     previewMissionConflicts: async (payload) => {
-        const token = localStorage.getItem('authToken');
-        if (!token) throw new Error('No authentication token found');
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_BASE_URL}/mission-conflicts/preview`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
+            const response = await fetch(`${API_BASE_URL}/mission-conflicts/preview`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
 
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            const error = new Error(data.error || data.message || 'Failed to preview mission conflicts');
-            error.code = data.code;
-            error.details = data;
-            throw error;
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error || data.message, 'Unable to preview mission conflicts right now.', {
+                    status: response.status,
+                    code: data.code,
+                    details: data,
+                });
+            }
+
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to preview mission conflicts right now.');
         }
-
-        return data;
     },
 
     deleteMission: async (missionId) => {
-        const token = localStorage.getItem('authToken');
-        if (!token) throw new Error('No authentication token found');
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_BASE_URL}/missions/${missionId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
+            const response = await fetch(`${API_BASE_URL}/missions/${missionId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error || data.message, 'Unable to delete the mission right now.', {
+                    status: response.status,
+                });
             }
-        });
 
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            throw new Error(data.error || data.message || 'Failed to delete mission');
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to delete the mission right now.');
         }
-
-        return data;
     }
+};
+
+export const notificationService = {
+    getNotifications: async ({ page = 1, limit = 20, uavId } = {}) => {
+        try {
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(limit),
+            });
+
+            if (uavId != null && uavId !== '') {
+                params.set('uav_id', String(uavId));
+            }
+
+            const response = await fetch(`${API_BASE_URL}/notifications?${params.toString()}`, {
+                headers: getAuthHeaders(),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error || data.message, 'Unable to load notifications right now.', {
+                    status: response.status,
+                });
+            }
+
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load notifications right now.');
+        }
+    },
+
+    getUnreadCount: async ({ uavId, type } = {}) => {
+        try {
+            const params = new URLSearchParams();
+
+            if (uavId != null && uavId !== '') {
+                params.set('uav_id', String(uavId));
+            }
+
+            if (type) {
+                params.set('type', String(type));
+            }
+
+            const query = params.toString();
+            const response = await fetch(`${API_BASE_URL}/notifications/unread-count${query ? `?${query}` : ''}`, {
+                headers: getAuthHeaders(),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error || data.message, 'Unable to load notification badge right now.', {
+                    status: response.status,
+                });
+            }
+
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load notification badge right now.');
+        }
+    },
+
+    markAsRead: async (ids = []) => {
+        try {
+            const normalizedIds = [...new Set(ids.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
+
+            if (normalizedIds.length === 0) {
+                return { updated_count: 0 };
+            }
+
+            const response = await fetch(`${API_BASE_URL}/notifications/read`, {
+                method: 'PATCH',
+                headers: {
+                    ...getAuthHeaders(),
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ids: normalizedIds }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error || data.message, 'Unable to update notification status right now.', {
+                    status: response.status,
+                });
+            }
+
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to update notification status right now.');
+        }
+    },
+
+    deleteNotification: async (notificationId) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/notifications/${notificationId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders(),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw createRequestError(data.error || data.message, 'Unable to delete the notification right now.', {
+                    status: response.status,
+                });
+            }
+
+            return data;
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to delete the notification right now.');
+        }
+    },
 };
 
 export const historyService = {
     getMissionHistory: async ({ page = 1, limit = 20, missionId = '', missionName = '' } = {}) => {
-        const params = new URLSearchParams({
-            page: String(page),
-            limit: String(limit),
-        });
+        try {
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(limit),
+            });
 
-        if (missionId) {
-            params.set('mission_id', String(missionId));
+            if (missionId) {
+                params.set('mission_id', String(missionId));
+            }
+
+            if (missionName) {
+                params.set('mission_name', missionName);
+            }
+
+            const response = await fetch(`${API_BASE_URL}/mission-history?${params.toString()}`, {
+                headers: getAuthHeaders(),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw createRequestError(errorData.error || errorData.message, 'Unable to load mission history right now.', {
+                    status: response.status,
+                });
+            }
+
+            return response.json();
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load mission history right now.');
         }
-
-        if (missionName) {
-            params.set('mission_name', missionName);
-        }
-
-        const response = await fetch(`${API_BASE_URL}/mission-history?${params.toString()}`, {
-            headers: getAuthHeaders(),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || errorData.message || 'Failed to fetch mission history');
-        }
-
-        return response.json();
     },
 
     getMissionHistoryMedia: async (historyId, { eventId = '', includeFullVideo = false } = {}) => {
@@ -447,17 +771,23 @@ export const historyService = {
             params.set('include_full_video', 'true');
         }
 
-        const query = params.toString();
-        const response = await fetch(`${API_BASE_URL}/mission-history/${historyId}/media${query ? `?${query}` : ''}`, {
-            headers: getAuthHeaders(),
-        });
+        try {
+            const query = params.toString();
+            const response = await fetch(`${API_BASE_URL}/mission-history/${historyId}/media${query ? `?${query}` : ''}`, {
+                headers: getAuthHeaders(),
+            });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || errorData.message || 'Failed to fetch mission media');
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw createRequestError(errorData.error || errorData.message, 'Unable to load mission media right now.', {
+                    status: response.status,
+                });
+            }
+
+            return response.json();
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load mission media right now.');
         }
-
-        return response.json();
     },
 
     getMissionHistoryFullVideoFile: async (historyId) => (
@@ -477,133 +807,149 @@ export const historyService = {
 
 export const telemetryService = {
     getTrack: async () => {
-        const token = localStorage.getItem('authToken');
-        const deviceToken = localStorage.getItem('deviceToken');
+        try {
+            const token = localStorage.getItem('authToken');
+            const deviceToken = localStorage.getItem('deviceToken');
 
-        if (!token && !deviceToken) {
-            throw new Error('No authentication token found');
+            if (!token && !deviceToken) {
+                throw new Error('No authentication token found');
+            }
+
+            const headers = {};
+
+            if (token) {
+                headers.Authorization = `Bearer ${token}`;
+            } else {
+                headers['X-Device-Token'] = deviceToken;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/telemetry/track`, {
+                headers,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw createRequestError(errorData.error || errorData.message, 'Unable to load live telemetry right now.', {
+                    status: response.status,
+                });
+            }
+
+            return response.json();
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load live telemetry right now.');
         }
-
-        const headers = {};
-
-        if (token) {
-            headers.Authorization = `Bearer ${token}`;
-        } else {
-            headers['X-Device-Token'] = deviceToken;
-        }
-
-        const response = await fetch(`${API_BASE_URL}/telemetry/track`, {
-            headers,
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || errorData.message || 'Failed to fetch telemetry track');
-        }
-
-        return response.json();
     },
 
     publishMetric: async ({ uavId, metric, payload, kind = 'telemetry', timeoutMs = 5000 }) => {
-        if (!uavId) {
-            throw new Error('UAV ID is required');
-        }
+        try {
+            if (!uavId) {
+                throw new Error('UAV ID is required');
+            }
 
-        if (!metric) {
-            throw new Error('Metric is required');
-        }
+            if (!metric) {
+                throw new Error('Metric is required');
+            }
 
-        const tokenData = await authService.getWsToken();
-        const wsToken = tokenData?.token || tokenData?.ws_token;
+            const tokenData = await authService.getWsToken();
+            const wsToken = tokenData?.token || tokenData?.ws_token;
 
-        if (!wsToken) {
-            throw new Error('Invalid WebSocket token received');
-        }
+            if (!wsToken) {
+                throw new Error('Invalid WebSocket token received');
+            }
 
-        await new Promise((resolve, reject) => {
-            const ws = new WebSocket(`${WS_BASE_URL}/ws/telemetry?token=${wsToken}`);
-            const timeoutId = setTimeout(() => {
-                ws.close();
-                reject(new Error('Timed out while publishing realtime event'));
-            }, timeoutMs);
+            await new Promise((resolve, reject) => {
+                const ws = new WebSocket(`${WS_BASE_URL}/ws/telemetry?token=${wsToken}`);
+                const timeoutId = setTimeout(() => {
+                    ws.close();
+                    reject(new Error('Timed out while publishing realtime event'));
+                }, timeoutMs);
 
-            const cleanup = () => {
-                clearTimeout(timeoutId);
-                ws.onopen = null;
-                ws.onerror = null;
-                ws.onclose = null;
-            };
+                const cleanup = () => {
+                    clearTimeout(timeoutId);
+                    ws.onopen = null;
+                    ws.onerror = null;
+                    ws.onclose = null;
+                };
 
-            ws.onopen = () => {
-                try {
-                    ws.send(JSON.stringify({
-                        type: 'publish',
-                        uav_id: uavId,
-                        kind,
-                        metric,
-                        payload,
-                    }));
+                ws.onopen = () => {
+                    try {
+                        ws.send(JSON.stringify({
+                            type: 'publish',
+                            uav_id: uavId,
+                            kind,
+                            metric,
+                            payload,
+                        }));
+                        cleanup();
+                        ws.close();
+                        resolve();
+                    } catch (error) {
+                        cleanup();
+                        ws.close();
+                        reject(error);
+                    }
+                };
+
+                ws.onerror = () => {
                     cleanup();
                     ws.close();
-                    resolve();
-                } catch (error) {
+                    reject(new Error('Failed to publish realtime event'));
+                };
+
+                ws.onclose = () => {
                     cleanup();
-                    ws.close();
-                    reject(error);
-                }
-            };
-
-            ws.onerror = () => {
-                cleanup();
-                ws.close();
-                reject(new Error('Failed to publish realtime event'));
-            };
-
-            ws.onclose = () => {
-                cleanup();
-            };
-        });
+                };
+            });
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to send the command right now.');
+        }
     },
 };
 
 export const weatherService = {
     getForecast: async ({ latitude, longitude, forecastHours = 6 } = {}) => {
-        const normalizedLatitude = Number(latitude);
-        const normalizedLongitude = Number(longitude);
+        try {
+            const normalizedLatitude = Number(latitude);
+            const normalizedLongitude = Number(longitude);
 
-        if (!Number.isFinite(normalizedLatitude) || !Number.isFinite(normalizedLongitude)) {
-            throw new Error('Invalid coordinates for weather forecast');
+            if (!Number.isFinite(normalizedLatitude) || !Number.isFinite(normalizedLongitude)) {
+                throw new Error('Invalid coordinates for weather forecast');
+            }
+
+            const params = new URLSearchParams({
+                latitude: String(normalizedLatitude),
+                longitude: String(normalizedLongitude),
+                current: [
+                    'temperature_2m',
+                    'relative_humidity_2m',
+                    'weather_code',
+                    'wind_speed_10m',
+                    'wind_gusts_10m',
+                    'visibility',
+                    'is_day',
+                ].join(','),
+                hourly: [
+                    'temperature_2m',
+                    'weather_code',
+                    'is_day',
+                ].join(','),
+                forecast_hours: String(forecastHours),
+                timezone: 'auto',
+                wind_speed_unit: 'ms',
+            });
+
+            const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw createRequestError(errorData.reason || errorData.error, 'Unable to load weather data right now.', {
+                    status: response.status,
+                });
+            }
+
+            return response.json();
+        } catch (error) {
+            rethrowFriendlyError(error, 'Unable to load weather data right now.');
         }
-
-        const params = new URLSearchParams({
-            latitude: String(normalizedLatitude),
-            longitude: String(normalizedLongitude),
-            current: [
-                'temperature_2m',
-                'relative_humidity_2m',
-                'weather_code',
-                'wind_speed_10m',
-                'wind_gusts_10m',
-                'visibility',
-                'is_day',
-            ].join(','),
-            hourly: [
-                'temperature_2m',
-                'weather_code',
-                'is_day',
-            ].join(','),
-            forecast_hours: String(forecastHours),
-            timezone: 'auto',
-            wind_speed_unit: 'ms',
-        });
-
-        const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.reason || errorData.error || 'Failed to fetch weather forecast');
-        }
-
-        return response.json();
     }
 };

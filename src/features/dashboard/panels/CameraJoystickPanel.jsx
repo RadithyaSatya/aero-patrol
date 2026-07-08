@@ -47,7 +47,7 @@ function ZoomButton({ children, label, active = false, disabled = false, onClick
             aria-label={label}
             disabled={disabled}
             onClick={onClick}
-            className={`relative flex h-full w-[96px] flex-1 items-center justify-center overflow-hidden text-[34px] font-medium text-black transition-all ${
+            className={`relative flex h-full w-[clamp(60px,22%,82px)] flex-1 items-center justify-center overflow-hidden text-[clamp(22px,2vw,30px)] font-medium text-black transition-all ${
                 disabled
                     ? 'cursor-not-allowed opacity-60'
                     : active
@@ -117,10 +117,10 @@ export default function CameraJoystickPanel({
 
     const knobOffset = useMemo(() => {
         const offsetByDirection = {
-            up: 'translate(-50%, calc(-50% - 12px))',
-            down: 'translate(-50%, calc(-50% + 12px))',
-            left: 'translate(calc(-50% - 12px), -50%)',
-            right: 'translate(calc(-50% + 12px), -50%)',
+            up: 'translate(-50%, calc(-50% - 11px))',
+            down: 'translate(-50%, calc(-50% + 11px))',
+            left: 'translate(calc(-50% - 11px), -50%)',
+            right: 'translate(calc(-50% + 11px), -50%)',
         };
 
         return offsetByDirection[activeDirection] || 'translate(-50%, -50%)';
@@ -403,11 +403,11 @@ export default function CameraJoystickPanel({
             style={{ backgroundImage: JOYSTICK_PANEL_BORDER }}
         >
             <div
-                className="flex h-full w-full items-center justify-evenly gap-6 overflow-hidden rounded-[29px] p-4"
+                className="flex h-full w-full items-center justify-evenly gap-[clamp(22px,2.8vw,36px)] overflow-hidden rounded-[29px] p-[clamp(8px,1vw,12px)]"
                 style={{ background: JOYSTICK_PANEL_BACKGROUND }}
             >
-                <div className="flex flex-col items-center gap-4">
-                    <div className="flex h-48 flex-col gap-4">
+                <div className="flex flex-col items-center gap-[clamp(8px,1vw,12px)]">
+                    <div className="flex h-[clamp(120px,13vw,160px)] flex-col gap-[clamp(8px,1vw,12px)]">
                         <ZoomButton
                             label="Zoom in"
                             active={activeZoom === 'in'}
@@ -440,12 +440,12 @@ export default function CameraJoystickPanel({
                 </div>
 
                 <div className="flex flex-col items-center">
-                    <div className="relative flex h-48 w-48 items-center justify-center overflow-hidden rounded-full bg-[#DDDDDD]">
+                    <div className="relative flex h-[clamp(120px,13vw,160px)] w-[clamp(120px,13vw,160px)] items-center justify-center overflow-hidden rounded-full bg-[#DDDDDD]">
                         <DirectionButton
                             direction="up"
                             active={activeDirection === 'up'}
                             disabled={isDirectionControlDisabled}
-                            iconClassName="left-1/2 top-5 -translate-x-1/2"
+                            iconClassName="left-1/2 top-[clamp(11px,1.1vw,16px)] -translate-x-1/2"
                             style={{ clipPath: 'polygon(50% 50%, 0% 0%, 100% 0%)' }}
                             onPressStart={startDirectionalControl}
                             onPressEnd={stopDirectionalControl}
@@ -454,7 +454,7 @@ export default function CameraJoystickPanel({
                             direction="down"
                             active={activeDirection === 'down'}
                             disabled={isDirectionControlDisabled}
-                            iconClassName="bottom-5 left-1/2 -translate-x-1/2"
+                            iconClassName="bottom-[clamp(11px,1.1vw,16px)] left-1/2 -translate-x-1/2"
                             style={{ clipPath: 'polygon(50% 50%, 0% 100%, 100% 100%)' }}
                             onPressStart={startDirectionalControl}
                             onPressEnd={stopDirectionalControl}
@@ -463,7 +463,7 @@ export default function CameraJoystickPanel({
                             direction="left"
                             active={activeDirection === 'left'}
                             disabled={isDirectionControlDisabled}
-                            iconClassName="left-5 top-1/2 -translate-y-1/2"
+                            iconClassName="left-[clamp(11px,1.1vw,16px)] top-1/2 -translate-y-1/2"
                             style={{ clipPath: 'polygon(50% 50%, 0% 0%, 0% 100%)' }}
                             onPressStart={startDirectionalControl}
                             onPressEnd={stopDirectionalControl}
@@ -472,13 +472,13 @@ export default function CameraJoystickPanel({
                             direction="right"
                             active={activeDirection === 'right'}
                             disabled={isDirectionControlDisabled}
-                            iconClassName="right-5 top-1/2 -translate-y-1/2"
+                            iconClassName="right-[clamp(11px,1.1vw,16px)] top-1/2 -translate-y-1/2"
                             style={{ clipPath: 'polygon(50% 50%, 100% 0%, 100% 100%)' }}
                             onPressStart={startDirectionalControl}
                             onPressEnd={stopDirectionalControl}
                         />
                         <div
-                            className={`pointer-events-none absolute left-1/2 top-1/2 z-10 h-[74px] w-[74px] rounded-full border shadow-[0_10px_18px_rgba(0,0,0,0.28)] transition-transform duration-150 ${activeDirection ? 'brightness-90' : 'brightness-100'}`}
+                            className={`pointer-events-none absolute left-1/2 top-1/2 z-10 h-[clamp(48px,5vw,64px)] w-[clamp(48px,5vw,64px)] rounded-full border shadow-[0_8px_16px_rgba(0,0,0,0.24)] transition-transform duration-150 ${activeDirection ? 'brightness-90' : 'brightness-100'}`}
                             style={{
                                 transform: knobOffset,
                                 borderColor: '#AAAAAA',

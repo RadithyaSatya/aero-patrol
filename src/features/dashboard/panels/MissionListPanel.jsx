@@ -6,6 +6,11 @@ const PAGE_LIMIT = 20;
 const MISSION_PANEL_BACKGROUND = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
 const MISSION_PANEL_BORDER = 'linear-gradient(0deg, #ED0000 0%, #FB5555 22%, rgba(251, 85, 85, 0.38) 38%, rgba(251, 85, 85, 0.12) 47%, rgba(251, 85, 85, 0) 56%)';
 const MISSION_TABLE_HEADER_FILL = 'linear-gradient(137.97deg, rgba(254, 5, 0, 0.6) -3.94%, rgba(186, 4, 4, 0.6) 48.88%, rgba(254, 5, 0, 0.6) 101.7%)';
+const MISSION_TABLE_LAYOUT = 'grid grid-cols-[1fr_1.7fr_1fr_1.4fr]';
+const COUNTDOWN_THRESHOLD_MS = 60 * 1000;
+const TERMINAL_COUNTDOWN_STATUSES = new Set(['completed', 'failed', 'aborted', 'skipped']);
+const TAKEOFF_STARTED_STATUSES = new Set(['in progress', 'takeoff', 'landed', 'dockconfirmed']);
+const BLINKING_LABEL_CLASS = 'animate-[missionStatusBlink_1s_ease-in-out_infinite]';
 const StatBox = ({ count, label }) => (
     <div className="font-inter relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-[12px] border border-[#D4D4D4] bg-transparent">
         <span className="text-[28px] font-medium leading-none tracking-wider text-[#1F1F1F]">{count}</span>
@@ -37,12 +42,6 @@ const formatRunAt = (runAt, timeZone) => {
     };
 };
 
-const toTitleCase = (value = '') => value
-    .split('_')
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-
 const getScheduleInfo = (mission, t) => {
     const scheduleType = mission?.schedule_type || '';
     const formattedSchedule = formatRunAt(mission?.run_at, mission?.schedule_timezone);
@@ -50,7 +49,7 @@ const getScheduleInfo = (mission, t) => {
     return {
         typeLabel: scheduleType === 'one_time'
             ? t('missions.oneTime')
-            : `${t('missions.recurring')} - ${toTitleCase(scheduleType)}`,
+            : t('missions.recurring'),
         timeLabel: formattedSchedule.time,
     };
 };
@@ -65,28 +64,81 @@ const getMissionStatusLabel = (status, t) => {
     return status || '-';
 };
 
-const sortMissionRunsByLatestSchedule = (items = []) => [...items].sort((left, right) => {
-    const leftTime = new Date(left?.run_at || 0).getTime();
-    const rightTime = new Date(right?.run_at || 0).getTime();
+const getRunAtTime = (runAt) => {
+    const timestamp = new Date(runAt || 0).getTime();
+    return Number.isNaN(timestamp) ? null : timestamp;
+};
 
-    if (Number.isNaN(leftTime) && Number.isNaN(rightTime)) {
+const getMissionRunKey = (mission) => `${mission.mission_id}-${mission.run_at}`;
+
+const isCountdownEligibleStatus = (status) => !TERMINAL_COUNTDOWN_STATUSES.has(String(status || '').trim().toLowerCase());
+const hasMissionTakenOff = (status) => TAKEOFF_STARTED_STATUSES.has(String(status || '').trim().toLowerCase());
+
+const getNearestUpcomingMissionKey = (missions = [], currentTimeMs = Date.now()) => {
+    const eligibleMissions = missions
+        .filter((mission) => isCountdownEligibleStatus(mission?.status))
+        .map((mission) => ({
+            key: getMissionRunKey(mission),
+            runAtTime: getRunAtTime(mission?.run_at),
+            hasTakenOff: hasMissionTakenOff(mission?.status),
+        }))
+        .filter((mission) => mission.runAtTime != null);
+
+    const activeDueMission = eligibleMissions
+        .filter((mission) => !mission.hasTakenOff && mission.runAtTime <= currentTimeMs)
+        .sort((left, right) => right.runAtTime - left.runAtTime)[0];
+
+    if (activeDueMission) {
+        return activeDueMission.key;
+    }
+
+    const nearestMission = eligibleMissions
+        .filter((mission) => mission.runAtTime > currentTimeMs)
+        .sort((left, right) => left.runAtTime - right.runAtTime)[0];
+
+    return nearestMission?.key || null;
+};
+
+const formatCountdown = (remainingMs) => {
+    if (!Number.isFinite(remainingMs) || remainingMs <= 0) {
+        return '00:00';
+    }
+
+    const totalSeconds = Math.floor(remainingMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const sortMissionRunsByLatestSchedule = (items = []) => [...items].sort((left, right) => {
+    const leftTime = getRunAtTime(left?.run_at);
+    const rightTime = getRunAtTime(right?.run_at);
+
+    if (leftTime == null && rightTime == null) {
         return 0;
     }
 
-    if (Number.isNaN(leftTime)) {
+    if (leftTime == null) {
         return 1;
     }
 
-    if (Number.isNaN(rightTime)) {
+    if (rightTime == null) {
         return -1;
     }
 
     return rightTime - leftTime;
 });
 
-export default function MissionListPanel({ uavId, refreshKey = 0 }) {
+function MissionListPanel({ uavId, refreshKey = 0 }) {
     const { t } = useI18n();
     const [missions, setMissions] = useState([]);
+    const [currentTimeMs, setCurrentTimeMs] = useState(() => Date.now());
     const [pagination, setPagination] = useState({
         page: 1,
         total: 0,
@@ -120,6 +172,16 @@ export default function MissionListPanel({ uavId, refreshKey = 0 }) {
     useEffect(() => {
         paginationRef.current = pagination;
     }, [pagination]);
+
+    useEffect(() => {
+        const intervalId = window.setInterval(() => {
+            setCurrentTimeMs(Date.now());
+        }, 1000);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, []);
 
     useEffect(() => {
         let isCancelled = false;
@@ -258,6 +320,11 @@ export default function MissionListPanel({ uavId, refreshKey = 0 }) {
         };
     }, [missions, pagination.total]);
 
+    const nearestMissionKey = useMemo(
+        () => getNearestUpcomingMissionKey(missions, currentTimeMs),
+        [missions, currentTimeMs]
+    );
+
     return (
         <div
             className="font-inter relative h-full w-full overflow-hidden rounded-[30px] p-px select-none"
@@ -295,7 +362,7 @@ export default function MissionListPanel({ uavId, refreshKey = 0 }) {
                         ) : (
                             <div>
                                 <div
-                                    className="grid grid-cols-[1fr_1.7fr_1fr_1.4fr] border-x border-t border-[#7A0A0C] px-2 py-2 text-[10px] uppercase tracking-[0.12em] text-[#FFFFFF]"
+                                    className={`${MISSION_TABLE_LAYOUT} border-x border-t border-[#7A0A0C] px-2 py-2 text-[10px] uppercase tracking-[0.12em] text-[#FFFFFF]`}
                                     style={{ background: MISSION_TABLE_HEADER_FILL }}
                                 >
                                     <div className="font-medium">{t('common.date')}</div>
@@ -315,11 +382,27 @@ export default function MissionListPanel({ uavId, refreshKey = 0 }) {
                                                 const active = mission.status === 'In Progress';
                                                 const formattedSchedule = formatRunAt(mission.run_at, mission.schedule_timezone);
                                                 const scheduleInfo = getScheduleInfo(mission, t);
+                                                const missionKey = getMissionRunKey(mission);
+                                                const runAtTime = getRunAtTime(mission.run_at);
+                                                const remainingMs = runAtTime != null ? runAtTime - currentTimeMs : null;
+                                                const showCountdown = (
+                                                    nearestMissionKey === missionKey
+                                                    && remainingMs != null
+                                                    && remainingMs > 0
+                                                    && remainingMs <= COUNTDOWN_THRESHOLD_MS
+                                                );
+                                                const showWaitingDrone = (
+                                                    nearestMissionKey === missionKey
+                                                    && remainingMs != null
+                                                    && remainingMs <= 0
+                                                    && !hasMissionTakenOff(mission.status)
+                                                    && isCountdownEligibleStatus(mission.status)
+                                                );
 
                                                 return (
                                                     <div
-                                                        key={`${mission.mission_id}-${mission.run_at}`}
-                                                        className={`grid grid-cols-[1fr_1.7fr_1fr_1.4fr] items-center px-1 py-2.5 text-xs ${
+                                                        key={missionKey}
+                                                        className={`${MISSION_TABLE_LAYOUT} items-center px-1 py-2.5 text-xs ${
                                                             index === 0 ? '' : 'border-t border-[#7A0A0C]'
                                                         } ${
                                                             index === missions.length - 1 ? 'border-b border-[#7A0A0C]' : ''
@@ -343,8 +426,18 @@ export default function MissionListPanel({ uavId, refreshKey = 0 }) {
                                                             <span className="text-[13px] text-[#2A2A2A]">
                                                                 {scheduleInfo.typeLabel}
                                                             </span>
-                                                            <span className="mt-0.5 text-[11px] text-[#5F5F5F]">
-                                                                {scheduleInfo.timeLabel}
+                                                            <span className={`mt-0.5 min-h-[14px] text-[11px] ${
+                                                                showCountdown
+                                                                    ? `font-medium text-[#B42323] ${BLINKING_LABEL_CLASS}`
+                                                                    : showWaitingDrone
+                                                                    ? `font-medium text-[#D97706] ${BLINKING_LABEL_CLASS}`
+                                                                    : 'text-[#5F5F5F]'
+                                                            }`}>
+                                                                {showCountdown
+                                                                    ? `${formatCountdown(remainingMs)} ${t('missions.countdownLabel')}`
+                                                                    : showWaitingDrone
+                                                                    ? t('missions.waitingDrone')
+                                                                    : scheduleInfo.timeLabel}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -361,8 +454,10 @@ export default function MissionListPanel({ uavId, refreshKey = 0 }) {
                                 ) : null}
 
                                 {!pagination.hasNext && missions.length > 0 ? (
-                                    <div className="px-2 py-3 text-center text-[11px] text-gray-500">
-                                        {t('missions.endOfTodayMissions')}
+                                    <div>
+                                        <div className={`${MISSION_TABLE_LAYOUT} px-2 py-3 text-[11px] text-gray-500`}>
+                                            <div className="col-span-4 text-center">{t('missions.endOfTodayMissions')}</div>
+                                        </div>
                                     </div>
                                 ) : null}
 
@@ -376,6 +471,20 @@ export default function MissionListPanel({ uavId, refreshKey = 0 }) {
                     </div>
                 </div>
             </div>
+            <style>
+                {`
+                    @keyframes missionStatusBlink {
+                        0%, 100% {
+                            opacity: 1;
+                        }
+                        50% {
+                            opacity: 0.3;
+                        }
+                    }
+                `}
+            </style>
         </div>
     );
 }
+
+export default React.memo(MissionListPanel);

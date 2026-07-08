@@ -7,6 +7,7 @@ import {
     getMissionProfileLengthMeters,
 } from '../utils/missionMetrics';
 import { useI18n } from '../../../shared/i18n/I18nProvider';
+import { resolveTelemetryBattery } from '../../../shared/utils/telemetryBattery';
 
 const panelStroke = '#FF383C';
 const dividerStroke = 'linear-gradient(90deg, rgba(163,88,88,0.12) 0%, #A35858 50%, rgba(163,88,88,0.12) 100%)';
@@ -94,11 +95,8 @@ export default function WaypointSelectionPanel({
     const [draftValues, setDraftValues] = useState({});
     const [takeoffAltitudeDraft, setTakeoffAltitudeDraft] = useState(String(takeoffAltitude ?? 0));
     const [takeoffHoldDurationDraft, setTakeoffHoldDurationDraft] = useState(String(takeoffHoldDuration ?? 0));
-    const isBatteryFresh = Boolean(telemetryStatus?.metrics?.battery?.isFresh);
-    const telemetryBatteryPercent = telemetry?.battery?.percent;
-    const batteryPercent = isBatteryFresh && Number.isFinite(Number(telemetryBatteryPercent))
-        ? Number(telemetryBatteryPercent)
-        : null;
+    const batteryState = resolveTelemetryBattery(telemetry, telemetryStatus);
+    const batteryPercent = batteryState.percent;
     const batteryVisual = (() => {
         if (batteryPercent == null || !Number.isFinite(Number(batteryPercent))) {
             return {
