@@ -383,8 +383,8 @@ export default function HistoryDetailPage() {
     }
 
     return (
-        <div className="app-page">
-            <div className="app-page__inner flex h-full gap-[clamp(18px,2vw,24px)] overflow-hidden">
+        <div className="app-page overflow-y-auto">
+            <div className="app-page__inner flex min-h-full min-w-0 gap-[clamp(18px,2vw,24px)]">
                 <div className="min-w-0 flex-1">
                     <button
                         type="button"
@@ -412,7 +412,7 @@ export default function HistoryDetailPage() {
                                         className="h-full w-full object-cover"
                                     />
                                 ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-[#474747] px-6 text-center">
+                                    <div className="flex h-full w-full items-center justify-center bg-[#D0D0D0] px-6 text-center">
                                         <div className="flex max-w-[260px] flex-col items-center">
                                             <img
                                                 src={disconnectIcon}
@@ -420,7 +420,7 @@ export default function HistoryDetailPage() {
                                                 aria-hidden="true"
                                                 className="mb-4 h-10 w-10 object-contain"
                                             />
-                                            <div className="text-[12px] text-[#E5E5E5]">
+                                            <div className="text-[12px] text-[#5F5F5F]">
                                                 {isMediaPreviewLoading
                                                     ? t('historyPage.loadingFullVideoPreview')
                                                     : mediaPreviewError || t('historyPage.fullVideoPreviewUnavailable')}
@@ -433,7 +433,7 @@ export default function HistoryDetailPage() {
                     </div>
                 </div>
 
-                <div className="flex w-[clamp(380px,34vw,560px)] min-w-[380px] flex-col gap-5">
+                <div className="flex min-h-0 w-[clamp(380px,34vw,560px)] min-w-[380px] flex-col gap-5">
                     <div
                         className="font-inter flex min-h-0 flex-1 flex-col overflow-hidden rounded-[30px] border p-6 shadow-lg"
                         style={{ borderColor: panelStroke, background: panelBackground }}
@@ -454,7 +454,7 @@ export default function HistoryDetailPage() {
                         className="font-inter flex flex-1 flex-col overflow-hidden rounded-[30px] border p-6 shadow-lg"
                         style={{ borderColor: panelStroke, background: panelBackground }}
                     >
-                        <div className="flex items-start gap-3">
+                        <div className="flex shrink-0 items-start gap-3">
                             <span className="h-[38px] w-[6px] shrink-0 bg-[#FC4747]" />
                             <div>
                                 <h2 className="text-[18px] font-medium text-[#151515]">{t('historyPage.detailMission')}</h2>
@@ -463,14 +463,14 @@ export default function HistoryDetailPage() {
                         </div>
 
                         <div
-                            className="mt-3 rounded-[22px] p-px"
+                            className="mt-3 min-h-0 flex-1 rounded-[22px] p-px"
                             style={{ backgroundImage: streamPanelBorder }}
                         >
                             <div
-                                className="rounded-[21px] px-5 py-4"
+                                className="flex h-full min-h-0 flex-col rounded-[21px] px-5 py-4"
                                 style={{ background: streamPanelFill }}
                             >
-                                <div className="space-y-3">
+                                <div className="custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto pr-2">
                                     <DetailRow label={t('historyPage.mission')} value={missionName} />
                                     <DetailRow label={t('historyPage.schedule')} value={scheduleLabel} />
                                     <DetailRow label={t('historyPage.pinPoint')} value={t('historyPage.pinPointCount').replace('{count}', waypointCount)} />

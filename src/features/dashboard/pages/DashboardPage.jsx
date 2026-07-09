@@ -674,7 +674,7 @@ export default function DashboardPage() {
             <div className="app-page__inner relative h-full">
             <div
                 className={`grid h-full w-full gap-[clamp(18px,2vw,28px)] ${isPrimaryPanelExpanded ? 'invisible' : ''}`}
-                style={{ gridTemplateColumns: 'clamp(300px, 22vw, 420px) minmax(0, 1fr)' }}
+                style={{ gridTemplateColumns: 'clamp(340px, 25vw, 470px) minmax(0, 1fr)' }}
             >
                 <div className="flex min-h-0 flex-col gap-[clamp(18px,2vw,28px)] overflow-hidden">
                     <div className="min-h-[320px] shrink-0 basis-[clamp(320px,42vh,460px)]">

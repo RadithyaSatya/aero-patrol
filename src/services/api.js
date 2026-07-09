@@ -1,6 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://api-xflight.kumalabs.tech';
 export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://api-xflight.kumalabs.tech';
-export const SSO_LOGOUT_REDIRECT_URL = import.meta.env.VITE_SSO_LOGOUT_REDIRECT_URL || '/login';
+export const PORTAL_URL = import.meta.env.VITE_PORTAL_URL || 'https://sso.connectmesh.io';
+export const SSO_LOGOUT_REDIRECT_URL = import.meta.env.VITE_SSO_LOGOUT_REDIRECT_URL || PORTAL_URL;
 const SSO_LOGOUT_URL = import.meta.env.VITE_SSO_LOGOUT_URL || 'https://sso-oauth.connectmesh.io/v1/auth/logout';
 const SSO_LOGOUT_ALL = import.meta.env.VITE_SSO_LOGOUT_ALL === 'true';
 const FRIENDLY_NETWORK_ERROR_MESSAGE = 'Unable to connect. Try again.';

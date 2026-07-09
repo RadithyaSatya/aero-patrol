@@ -15,7 +15,7 @@ import {
     buildMissionPayload,
 } from '../utils/missionPayload';
 
-const MISSION_TELEMETRY_METRICS = ['location', 'attitude', 'battery', 'vehicle_state', 'uav_status'];
+const MISSION_TELEMETRY_METRICS = ['location', 'attitude', 'battery', 'vehicle_state', 'docking_status', 'uav_status'];
 
 export default function MissionPage() {
     const { t } = useI18n();
@@ -232,9 +232,9 @@ export default function MissionPage() {
 
     return (
         <>
-            <div className="app-page">
-                <div className="app-page__inner flex h-full flex-row gap-[clamp(18px,2vw,28px)] overflow-hidden">
-                <div className="flex min-w-0 flex-1 flex-col gap-[clamp(18px,2vw,28px)]">
+            <div className="app-page overflow-y-auto">
+                <div className="app-page__inner flex min-h-full min-w-0 flex-row gap-[clamp(18px,2vw,28px)]">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[clamp(18px,2vw,28px)]">
                     <div className="relative flex-1 overflow-hidden rounded-[30px] border border-[#2a3240] bg-[#181d25] shadow-lg">
                         <MissionMapPanel
                             waypoints={waypoints}
@@ -273,7 +273,7 @@ export default function MissionPage() {
                                     onDeleteWaypoint={handleDeleteWaypoint}
                                 />
                             </div>
-                            <div className="h-[clamp(420px,48vh,560px)] shrink-0 overflow-hidden rounded-[30px] shadow-lg">
+                            <div className="min-h-0 flex-[0_1_clamp(340px,42vh,500px)] overflow-hidden rounded-[30px] shadow-lg">
                                 <MissionDetailPanel
                                     waypointsCount={waypoints.length}
                                     onClearWaypoints={() => setWaypoints([])}

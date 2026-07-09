@@ -9,7 +9,7 @@ import settingMenuIcon from '../../assets/images/icon_setting_menu.svg';
 import notificationIcon from '../../assets/images/icon_notification.svg';
 import dangerIcon from '../../assets/images/icon_danger.svg';
 import { useI18n } from '../i18n/I18nProvider';
-import { authService, clearAuthStorage, SSO_LOGOUT_REDIRECT_URL } from '../../services/api';
+import { authService, clearAuthStorage, PORTAL_URL, SSO_LOGOUT_REDIRECT_URL } from '../../services/api';
 
 const HEADER_HEIGHT = 64;
 const SIDEBAR_COLLAPSED_WIDTH = 92;
@@ -30,7 +30,7 @@ const formatBadgeCount = (count) => {
 };
 
 const UserIcon = ({ color = '#111111' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M12 10C14.2091 10 16 8.20914 16 6C16 3.79086 14.2091 2 12 2C9.79086 2 8 3.79086 8 6C8 8.20914 9.79086 10 12 10Z" fill={color} />
         <path d="M20 17.5C20 19.985 20 22 12 22C4 22 4 19.985 4 17.5C4 15.015 7.582 13 12 13C16.418 13 20 15.015 20 17.5Z" fill={color} />
     </svg>
@@ -502,11 +502,29 @@ export default function AppHeader({
         }
 
         if (/^https?:\/\//i.test(SSO_LOGOUT_REDIRECT_URL)) {
-            window.location.assign(SSO_LOGOUT_REDIRECT_URL);
+            window.location.replace(SSO_LOGOUT_REDIRECT_URL);
             return;
         }
 
-        navigate(SSO_LOGOUT_REDIRECT_URL);
+        window.location.replace(SSO_LOGOUT_REDIRECT_URL);
+    };
+
+    const handleBackToPortal = async () => {
+        try {
+            await authService.logout();
+        } catch (error) {
+            console.error('Backend logout failed:', error);
+        }
+
+        clearAuthStorage();
+        setIsSettingsOpen(false);
+
+        if (/^https?:\/\//i.test(PORTAL_URL)) {
+            window.location.replace(PORTAL_URL);
+            return;
+        }
+
+        window.location.replace(PORTAL_URL);
     };
 
     const handleNavigateTo = (path) => {
@@ -588,7 +606,7 @@ export default function AppHeader({
                                 <button
                                     type="button"
                                     onClick={() => toggleNotificationPanel('terminal')}
-                                    className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                                    className={`relative flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
                                         activeNotificationPanel === 'terminal' ? 'bg-[#FFF0F0]' : 'bg-transparent hover:bg-[#F7F2F2]'
                                     }`}
                                     aria-label={t('header.warningNotifications')}
@@ -597,7 +615,7 @@ export default function AppHeader({
                                         src={dangerIcon}
                                         alt=""
                                         aria-hidden="true"
-                                        className="h-7 w-7 shrink-0 object-contain"
+                                        className="h-8 w-8 shrink-0 object-contain"
                                     />
                                     {terminalBadgeLabel ? (
                                         <span className="absolute -right-1 -top-1 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#C20000] px-1 text-[9px] font-semibold leading-none text-white">
@@ -611,7 +629,7 @@ export default function AppHeader({
                                 <button
                                     type="button"
                                     onClick={() => toggleNotificationPanel('reminder')}
-                                    className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                                    className={`relative flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
                                         activeNotificationPanel === 'reminder' ? 'bg-[#FFF0F0]' : 'bg-transparent hover:bg-[#F7F2F2]'
                                     }`}
                                     aria-label={t('header.reminderNotifications')}
@@ -620,7 +638,7 @@ export default function AppHeader({
                                         src={notificationIcon}
                                         alt=""
                                         aria-hidden="true"
-                                        className="h-7 w-7 shrink-0 object-contain"
+                                        className="h-8 w-8 shrink-0 object-contain"
                                     />
                                     {reminderBadgeLabel ? (
                                         <span className="absolute -right-1 -top-1 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#C20000] px-1 text-[9px] font-semibold leading-none text-white">
@@ -661,7 +679,7 @@ export default function AppHeader({
                                     setActiveNotificationPanel(null);
                                     setStickyUnreadIds([]);
                                 }}
-                                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F7F2F2] text-[#111111] transition-colors hover:bg-[#F1E7E7]"
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F7F2F2] text-[#111111] transition-colors hover:bg-[#F1E7E7]"
                                 aria-label={t('header.openProfileMenu')}
                             >
                                 <UserIcon color="#111111" />
@@ -675,6 +693,13 @@ export default function AppHeader({
                                         className="mx-2 rounded-[12px] px-4 py-3 text-left font-inter text-[14px] text-[#303030] transition-colors hover:bg-[#FAF4F4] focus:outline-none focus-visible:bg-[#FAF4F4]"
                                     >
                                         {t('common.about')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleBackToPortal}
+                                        className="mx-2 rounded-[12px] px-4 py-3 text-left font-inter text-[14px] text-[#303030] transition-colors hover:bg-[#FAF4F4] focus:outline-none focus-visible:bg-[#FAF4F4]"
+                                    >
+                                        {t('common.backToPortal')}
                                     </button>
                                     <button
                                         type="button"
@@ -706,8 +731,8 @@ export default function AppHeader({
                             <NavLink
                                 key={item.key}
                                 to={item.to}
-                                className={`flex items-center rounded-[16px] transition-[background-color,box-shadow,padding,width,height] duration-300 ease-in-out ${
-                                    isSidebarCollapsed ? 'mx-auto h-[56px] w-[56px] justify-center px-0' : 'h-[58px] w-full justify-start px-3.5'
+                                className={`flex h-[56px] items-center rounded-[16px] transition-[background-color,box-shadow,padding,width] duration-300 ease-in-out ${
+                                    isSidebarCollapsed ? 'mx-auto w-[56px] justify-center px-0' : 'w-full justify-start px-3.5'
                                 } ${
                                     isActive ? 'bg-white shadow-[0_10px_24px_rgba(0,0,0,0.12)]' : 'bg-transparent hover:bg-[#D51A1A]'
                                 }`}

@@ -6,7 +6,7 @@ const PAGE_LIMIT = 20;
 const MISSION_PANEL_BACKGROUND = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
 const MISSION_PANEL_BORDER = 'linear-gradient(0deg, #ED0000 0%, #FB5555 22%, rgba(251, 85, 85, 0.38) 38%, rgba(251, 85, 85, 0.12) 47%, rgba(251, 85, 85, 0) 56%)';
 const MISSION_TABLE_HEADER_FILL = 'linear-gradient(137.97deg, rgba(254, 5, 0, 0.6) -3.94%, rgba(186, 4, 4, 0.6) 48.88%, rgba(254, 5, 0, 0.6) 101.7%)';
-const MISSION_TABLE_LAYOUT = 'grid grid-cols-[1fr_1.7fr_1fr_1.4fr]';
+const MISSION_TABLE_LAYOUT = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1.4fr)] gap-x-3';
 const COUNTDOWN_THRESHOLD_MS = 60 * 1000;
 const TERMINAL_COUNTDOWN_STATUSES = new Set(['completed', 'failed', 'aborted', 'skipped']);
 const TAKEOFF_STARTED_STATUSES = new Set(['in progress', 'takeoff', 'landed', 'dockconfirmed']);
@@ -408,7 +408,7 @@ function MissionListPanel({ uavId, refreshKey = 0 }) {
                                                             index === missions.length - 1 ? 'border-b border-[#7A0A0C]' : ''
                                                         }`}
                                                     >
-                                                        <div className="flex flex-col leading-[1.15]">
+                                                        <div className="min-w-0 flex flex-col leading-[1.15]">
                                                             <span className="text-[13px] text-[#1F1F1F]">
                                                                 {formattedSchedule.date}
                                                             </span>
@@ -416,13 +416,15 @@ function MissionListPanel({ uavId, refreshKey = 0 }) {
                                                                 {formattedSchedule.time}
                                                             </span>
                                                         </div>
-                                                        <div className={`mr-2 truncate text-[13px] ${active ? 'w-max border-b border-[#7A0A0C] text-[#1F1F1F]' : 'text-[#2A2A2A]'}`}>
-                                                            {mission.mission_name}
+                                                        <div className="min-w-0">
+                                                            <div className={`truncate text-[13px] ${active ? 'border-b border-[#7A0A0C] text-[#1F1F1F]' : 'text-[#2A2A2A]'}`}>
+                                                                {mission.mission_name}
+                                                            </div>
                                                         </div>
-                                                        <div className={`text-[13px] ${active ? 'text-[#1F1F1F]' : 'text-[#2A2A2A]'}`}>
+                                                        <div className={`min-w-0 truncate text-[13px] ${active ? 'text-[#1F1F1F]' : 'text-[#2A2A2A]'}`}>
                                                             {getMissionStatusLabel(mission.status, t)}
                                                         </div>
-                                                        <div className="flex flex-col leading-[1.15]">
+                                                        <div className="min-w-0 flex flex-col leading-[1.15]">
                                                             <span className="text-[13px] text-[#2A2A2A]">
                                                                 {scheduleInfo.typeLabel}
                                                             </span>

@@ -194,7 +194,9 @@ export default function LiveVideoPage() {
     const [isDroneLoading, setIsDroneLoading] = useState(true);
     const [droneError, setDroneError] = useState('');
     const [droneTrailById, setDroneTrailById] = useState({});
-    const [isMapPrimary, setIsMapPrimary] = useState(true);
+    const [isMapPrimary, setIsMapPrimary] = useState(false);
+    const [primaryVideoSource, setPrimaryVideoSource] = useState('drone');
+    const [, setPrimaryVideoStatus] = useState('checking');
     const [isPrimaryPanelExpanded, setIsPrimaryPanelExpanded] = useState(false);
     const [isAbortingMission, setIsAbortingMission] = useState(false);
     const [isAbortConfirmOpen, setIsAbortConfirmOpen] = useState(false);
@@ -278,12 +280,6 @@ export default function LiveVideoPage() {
     const fallbackMapPosition = lastTrackedPoint
         ? [lastTrackedPoint.latitude, lastTrackedPoint.longitude]
         : null;
-    const streamStatusLabel = telemetryRuntimeStatus
-        || (isDroneInMission
-            ? t('dashboard.inFlight')
-            : droneStatus.is_docked
-                ? t('dashboard.docked')
-                : '');
     const canAbortMission = Boolean(
         selectedDrone?.id &&
         activeMissionHistoryId != null &&
@@ -594,6 +590,8 @@ export default function LiveVideoPage() {
         }
     }, [currentCameraZoomLevel, hasCameraZoomLevel, publishCameraCommand, t, translate]);
 
+    const shouldShowPrimaryStreamSwitch = !isMapPrimary;
+
     const renderPrimaryPanel = ({ expanded = false } = {}) => (
         isMapPrimary
             ? (
@@ -608,12 +606,28 @@ export default function LiveVideoPage() {
                     radiusClassName={expanded ? 'rounded-[32px]' : 'rounded-[24px]'}
                 />
             )
-            : <MainVideoFeedPanel showCompass heading={selectedHeading} radiusClassName={expanded ? 'rounded-[32px]' : 'rounded-[24px]'} />
+            : (
+                <MainVideoFeedPanel
+                    showCompass
+                    heading={selectedHeading}
+                    radiusClassName={expanded ? 'rounded-[32px]' : 'rounded-[24px]'}
+                    streamSource={primaryVideoSource}
+                    onStreamStatusChange={setPrimaryVideoStatus}
+                />
+            )
     );
 
     const renderSecondaryPanel = () => (
         isMapPrimary
-            ? <MainVideoFeedPanel compact lightShell heading={selectedHeading} radiusClassName="rounded-[12px]" />
+            ? (
+                <MainVideoFeedPanel
+                    compact
+                    lightShell
+                    heading={selectedHeading}
+                    radiusClassName="rounded-[12px]"
+                    streamSource={primaryVideoSource}
+                />
+            )
             : <MapViewPanel telemetry={selectedTelemetry} telemetryStatus={selectedTelemetryStatus} selectedDrone={selectedDrone} trailPositions={selectedTrail} fallbackPosition={fallbackMapPosition} showControls={false} lightShell radiusClassName="rounded-[12px]" />
     );
     const availabilityMessage = isDroneLoading
@@ -647,14 +661,42 @@ export default function LiveVideoPage() {
                         className="pointer-events-none absolute inset-0 z-[450] select-none"
                         dangerouslySetInnerHTML={{ __html: cameraPanelBorderMarkup }}
                     />
-                    {isStreamInteractionDisabled ? (
-                        <div className="absolute left-6 top-6 z-[500] rounded-[12px] border border-[#B0B0B0] bg-black/55 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#D7D7D7]">
-                            {availabilityMessage}
+                    {shouldShowPrimaryStreamSwitch ? (
+                        <div className="absolute left-6 right-6 top-6 z-[520] flex items-center justify-between gap-4">
+                            <div className="flex items-center rounded-[14px] border border-white/12 bg-black/58 p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-sm">
+                                <button
+                                    type="button"
+                                    onClick={() => setPrimaryVideoSource('drone')}
+                                    className={`min-w-[108px] rounded-[10px] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors ${
+                                        primaryVideoSource === 'drone'
+                                            ? 'bg-white text-[#C20000]'
+                                            : 'bg-transparent text-white hover:bg-white/10'
+                                    }`}
+                                >
+                                    Drone
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPrimaryVideoSource('cctv')}
+                                    className={`min-w-[108px] rounded-[10px] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors ${
+                                        primaryVideoSource === 'cctv'
+                                            ? 'bg-white text-[#C20000]'
+                                            : 'bg-transparent text-white hover:bg-white/10'
+                                    }`}
+                                >
+                                    CCTV
+                                </button>
+                            </div>
+                            {isStreamInteractionDisabled ? (
+                                <div className="rounded-[12px] border border-[#B0B0B0] bg-black/55 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#D7D7D7]">
+                                    {availabilityMessage}
+                                </div>
+                            ) : null}
                         </div>
                     ) : null}
-                    {streamStatusLabel ? (
-                        <div className="absolute right-6 top-6 z-[500] rounded-[12px] border border-[#1ab394]/35 bg-black/55 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[#1ab394]">
-                            {streamStatusLabel}
+                    {!shouldShowPrimaryStreamSwitch && isStreamInteractionDisabled ? (
+                        <div className="absolute left-6 top-6 z-[500] rounded-[12px] border border-[#B0B0B0] bg-black/55 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#D7D7D7]">
+                            {availabilityMessage}
                         </div>
                     ) : null}
                     <div className="h-full overflow-hidden p-[5px]">
@@ -717,6 +759,44 @@ export default function LiveVideoPage() {
                             className="pointer-events-none absolute inset-0 z-[450] select-none"
                             dangerouslySetInnerHTML={{ __html: cameraPanelBorderMarkup }}
                         />
+                        {shouldShowPrimaryStreamSwitch ? (
+                            <div className="absolute left-6 right-6 top-6 z-[520] flex items-center justify-between gap-4">
+                                <div className="flex items-center rounded-[14px] border border-white/12 bg-black/58 p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-sm">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPrimaryVideoSource('drone')}
+                                        className={`min-w-[108px] rounded-[10px] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors ${
+                                            primaryVideoSource === 'drone'
+                                                ? 'bg-white text-[#C20000]'
+                                                : 'bg-transparent text-white hover:bg-white/10'
+                                        }`}
+                                    >
+                                        Drone
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPrimaryVideoSource('cctv')}
+                                        className={`min-w-[108px] rounded-[10px] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors ${
+                                            primaryVideoSource === 'cctv'
+                                                ? 'bg-white text-[#C20000]'
+                                                : 'bg-transparent text-white hover:bg-white/10'
+                                        }`}
+                                    >
+                                        CCTV
+                                    </button>
+                                </div>
+                                {isStreamInteractionDisabled ? (
+                                    <div className="rounded-[12px] border border-[#B0B0B0] bg-black/55 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#D7D7D7]">
+                                        {availabilityMessage}
+                                    </div>
+                                ) : null}
+                            </div>
+                        ) : null}
+                        {!shouldShowPrimaryStreamSwitch && isStreamInteractionDisabled ? (
+                            <div className="absolute left-6 top-6 z-[500] rounded-[12px] border border-[#B0B0B0] bg-black/55 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#D7D7D7]">
+                                {availabilityMessage}
+                            </div>
+                        ) : null}
                         <div className="h-full overflow-hidden rounded-[30px] p-[9px]">
                             <div className="h-full overflow-hidden rounded-[32px]">
                                 {renderPrimaryPanel({ expanded: true })}

@@ -419,7 +419,7 @@ export default function MissionDetailPanel({
 
             <div className="mb-6 h-px w-full shrink-0 bg-no-repeat" style={{ background: dividerStroke }} />
 
-            <div className="no-scrollbar flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pr-5">
+            <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pr-3">
                 <div className="grid grid-cols-2 gap-4">
                     <TextField
                         label={t('missions.missionName')}

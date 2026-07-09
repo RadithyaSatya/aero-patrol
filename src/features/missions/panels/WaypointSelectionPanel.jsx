@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import deleteMissionIcon from '../../../assets/images/icon_trash_mission.svg';
+import lightningIcon from '../../../assets/images/icon_lightning.svg';
 import {
     formatFlightDuration,
     formatMissionDistance,
@@ -25,7 +26,12 @@ const defaultWaypointValues = {
     action_duration: 10,
 };
 
-const HorizontalBatteryIcon = ({ percent = null, fillColor = '#B5B5B5', shellColor = '#B5B5B5' }) => {
+const HorizontalBatteryIcon = ({
+    percent = null,
+    fillColor = '#B5B5B5',
+    shellColor = '#B5B5B5',
+    isCharging = false,
+}) => {
     const hasValue = Number.isFinite(Number(percent));
     const normalizedPercent = hasValue ? Math.max(0, Math.min(100, Number(percent))) : 0;
     const fillWidth = Math.max(0, Math.round((normalizedPercent / 100) * 26));
@@ -35,13 +41,22 @@ const HorizontalBatteryIcon = ({ percent = null, fillColor = '#B5B5B5', shellCol
             <div className="absolute right-0 top-1/2 h-[8px] w-[4px] -translate-y-1/2 rounded-r-[2px]" style={{ backgroundColor: shellColor }} />
             <div className="absolute inset-y-0 left-0 right-[3px] rounded-[7px]" style={{ backgroundColor: shellColor }} />
             <div className="absolute inset-y-[3px] left-[3px] right-[7px] rounded-[4px] bg-white" />
+            <div className="absolute inset-y-[3px] left-[3px] right-[7px] rounded-[4px] bg-[#C5C5C580]" />
             <div
-                className="absolute inset-y-[6px] left-[6px] rounded-[2px] transition-all duration-500"
+                className="absolute inset-y-[4px] left-[4px] rounded-[3px] transition-all duration-500"
                 style={{
-                    width: `${Math.min(26, Math.max(hasValue ? 4 : 10, fillWidth))}px`,
+                    width: `${Math.min(30, Math.max(hasValue ? 5 : 11, Math.round((normalizedPercent / 100) * 30)))}px`,
                     backgroundColor: hasValue ? fillColor : '#B5B5B5',
                 }}
             />
+            {isCharging ? (
+                <img
+                    src={lightningIcon}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute left-[20px] top-1/2 z-10 h-[12px] w-[9px] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_0_4px_rgba(0,0,0,0.2)]"
+                />
+            ) : null}
         </div>
     );
 };
@@ -97,6 +112,7 @@ export default function WaypointSelectionPanel({
     const [takeoffHoldDurationDraft, setTakeoffHoldDurationDraft] = useState(String(takeoffHoldDuration ?? 0));
     const batteryState = resolveTelemetryBattery(telemetry, telemetryStatus);
     const batteryPercent = batteryState.percent;
+    const isBatteryCharging = batteryState.isCharging === true;
     const batteryVisual = (() => {
         if (batteryPercent == null || !Number.isFinite(Number(batteryPercent))) {
             return {
@@ -107,21 +123,21 @@ export default function WaypointSelectionPanel({
 
         if (Number(batteryPercent) >= 60) {
             return {
-                fillColor: '#4E9B86',
-                shellColor: '#4E9B86',
+                fillColor: '#74C642',
+                shellColor: '#74C6424D',
             };
         }
 
         if (Number(batteryPercent) >= 30) {
             return {
-                fillColor: '#f0ad4e',
-                shellColor: '#f0ad4e',
+                fillColor: '#F98543',
+                shellColor: '#F985434D',
             };
         }
 
         return {
-            fillColor: '#FE8645',
-            shellColor: '#FE8645',
+            fillColor: '#F94343',
+            shellColor: '#F943434D',
         };
     })();
     const homePosition = selectedDrone?.home_latitude != null && selectedDrone?.home_longitude != null
@@ -240,6 +256,7 @@ export default function WaypointSelectionPanel({
                             percent={batteryPercent}
                             fillColor={batteryVisual.fillColor}
                             shellColor={batteryVisual.shellColor}
+                            isCharging={isBatteryCharging}
                         />
                         <span className="font-inter text-sm font-bold tracking-wider text-[#000000]">{batteryPercent != null ? `${batteryPercent}%` : '--'}</span>
                     </div>

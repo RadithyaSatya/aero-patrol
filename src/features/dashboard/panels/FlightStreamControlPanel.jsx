@@ -2,7 +2,10 @@ import React from 'react';
 import storageIcon from '../../../assets/images/icon_storage.svg';
 import recordIcon from '../../../assets/images/icon_record.svg';
 import captureIcon from '../../../assets/images/icon_capture.svg';
+import buttonBorderGreySmall from '../../../assets/images/btn_border_grey_small.svg';
 import buttonBorderGrey from '../../../assets/images/btn_border_grey.svg';
+import buttonBorderGreyLong from '../../../assets/images/btn_border_grey_long.svg';
+import buttonBorderGreyVeryLong from '../../../assets/images/btn_border_grey_very_long.svg';
 import switchIcon from '../../../assets/images/icon_switch.svg';
 import { useI18n } from '../../../shared/i18n/I18nProvider';
 
@@ -57,10 +60,10 @@ export default function FlightStreamControlPanel({
         : 'text-[16px] tracking-[0.16em]';
     const outerGapClassName = compact ? 'gap-4' : 'gap-5';
     const panelPaddingClassName = compact ? 'p-2.5' : 'p-3';
-    const rightColumnClassName = compact ? 'grid-rows-[minmax(0,0.95fr)_minmax(0,0.7fr)_72px]' : 'grid-rows-3';
+    const rightColumnClassName = 'grid-rows-[repeat(3,minmax(0,1fr))]';
     const rightColumnGapClassName = compact ? 'gap-2.5' : 'gap-3';
     const panelColumns = compact
-        ? 'minmax(280px, 0.9fr) minmax(0, 1.1fr)'
+        ? 'minmax(220px, 0.72fr) minmax(280px, 1.28fr)'
         : 'minmax(280px, 0.9fr) minmax(0, 1.1fr)';
     const switchButtonClassName = compact
         ? 'absolute bottom-2.5 left-2.5 z-[550] flex h-[36px] w-[36px] items-center justify-center rounded-full bg-black/50 transition-colors hover:bg-black/65'
@@ -105,7 +108,7 @@ export default function FlightStreamControlPanel({
 
                 <div className={`grid min-w-0 ${rightColumnClassName} ${rightColumnGapClassName}`}>
                     <div
-                        className="overflow-hidden rounded-[12px] p-[0.68px]"
+                        className="min-h-0 overflow-hidden rounded-[12px] p-[0.68px]"
                         style={{ backgroundImage: ACTION_WRAPPER_BORDER_IMAGE }}
                     >
                         <div className="grid h-full grid-cols-2 gap-2 rounded-[11.32px] p-1.5" style={{ background: LIGHT_PANEL_BACKGROUND }}>
@@ -152,7 +155,7 @@ export default function FlightStreamControlPanel({
                         <StorageCard value="140/100GB" label={t('dashboard.storageCapacity')} isIndonesian={isIndonesian} />
                     </div>
 
-                    <div className="h-full">
+                    <div className="min-h-0 h-full">
                         <button
                             type="button"
                             onClick={onAbortMission}
@@ -163,12 +166,17 @@ export default function FlightStreamControlPanel({
                                     : 'hover:scale-[1.01] active:scale-[0.99]'
                             }`}
                         >
-                            <img
-                                src={buttonBorderGrey}
-                                alt=""
-                                aria-hidden="true"
-                                className="absolute inset-0 h-full w-full object-contain"
-                            />
+                            <picture className="absolute inset-0">
+                                <source media="(min-width: 1920px)" srcSet={buttonBorderGreyVeryLong} />
+                                <source media="(min-width: 1680px)" srcSet={buttonBorderGreyLong} />
+                                <source media="(min-width: 1470px)" srcSet={buttonBorderGrey} />
+                                <img
+                                    src={buttonBorderGreySmall}
+                                    alt=""
+                                    aria-hidden="true"
+                                    className="h-full w-full object-fill"
+                                />
+                            </picture>
                             <span className={abortLabelClassName}>
                                 {isAbortingMission ? t('dashboard.abortingMission') : t('dashboard.abortMission')}
                             </span>

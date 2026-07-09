@@ -403,7 +403,7 @@ export default function CameraJoystickPanel({
             style={{ backgroundImage: JOYSTICK_PANEL_BORDER }}
         >
             <div
-                className="flex h-full w-full items-center justify-evenly gap-[clamp(22px,2.8vw,36px)] overflow-hidden rounded-[29px] p-[clamp(8px,1vw,12px)]"
+                className="flex h-full w-full items-center justify-evenly gap-[clamp(28px,3.2vw,40px)] overflow-hidden rounded-[29px] p-[clamp(8px,1vw,12px)]"
                 style={{ background: JOYSTICK_PANEL_BACKGROUND }}
             >
                 <div className="flex flex-col items-center gap-[clamp(8px,1vw,12px)]">

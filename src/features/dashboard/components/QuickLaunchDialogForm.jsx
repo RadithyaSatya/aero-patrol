@@ -99,9 +99,9 @@ const spiralCenterIcon = new L.DivIcon({
 
 const createSpiralWaypointIcon = (number) => new L.DivIcon({
     className: 'custom-spiral-wp-icon',
-    html: `<div style="width:22px; height:22px; border-radius:50%; background:#682F2F; border: 2px solid #682F2F; color:white; font-size:9px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow: 0 0 8px rgba(104,47,47,0.4);">${number}</div>`,
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
+    html: `<div style="width:20px; height:20px; border-radius:50%; background:#FD5050; border:1px solid #FD5050; color:white; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow: 0 0 8px rgba(253,80,80,0.35);">${number}</div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
 });
 
 const geofenceMaskData = buildGeofenceMaskGeoJson(geofenceData);
@@ -350,7 +350,7 @@ export default function QuickLaunchDialogForm({
         ? Number(telemetry.attitude.yaw_deg)
         : Number(telemetry?.location?.heading ?? 0);
     const center = dockPosition || defaultCenter;
-    const initialZoom = dockPosition ? 16 : 13;
+    const initialZoom = 18;
     const parsedFenceRadius = Number(selectedDrone?.max_range_meter);
     const fenceRadius = Number.isFinite(parsedFenceRadius) && parsedFenceRadius > 0 ? parsedFenceRadius : null;
     const launchWaypoint = dockPosition
@@ -617,7 +617,7 @@ export default function QuickLaunchDialogForm({
                                     <>
                                         <Polyline
                                             positions={spiralPathPositions}
-                                            pathOptions={{ color: '#682F2F', weight: 2, dashArray: '4, 6' }}
+                                            pathOptions={{ color: '#BCBCBC', weight: 2, dashArray: '4, 6' }}
                                         />
                                         {spiralWaypoints.map((waypoint, index) => (
                                             <Marker
@@ -699,13 +699,6 @@ export default function QuickLaunchDialogForm({
                                 </button>
                             </div>
                         ) : null}
-
-                        <div className="pointer-events-none absolute inset-4 z-[450]">
-                            <div className="absolute left-0 top-0 h-3 w-3 border-l-2 border-t-2 border-[#FF383C]" />
-                            <div className="absolute right-0 top-0 h-3 w-3 border-r-2 border-t-2 border-[#FF383C]" />
-                            <div className="absolute bottom-0 left-0 h-3 w-3 border-b-2 border-l-2 border-[#FF383C]" />
-                            <div className="absolute bottom-0 right-0 h-3 w-3 border-b-2 border-r-2 border-[#FF383C]" />
-                        </div>
 
                         <div className="pointer-events-auto absolute bottom-8 left-1/2 z-[400] -translate-x-1/2 transform">
                             <div className="flex items-end justify-center gap-4">

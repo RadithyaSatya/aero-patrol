@@ -1,5 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import disconnectIcon from '../../assets/images/icon_disconnect.svg';
+import {
+    STREAM_AUTH_PASS,
+    STREAM_AUTH_TOKEN,
+    STREAM_AUTH_USER,
+} from '../config/streamConfig';
 
 const STREAM_PROBE_TIMEOUT_MS = 4000;
 const STREAM_CONNECT_TIMEOUT_MS = 8000;
@@ -16,6 +21,32 @@ function buildStreamUrl(src, params = {}) {
         url.searchParams.set(key, String(value));
     });
 
+    return url.toString();
+}
+
+function buildWhepUrl(src, params = {}) {
+    const url = new URL(src);
+
+    if (!url.pathname.endsWith('/whep')) {
+        url.pathname = `${url.pathname.replace(/\/+$/, '')}/whep`;
+    }
+
+    Object.entries(params).forEach(([key, value]) => {
+        url.searchParams.set(key, String(value));
+    });
+
+    return url.toString();
+}
+
+function buildReaderScriptUrl(src) {
+    const url = new URL(src);
+
+    if (url.pathname.endsWith('/whep')) {
+        url.pathname = `${url.pathname.replace(/\/whep$/, '')}/reader.js`;
+        return url.toString();
+    }
+
+    url.pathname = `${url.pathname.replace(/\/+$/, '')}/reader.js`;
     return url.toString();
 }
 
@@ -55,7 +86,7 @@ async function probeStreamAvailability(src) {
 }
 
 function loadReaderScript(src) {
-    const scriptUrl = buildStreamUrl(new URL('./reader.js', src).toString());
+    const scriptUrl = buildReaderScriptUrl(src);
 
     if (!readerScriptPromises.has(scriptUrl)) {
         const promise = new Promise((resolve, reject) => {
@@ -213,12 +244,15 @@ async function connectSessionReader(session, lifecycleId) {
         }, STREAM_CONNECT_TIMEOUT_MS);
 
         session.readerInstance = new MediaMTXWebRTCReader({
-            url: buildStreamUrl(new URL('whep', src).toString(), {
+            url: buildWhepUrl(src, {
                 autoplay: connectionOptions.autoPlay,
                 muted: connectionOptions.muted,
                 playsinline: connectionOptions.playsInline,
                 controls: connectionOptions.controls,
             }),
+            user: connectionOptions.user,
+            pass: connectionOptions.pass,
+            token: connectionOptions.token,
             onError: (message) => {
                 if (!session.isStarted || lifecycleId !== session.lifecycleId) {
                     return;
@@ -329,6 +363,9 @@ export default function WebRtcStream({
     muted = true,
     playsInline = true,
     controls = false,
+    user = STREAM_AUTH_USER,
+    pass = STREAM_AUTH_PASS,
+    token = STREAM_AUTH_TOKEN,
     unavailableMessage = 'Stream not available',
     fallbackClassName = '',
     fallbackStyle = undefined,
@@ -369,13 +406,16 @@ export default function WebRtcStream({
             muted,
             playsInline,
             controls,
+            user,
+            pass,
+            token,
         });
 
         return () => {
             session.listeners.delete(handleSessionUpdate);
             releaseSession(session);
         };
-    }, [autoPlay, controls, muted, playsInline, src]);
+    }, [autoPlay, controls, muted, pass, playsInline, src, token, user]);
 
     useEffect(() => {
         onStatusChange?.(snapshot.status);

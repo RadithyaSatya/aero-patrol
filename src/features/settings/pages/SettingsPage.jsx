@@ -1,6 +1,32 @@
 import React from 'react';
 import pageBackground from '../../../assets/images/image_background_login_white.png';
+import connectedIcon from '../../../assets/images/icon_connected.svg';
+import disconnectedIcon from '../../../assets/images/icon_disconnected.svg';
 import { useI18n } from '../../../shared/i18n/I18nProvider';
+
+const connectionCards = [
+    {
+        title: 'Drone Features',
+        status: 'Connected',
+        description: 'Connection active. Real-time data and controls are now accessible',
+        icon: connectedIcon,
+        background: 'linear-gradient(180deg, #44A367 0%, #5C875A 100%)',
+    },
+    {
+        title: 'Language',
+        status: 'Disconnected',
+        description: 'Connection active. Real-time data and controls are now accessible',
+        icon: disconnectedIcon,
+        background: 'linear-gradient(180deg, #A35044 0%, #875F5A 100%)',
+    },
+    {
+        title: 'Language',
+        status: 'Disconnected',
+        description: 'Connection active. Real-time data and controls are now accessible',
+        icon: disconnectedIcon,
+        background: 'linear-gradient(180deg, #A35044 0%, #875F5A 100%)',
+    },
+];
 
 export default function SettingsPage() {
     const { language, setLanguage, t } = useI18n();
@@ -36,50 +62,88 @@ export default function SettingsPage() {
                         </div>
 
                         <div className="flex flex-1 items-center justify-center px-4">
-                            <div className="w-full max-w-[570px] rounded-[26px] border border-[#FF9F9F] bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(249,249,249,0.9)_100%)] p-[28px]">
-                                <div className="flex flex-col gap-5">
-                                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                        <div className="max-w-[320px]">
-                                            <h2 className="text-[20px] font-semibold leading-none text-[#222222]">{t('common.language')}</h2>
-                                            <p className="mt-4 text-[14px] leading-[1.6] text-[#5F5F5F]">
-                                                {t('settings.languageDescription')}
-                                            </p>
-                                        </div>
+                            <div className="flex w-full max-w-[1400px] flex-col gap-6">
+                                <div className="mx-auto w-full max-w-[570px] rounded-[26px] border border-[#FF9F9F] bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(249,249,249,0.9)_100%)] p-[28px]">
+                                    <div className="flex flex-col gap-5">
+                                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                            <div className="max-w-[320px]">
+                                                <h2 className="text-[20px] font-semibold leading-none text-[#222222]">{t('common.language')}</h2>
+                                                <p className="mt-4 text-[14px] leading-[1.6] text-[#5F5F5F]">
+                                                    {t('settings.languageDescription')}
+                                                </p>
+                                            </div>
 
-                                        <div className="flex shrink-0 items-center gap-5 pt-1">
-                                            {languageOptions.map((option) => {
-                                                const isSelected = language === option.value;
+                                            <div className="flex shrink-0 items-center gap-5 pt-1">
+                                                {languageOptions.map((option) => {
+                                                    const isSelected = language === option.value;
 
-                                                return (
-                                                    <label
-                                                        key={option.value}
-                                                        className="flex cursor-pointer items-center gap-2 text-[16px] font-semibold text-[#333333]"
-                                                    >
-                                                        <span
-                                                            className={`flex h-[18px] w-[18px] items-center justify-center rounded-full border transition-colors ${
-                                                                isSelected ? 'border-[#FF6262]' : 'border-[#D0D0D0]'
-                                                            }`}
+                                                    return (
+                                                        <label
+                                                            key={option.value}
+                                                            className="flex cursor-pointer items-center gap-2 text-[16px] font-semibold text-[#333333]"
                                                         >
-                                                            <input
-                                                                type="radio"
-                                                                name="language"
-                                                                value={option.value}
-                                                                checked={isSelected}
-                                                                onChange={() => handleLanguageChange(option.value)}
-                                                                className="sr-only"
-                                                            />
                                                             <span
-                                                                className={`h-[8px] w-[8px] rounded-full ${
-                                                                    isSelected ? 'bg-[#FF6262]' : 'bg-transparent'
+                                                                className={`flex h-[18px] w-[18px] items-center justify-center rounded-full border transition-colors ${
+                                                                    isSelected ? 'border-[#FF6262]' : 'border-[#D0D0D0]'
                                                                 }`}
-                                                            />
-                                                        </span>
-                                                        <span>{option.label}</span>
-                                                    </label>
-                                                );
-                                            })}
+                                                            >
+                                                                <input
+                                                                    type="radio"
+                                                                    name="language"
+                                                                    value={option.value}
+                                                                    checked={isSelected}
+                                                                    onChange={() => handleLanguageChange(option.value)}
+                                                                    className="sr-only"
+                                                                />
+                                                                <span
+                                                                    className={`h-[8px] w-[8px] rounded-full ${
+                                                                        isSelected ? 'bg-[#FF6262]' : 'bg-transparent'
+                                                                    }`}
+                                                                />
+                                                            </span>
+                                                            <span>{option.label}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     </div>
+                                </div>
+
+                                <div className="mx-auto grid w-full max-w-[1320px] gap-5 xl:grid-cols-3">
+                                    {connectionCards.map((card, index) => (
+                                        <article
+                                            key={`${card.title}-${index}`}
+                                            className="rounded-[21px] p-[0.68px]"
+                                            style={{ background: 'linear-gradient(135deg, #FD5757 0%, #FC4747 100%)' }}
+                                            >
+                                                <div
+                                                className="flex min-h-[154px] flex-col rounded-[20.32px] px-6 py-5 text-white"
+                                                style={{ background: card.background }}
+                                            >
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <h3 className="flex-1 text-left text-[18px] font-semibold leading-tight tracking-[-0.01em]">
+                                                        {card.title}
+                                                    </h3>
+                                                    <div className="flex shrink-0 items-center gap-2">
+                                                        <span className="text-[18px] font-semibold leading-none">
+                                                            {card.status}
+                                                        </span>
+                                                        <img
+                                                            src={card.icon}
+                                                            alt=""
+                                                            aria-hidden="true"
+                                                            className="h-[17px] w-[17px] shrink-0 object-contain"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <p className="mt-5 max-w-[360px] text-[15px] leading-[1.55] text-white/95">
+                                                    {card.description}
+                                                </p>
+                                            </div>
+                                        </article>
+                                    ))}
                                 </div>
                             </div>
                         </div>

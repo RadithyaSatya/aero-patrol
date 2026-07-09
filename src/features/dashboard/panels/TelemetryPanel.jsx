@@ -5,6 +5,33 @@ import { resolveTelemetryBattery } from '../../../shared/utils/telemetryBattery'
 const STREAM_PANEL_FILL = 'linear-gradient(180deg, #F5F5F5 0%, #EDEDED 100%)';
 const STREAM_PANEL_BORDER = 'linear-gradient(135deg, #FB5555 0%, #ED0000 18%, rgba(251, 85, 85, 0.42) 40%, rgba(251, 85, 85, 0.12) 56%, rgba(251, 85, 85, 0) 66%)';
 
+const formatGpsFixLabel = (value) => {
+    const normalizedValue = String(value || '').trim().toUpperCase();
+
+    switch (normalizedValue) {
+    case 'NO_GPS':
+        return 'No GPS';
+    case 'NO_FIX':
+        return 'No Fix';
+    case 'GPS_2D':
+        return '2D GPS';
+    case 'GPS_3D':
+        return '3D GPS';
+    case 'DGPS':
+        return 'DGPS';
+    case 'RTK_FLOAT':
+        return 'RTK Float';
+    case 'RTK_FIX':
+        return 'RTK Fixed';
+    case 'STATIC':
+        return 'Static';
+    case 'PPP':
+        return 'PPP';
+    default:
+        return normalizedValue ? normalizedValue.replace(/_/g, ' ') : '--';
+    }
+};
+
 const TelemetryRow = ({ label, value }) => (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 py-1.5">
         <span className="font-inter text-[15px] font-medium tracking-[0.01em] text-[#111111]">{label}</span>
@@ -22,27 +49,49 @@ export default function TelemetryPanel({
     const gps = telemetry?.gps || {};
     const gps2 = telemetry?.gps2 || {};
     const vehicleState = telemetry?.vehicle_state || {};
+    const dockingStatus = telemetry?.docking_status || {};
+    const uavStatus = telemetry?.uav_status || {};
     const link = telemetry?.link || {};
     const isLocationFresh = Boolean(telemetryStatus?.metrics?.location?.isFresh);
     const batteryState = resolveTelemetryBattery(telemetry, telemetryStatus);
     const isGpsFresh = Boolean(telemetryStatus?.metrics?.gps?.isFresh);
     const isGps2Fresh = Boolean(telemetryStatus?.metrics?.gps2?.isFresh);
     const isVehicleStateFresh = Boolean(telemetryStatus?.metrics?.vehicle_state?.isFresh);
+    const isDockingStatusFresh = Boolean(telemetryStatus?.metrics?.docking_status?.isFresh);
+    const isUavStatusFresh = Boolean(telemetryStatus?.metrics?.uav_status?.isFresh);
     const isLinkFresh = Boolean(telemetryStatus?.metrics?.link?.isFresh);
-    const gps1On = isGpsFresh && ((Number(gps.fix_type) > 0) || Number(gps.satellites) > 0);
-    const gps2On = isGps2Fresh && ((Number(gps2.fix_type) > 0) || Number(gps2.satellites) > 0);
+    const gps1FixLabel = isGpsFresh ? formatGpsFixLabel(gps.fix_type_label) : '--';
+    const gps2FixLabel = isGps2Fresh ? formatGpsFixLabel(gps2.fix_type_label) : '--';
+    const hasDockingSnapshot = isDockingStatusFresh || isUavStatusFresh;
+    const isDockingOnline = isDockingStatusFresh && typeof dockingStatus.is_online === 'boolean'
+        ? dockingStatus.is_online
+        : null;
+    const isDocked = isDockingStatusFresh && typeof dockingStatus.drone_present === 'boolean'
+        ? dockingStatus.drone_present
+        : (isUavStatusFresh && typeof uavStatus.is_docked === 'boolean' ? uavStatus.is_docked : null);
+    const dockStatusLabel = !hasDockingSnapshot || isDockingOnline === false
+        ? t('dashboard.off', 'Off')
+        : isDocked === true
+            ? t('dashboard.docked')
+            : isDocked === false
+                ? t('dashboard.undocked', 'Undocked')
+                : t('dashboard.awaitingData');
     const telemetryRows = [
         {
             label: t('dashboard.flightMode'),
             value: isVehicleStateFresh ? (vehicleState.mode || t('dashboard.awaitingData')) : t('dashboard.disconnected'),
         },
         {
+            label: t('dashboard.dockStatus', 'Dock Status'),
+            value: dockStatusLabel,
+        },
+        {
             label: t('dashboard.gps1'),
-            value: isGpsFresh ? (gps1On ? t('dashboard.online') : 'Off') : '--',
+            value: gps1FixLabel,
         },
         {
             label: t('dashboard.gps2'),
-            value: isGps2Fresh ? (gps2On ? t('dashboard.online') : 'Off') : '--',
+            value: gps2FixLabel,
         },
         {
             label: t('dashboard.satellite1'),

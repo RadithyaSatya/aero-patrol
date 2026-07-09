@@ -125,9 +125,21 @@ function MissionMapControlButton({ children, className = '', ...props }) {
     );
 }
 
-function MissionOverlayPanel({ children, className = '', contentClassName = '', pointerEvents = 'none' }) {
+function MissionOverlayPanel({
+    children,
+    className = '',
+    contentClassName = '',
+    pointerEvents = 'none',
+    onWheelCapture,
+    onTouchMoveCapture,
+}) {
     return (
-        <div className={`font-inter absolute rounded-[30px] p-px shadow-lg ${className} ${pointerEvents === 'auto' ? 'pointer-events-auto' : 'pointer-events-none'}`} style={{ backgroundImage: panelBorderImage }}>
+        <div
+            className={`font-inter absolute rounded-[30px] p-px shadow-lg ${className} ${pointerEvents === 'auto' ? 'pointer-events-auto' : 'pointer-events-none'}`}
+            style={{ backgroundImage: panelBorderImage }}
+            onWheelCapture={onWheelCapture}
+            onTouchMoveCapture={onTouchMoveCapture}
+        >
             <div className="relative h-full w-full overflow-hidden rounded-[29px]" style={{ background: panelBackground }}>
                 <div className={`relative z-10 ${contentClassName}`}>
                     {children}
@@ -293,6 +305,10 @@ export default function MissionMapPanel({
         mapRef.current?.zoomOut();
     };
 
+    const stopOverlayScrollPropagation = (event) => {
+        event.stopPropagation();
+    };
+
     useEffect(() => {
         if (!mapRef.current) {
             return;
@@ -390,10 +406,13 @@ export default function MissionMapPanel({
                 <>
                     {/* View Mode: Detail Overlay */}
                     <MissionOverlayPanel
-                        className="top-4 right-4 z-[450] w-[280px]"
-                        contentClassName="p-5"
+                        className="top-4 right-4 z-[450] max-h-[min(320px,calc(100%-2rem))] w-[280px]"
+                        contentClassName="flex max-h-full flex-col p-5"
+                        pointerEvents="auto"
+                        onWheelCapture={stopOverlayScrollPropagation}
+                        onTouchMoveCapture={stopOverlayScrollPropagation}
                     >
-                        <div className="flex items-center space-x-2 mb-4">
+                        <div className="mb-4 flex shrink-0 items-center space-x-2">
                             <img
                                 src={detailInformationIcon}
                                 alt=""
@@ -404,7 +423,7 @@ export default function MissionMapPanel({
                         </div>
 
                         <div
-                            className="mb-4 h-px w-full"
+                            className="mb-4 h-px w-full shrink-0"
                             style={{ backgroundImage: overlayDividerStroke }}
                         />
 
@@ -415,24 +434,28 @@ export default function MissionMapPanel({
                         ) : !missionRun ? (
                             <div className="text-xs text-[#5F5F5F]">{t('missions.selectMissionHint')}</div>
                         ) : (
-                            <div className="grid grid-cols-2 gap-x-2 gap-y-5">
+                            <div className="custom-scrollbar min-h-0 overflow-y-auto pr-1" onWheelCapture={stopOverlayScrollPropagation} onTouchMoveCapture={stopOverlayScrollPropagation}>
+                                <div className="grid grid-cols-2 gap-x-2 gap-y-5">
                                 {topDetailItems.map((item) => (
                                     <div key={item.label} className="flex flex-col">
                                         <span className="mb-1 text-[10px] text-[#454545]">{item.label}</span>
                                         <span className="text-xs text-[#1F1F1F]">{item.value || '-'}</span>
                                     </div>
                                 ))}
+                                </div>
                             </div>
                         )}
                     </MissionOverlayPanel>
 
                     {/* View Mode: Mission Waypoints List */}
                     <MissionOverlayPanel
-                        className="bottom-4 right-4 z-[450] w-[400px]"
-                        contentClassName="p-4"
+                        className="bottom-4 right-4 z-[450] max-h-[min(420px,calc(100%-2rem))] w-[400px]"
+                        contentClassName="flex max-h-full flex-col p-4"
                         pointerEvents="auto"
+                        onWheelCapture={stopOverlayScrollPropagation}
+                        onTouchMoveCapture={stopOverlayScrollPropagation}
                     >
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="mb-4 flex shrink-0 items-center justify-between">
                             <div className="flex items-center space-x-2">
                                 <img
                                     src={detailInformationIcon}
@@ -448,11 +471,11 @@ export default function MissionMapPanel({
                         </div>
 
                         <div
-                            className="mb-4 h-px w-full"
+                            className="mb-4 h-px w-full shrink-0"
                             style={{ backgroundImage: overlayDividerStroke }}
                         />
 
-                        <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto space-y-2 pr-1" onWheelCapture={stopOverlayScrollPropagation} onTouchMoveCapture={stopOverlayScrollPropagation}>
                             {isMissionDetailLoading ? (
                                 <div className="px-2 py-3 text-xs text-[#5F5F5F]">{t('missions.loadingWaypoints')}</div>
                             ) : missionDetailError ? (
@@ -600,14 +623,14 @@ export default function MissionMapPanel({
 
                     {/* Add Mode: Bottom Controls Overlay */}
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[400] flex flex-col items-center">
-                        <div className="flex space-x-4 mt-2">
+                        <div className="mt-2 flex items-center space-x-5">
                             <button
                                 type="button"
                                 onClick={onCancelMission}
                                 disabled={isLaunchingMission}
                                 className="bg-transparent hover:brightness-110 transition flex items-center space-x-2"
                             >
-                                <img src={cancelMissionButtonAsset} alt={t('common.cancel')} />
+                                <img src={cancelMissionButtonAsset} alt={t('common.cancel')} className="h-[54px] w-auto max-w-none" />
                             </button>
                             <button
                                 type="button"
@@ -615,7 +638,7 @@ export default function MissionMapPanel({
                                 disabled={isLaunchingMission}
                                 className={`bg-transparent transition ${isLaunchingMission ? 'cursor-not-allowed opacity-60' : 'hover:brightness-110'}`}
                             >
-                                <img src={launchMissionButtonAsset} alt={t('dashboard.launch')} />
+                                <img src={launchMissionButtonAsset} alt={t('dashboard.launch')} className="h-[54px] w-auto max-w-none" />
                             </button>
                         </div>
                     </div>

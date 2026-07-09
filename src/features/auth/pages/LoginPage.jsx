@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { authService, clearAuthStorage, persistAuthProfile, persistAuthSession } from '../../../services/api';
 import loginBackground from '../../../assets/images/image_background_login_white.png';
@@ -14,7 +14,6 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
-    const handledSsoCodeRef = useRef(null);
     const { t } = useI18n();
 
     const finalizeLogin = async (authPayload) => {
@@ -46,34 +45,10 @@ export default function LoginPage() {
     };
 
     useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        const ssoCode = params.get('code');
-
-        if (!ssoCode || handledSsoCodeRef.current === ssoCode) {
-            return;
+        if (location.state?.authError) {
+            setErrorMsg(location.state.authError);
         }
-
-        handledSsoCodeRef.current = ssoCode;
-
-        const handleSsoLogin = async () => {
-            setErrorMsg('');
-            setIsLoading(true);
-
-            try {
-                const data = await authService.ssoLogin(ssoCode);
-                await finalizeLogin(data);
-                navigate('/dashboard', { replace: true });
-            } catch (error) {
-                clearAuthStorage();
-                setErrorMsg(error.message);
-                navigate('/login', { replace: true });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        handleSsoLogin();
-    }, [location.search, navigate]);
+    }, [location.state]);
 
     return (
         <div
@@ -108,7 +83,7 @@ export default function LoginPage() {
                     <div className="relative z-10 flex h-full flex-col justify-center px-10 py-12">
                         <h2 className="text-xl font-medium text-black mb-1 tracking-wide">{t('auth.loginTitle')}</h2>
                         <p className="text-[#222222] text-xs mb-8">
-                            {new URLSearchParams(location.search).get('code') ? t('auth.ssoSigningIn') : t('auth.loginSubtitle')}
+                            {t('auth.loginSubtitle')}
                         </p>
 
                         <form onSubmit={handleLogin} className="font-inter space-y-5 text-left">

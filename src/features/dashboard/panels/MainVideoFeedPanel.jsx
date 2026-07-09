@@ -1,7 +1,18 @@
 import React from 'react';
-import { DRONE_STREAM_URL } from '../../../shared/config/streamConfig';
+import { DOCK_CCTV_STREAM_URL, DRONE_STREAM_URL } from '../../../shared/config/streamConfig';
 import WebRtcStream from '../../../shared/components/WebRtcStream';
 import navUpIcon from '../../../assets/images/icon_nav_up.svg';
+
+const STREAM_SOURCE_CONFIG = {
+    drone: {
+        src: DRONE_STREAM_URL,
+        title: 'Drone Cam Stream',
+    },
+    cctv: {
+        src: DOCK_CCTV_STREAM_URL,
+        title: 'Dock Cam Stream',
+    },
+};
 
 function CompassOverlay({ heading = 0 }) {
     const normalizedHeading = Number.isFinite(Number(heading)) ? Number(heading) : 0;
@@ -48,7 +59,11 @@ export default function MainVideoFeedPanel({
     lightShell = false,
     heading = 0,
     radiusClassName = 'rounded-[24px]',
+    streamSource = 'drone',
+    onStreamStatusChange,
 }) {
+    const selectedStream = STREAM_SOURCE_CONFIG[streamSource] || STREAM_SOURCE_CONFIG.drone;
+
     return (
         <div
             className={`font-inter relative h-full w-full overflow-hidden ${radiusClassName} select-none`}
@@ -57,8 +72,8 @@ export default function MainVideoFeedPanel({
                 : { backgroundColor: '#1c222c' }}
         >
             <WebRtcStream
-                src={DRONE_STREAM_URL}
-                title="Drone Cam Stream"
+                src={selectedStream.src}
+                title={selectedStream.title}
                 autoPlay
                 muted
                 playsInline
@@ -66,6 +81,7 @@ export default function MainVideoFeedPanel({
                 className="absolute inset-0 h-full w-full object-cover"
                 fallbackClassName="bg-[#D0D0D0]"
                 fallbackTextClassName="text-[#5F5F5F]"
+                onStatusChange={onStreamStatusChange}
             />
 
             {showCompass ? <CompassOverlay heading={heading} /> : null}

@@ -50,11 +50,15 @@ export function resolveTelemetryBattery(telemetry = null, telemetryStatus = null
                         : null
                 )
         );
+    const isCharging = isDockingStatusFresh && typeof dockingStatusTelemetry?.charging === 'boolean'
+        ? dockingStatusTelemetry.charging
+        : null;
 
     return {
         percent,
         voltage,
         temperature,
+        isCharging,
         source: shouldUseDockingBatteryFallback ? 'uav_status' : 'battery',
         isBatteryFresh,
         isVehicleStateFresh,

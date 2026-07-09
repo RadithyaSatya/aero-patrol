@@ -11,6 +11,7 @@ import AboutPage from '../features/settings/pages/AboutPage'
 import SettingsPage from '../features/settings/pages/SettingsPage'
 import UserManagementPage from '../features/settings/pages/UserManagementPage'
 import LoginPage from '../features/auth/pages/LoginPage'
+import SsoCallbackPage from '../features/auth/pages/SsoCallbackPage'
 import useTelemetry from '../shared/hooks/useTelemetry'
 import useNotifications from '../shared/hooks/useNotifications'
 import { authService, clearAuthStorage, persistAuthProfile, uavService } from '../services/api'
@@ -44,10 +45,16 @@ function ProtectedRoute({ children, hasAuthToken, requireAdmin = false }) {
 
 function App() {
   const location = useLocation();
-  const isLoginPage = location.pathname === '/' || location.pathname === '/login';
+  const searchParams = new URLSearchParams(location.search);
+  const hasSsoCode = Boolean(searchParams.get('code'));
+  const isAuthCallbackPage = location.pathname === '/auth/callback' || ((location.pathname === '/' || location.pathname === '/login') && hasSsoCode);
+  const isLoginPage = location.pathname === '/' || location.pathname === '/login' || isAuthCallbackPage;
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('authToken')));
   const [, setIsCheckingAuth] = useState(() => Boolean(localStorage.getItem('authToken')));
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const savedSidebarState = localStorage.getItem('sidebarCollapsed');
+    return savedSidebarState == null ? true : savedSidebarState === 'true';
+  });
   const [headerUavId, setHeaderUavId] = useState(null);
   const isBackgroundImagePage = location.pathname === '/about' || location.pathname === '/settings';
   const useDefaultPageBackground = !isLoginPage && !isBackgroundImagePage;
@@ -150,8 +157,9 @@ function App() {
         style={shouldShowAppChrome ? { paddingLeft: `${sidebarPadding}px` } : undefined}
       >
         <Routes>
-          <Route path="/" element={<GuestRoute hasAuthToken={hasAuthToken}><LoginPage /></GuestRoute>} />
-          <Route path="/login" element={<GuestRoute hasAuthToken={hasAuthToken}><LoginPage /></GuestRoute>} />
+          <Route path="/" element={<GuestRoute hasAuthToken={hasAuthToken}>{hasSsoCode ? <SsoCallbackPage /> : <LoginPage />}</GuestRoute>} />
+          <Route path="/login" element={<GuestRoute hasAuthToken={hasAuthToken}>{hasSsoCode ? <SsoCallbackPage /> : <LoginPage />}</GuestRoute>} />
+          <Route path="/auth/callback" element={<GuestRoute hasAuthToken={hasAuthToken}><SsoCallbackPage /></GuestRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute hasAuthToken={hasAuthToken}><DashboardPage /></ProtectedRoute>} />
           <Route path="/missions" element={<ProtectedRoute hasAuthToken={hasAuthToken}><MissionPage /></ProtectedRoute>} />
           <Route path="/missions/active" element={<ProtectedRoute hasAuthToken={hasAuthToken}><ActiveMissionPage /></ProtectedRoute>} />

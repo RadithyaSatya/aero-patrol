@@ -30,15 +30,15 @@ const normalizePolygonCoordinates = (coordinates) => {
 
 export const geofenceAreaPathOptions = {
     color: '#E1BA95',
-    fillColor: '#9616161A',
-    fillOpacity: 1,
+    fillColor: 'transparent',
+    fillOpacity: 0,
     weight: 1.2,
 };
 
 export const geofenceRadiusPathOptions = {
     color: '#E1BA95',
-    fillColor: '#9616161A',
-    fillOpacity: 1,
+    fillColor: 'transparent',
+    fillOpacity: 0,
     weight: 0.3,
 };
 
