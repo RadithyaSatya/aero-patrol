@@ -147,7 +147,7 @@ export default function DroneInfoPanel({
                             <h2 className="text-red-500 text-[clamp(14px,1.3vw,18px)] font-bold tracking-wide text-sm">{errorMsg}</h2>
                         ) : (
                             <>
-                                <h2 className="truncate text-[#1F1F1F] text-[clamp(16px,1.45vw,18px)] font-bold tracking-wide">
+                                <h2 className="truncate text-[#1F1F1F] text-[clamp(16px,1.45vw,18px)] font-semibold tracking-wide">
                                     {droneLabel}
                                 </h2>
                                 <span className={`mt-[2px] text-[10px] tracking-wider ${connectionColorClass}`}>
@@ -162,7 +162,7 @@ export default function DroneInfoPanel({
                 {/* Battery Section */}
                 <div className="relative z-10 flex flex-col gap-1.5 pt-0.5 text-left min-[1680px]:gap-2 min-[1920px]:gap-2.5 min-[1920px]:pt-1">
                     <div className="h-px w-full bg-gradient-to-r from-transparent via-[#FF383C] to-transparent" />
-                    <h3 className="text-[#000000] text-xs font-semibold tracking-wide">{t('dashboard.battery')}</h3>
+                    <h3 className="text-[#000000] text-xs font-medium tracking-wide">{t('dashboard.battery')}</h3>
                     <div className="relative flex min-h-[64px] items-center justify-between px-[clamp(9px,0.85vw,14px)] py-[clamp(8px,0.7vw,10px)] min-[1680px]:py-[11px] min-[1920px]:py-[12px]">
                         <div
                             aria-hidden="true"
@@ -191,7 +191,7 @@ export default function DroneInfoPanel({
 
                 {/* Weather Section */}
                 <div className="relative z-10 flex min-h-0 flex-col gap-1.5 overflow-hidden text-left min-[1680px]:gap-2 min-[1920px]:gap-2.5">
-                    <h3 className="text-[#2A2A2A] text-xs font-semibold tracking-wide">{t('common.weather')}</h3>
+                    <h3 className="text-[#2A2A2A] text-xs font-medium tracking-wide">{t('common.weather')}</h3>
                     <div className="flex min-h-0 flex-1 flex-col gap-[clamp(6px,0.65vw,10px)] rounded-[24px] border border-[#A8A8A8] bg-[rgba(197,197,197,0.5)] p-[clamp(8px,0.8vw,12px)] min-[1680px]:gap-[11px] min-[1680px]:p-[13px] min-[1920px]:gap-[12px] min-[1920px]:p-[14px]">
                         <div className="flex justify-between items-start gap-[clamp(6px,0.7vw,10px)]">
                             <div className="flex min-w-0 items-center gap-[clamp(6px,0.7vw,10px)]">
@@ -200,12 +200,12 @@ export default function DroneInfoPanel({
                                     alt={currentWeatherLabel}
                                     className="h-[clamp(30px,2.3vw,42px)] w-[clamp(30px,2.3vw,42px)] shrink-0 object-contain"
                                 />
-                                <span className="font-inter text-[clamp(18px,1.5vw,22px)] font-bold tracking-wider text-[#1F1F1F]">
+                                <span className="font-inter text-[clamp(18px,1.5vw,22px)] font-medium tracking-wider text-[#1F1F1F]">
                                     {isWeatherLoading ? '--' : formatTemperature(currentWeather.temperature_2m)}
                                 </span>
                             </div>
                             <div className="flex min-w-0 flex-col items-end">
-                                <span className="truncate text-[#1F1F1F] text-[clamp(11px,0.95vw,13px)] font-bold tracking-wide leading-tight">
+                                <span className="truncate text-[#1F1F1F] text-[clamp(11px,0.95vw,13px)] font-medium tracking-wide leading-tight">
                                     {isWeatherLoading ? t('common.loading') : weatherError ? t('missions.weatherError') : currentWeatherLabel}
                                 </span>
                                 <span className="font-inter mt-[2px] text-[clamp(8px,0.7vw,10px)] tracking-wide text-[#555555]">
@@ -222,7 +222,7 @@ export default function DroneInfoPanel({
                         </div>
 
                         <div className="flex flex-1 items-center justify-center pt-0.5">
-                            <span className={`text-[10px] font-medium tracking-wide ${weatherError ? 'text-red-300' : 'text-[#1ab394]'}`}>
+                            <span className={`text-[10px] font-medium tracking-wide ${weatherError ? 'text-red-500' : 'text-[#1ab394]'}`}>
                                 {weatherError || (isWeatherLoading ? t('dashboard.loadingWeather') : t('dashboard.liveDroneWeather'))}
                             </span>
                         </div>

@@ -284,7 +284,7 @@ export default function MissionListPanel({
             >
                 <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                        <h2 className="text-[18px] tracking-wide font-medium text-[#1F1F1F]">{t('missions.missionList')}</h2>
+                        <h2 className="text-[18px] font-semibold text-[#1F1F1F]">{t('missions.missionList')}</h2>
                         <span className="mt-1 text-[11px] font-medium text-[#5F5F5F]">{listSubtitle}</span>
                     </div>
                     <button

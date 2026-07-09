@@ -49,13 +49,13 @@ export default function SettingsPage() {
                     <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.48)_0%,rgba(255,255,255,0.2)_46%,rgba(255,255,255,0.4)_100%)]" />
 
                     <div className="relative z-10 flex h-full w-full flex-col">
-                        <div className="flex items-start gap-4">
-                            <div className="mt-1 h-[48px] w-[6px] bg-[#FC4747]" />
+                        <div className="flex items-stretch gap-4">
+                            <div className="w-[6px] shrink-0 bg-[#FC4747]" />
                             <div className="min-w-0">
-                                <h1 className="text-[28px] font-semibold leading-none tracking-[-0.02em] text-[#151515]">
+                                <h1 className="text-[24px] font-bold leading-none tracking-[-0.02em] text-[#151515]">
                                     {t('settings.title')}
                                 </h1>
-                                <p className="mt-2 text-[15px] text-[#777777]">
+                                <p className="mt-1 text-[15px] text-[#777777]">
                                     {t('settings.subtitle')}
                                 </p>
                             </div>
@@ -65,47 +65,45 @@ export default function SettingsPage() {
                             <div className="flex w-full max-w-[1400px] flex-col gap-6">
                                 <div className="mx-auto w-full max-w-[570px] rounded-[26px] border border-[#FF9F9F] bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(249,249,249,0.9)_100%)] p-[28px]">
                                     <div className="flex flex-col gap-5">
-                                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                            <div className="max-w-[320px]">
-                                                <h2 className="text-[20px] font-semibold leading-none text-[#222222]">{t('common.language')}</h2>
-                                                <p className="mt-4 text-[14px] leading-[1.6] text-[#5F5F5F]">
-                                                    {t('settings.languageDescription')}
-                                                </p>
-                                            </div>
+                                        <div className="max-w-[500px]">
+                                            <h2 className="text-[20px] font-medium leading-none text-[#222222]">{t('common.language')}</h2>
+                                            <p className="mt-4 text-[14px] leading-[1.6] text-[#5F5F5F]">
+                                                {t('settings.languageDescription')}
+                                            </p>
+                                        </div>
 
-                                            <div className="flex shrink-0 items-center gap-5 pt-1">
-                                                {languageOptions.map((option) => {
-                                                    const isSelected = language === option.value;
+                                        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+                                            {languageOptions.map((option) => {
+                                                const isSelected = language === option.value;
 
-                                                    return (
-                                                        <label
-                                                            key={option.value}
-                                                            className="flex cursor-pointer items-center gap-2 text-[16px] font-semibold text-[#333333]"
+                                                return (
+                                                    <label
+                                                        key={option.value}
+                                                        className="flex cursor-pointer items-center gap-2 text-[16px] font-medium text-[#333333]"
+                                                    >
+                                                        <span
+                                                            className={`flex h-[18px] w-[18px] items-center justify-center rounded-full border transition-colors ${
+                                                                isSelected ? 'border-[#FF6262]' : 'border-[#D0D0D0]'
+                                                            }`}
                                                         >
+                                                            <input
+                                                                type="radio"
+                                                                name="language"
+                                                                value={option.value}
+                                                                checked={isSelected}
+                                                                onChange={() => handleLanguageChange(option.value)}
+                                                                className="sr-only"
+                                                            />
                                                             <span
-                                                                className={`flex h-[18px] w-[18px] items-center justify-center rounded-full border transition-colors ${
-                                                                    isSelected ? 'border-[#FF6262]' : 'border-[#D0D0D0]'
+                                                                className={`h-[8px] w-[8px] rounded-full ${
+                                                                    isSelected ? 'bg-[#FF6262]' : 'bg-transparent'
                                                                 }`}
-                                                            >
-                                                                <input
-                                                                    type="radio"
-                                                                    name="language"
-                                                                    value={option.value}
-                                                                    checked={isSelected}
-                                                                    onChange={() => handleLanguageChange(option.value)}
-                                                                    className="sr-only"
-                                                                />
-                                                                <span
-                                                                    className={`h-[8px] w-[8px] rounded-full ${
-                                                                        isSelected ? 'bg-[#FF6262]' : 'bg-transparent'
-                                                                    }`}
-                                                                />
-                                                            </span>
-                                                            <span>{option.label}</span>
-                                                        </label>
-                                                    );
-                                                })}
-                                            </div>
+                                                            />
+                                                        </span>
+                                                        <span>{option.label}</span>
+                                                    </label>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>
@@ -122,11 +120,11 @@ export default function SettingsPage() {
                                                 style={{ background: card.background }}
                                             >
                                                 <div className="flex items-start justify-between gap-4">
-                                                    <h3 className="flex-1 text-left text-[18px] font-semibold leading-tight tracking-[-0.01em]">
+                                                    <h3 className="flex-1 text-left text-[18px] font-medium leading-tight tracking-[-0.01em]">
                                                         {card.title}
                                                     </h3>
                                                     <div className="flex shrink-0 items-center gap-2">
-                                                        <span className="text-[18px] font-semibold leading-none">
+                                                        <span className="text-[18px] font-medium leading-none">
                                                             {card.status}
                                                         </span>
                                                         <img

@@ -79,11 +79,8 @@ export default function WeatherPanel({ className = '', variant = 'default', sele
                             className="h-[clamp(28px,2.1vw,34px)] w-[clamp(28px,2.1vw,34px)] shrink-0 object-contain"
                         />
                         <div className="min-w-0">
-                            <div className={`truncate font-inter text-[clamp(16px,1.45vw,20px)] font-bold tracking-wide ${isStream ? 'text-[#1F1F1F]' : 'text-white'}`}>
+                            <div className={`truncate font-inter text-[clamp(16px,1.45vw,20px)] font-medium tracking-wide ${isStream ? 'text-[#1F1F1F]' : 'text-white'}`}>
                                 {isLoading ? t('common.loading') : weatherError ? t('missions.weatherError') : currentWeatherLabel}
-                            </div>
-                            <div className={`mt-1 text-[clamp(8px,0.65vw,10px)] uppercase tracking-[0.16em] ${isStream ? 'text-[#5F5F5F]' : 'text-gray-400'}`}>
-                                {headerLabel}
                             </div>
                         </div>
                     </div>

@@ -47,7 +47,7 @@ function ZoomButton({ children, label, active = false, disabled = false, onClick
             aria-label={label}
             disabled={disabled}
             onClick={onClick}
-            className={`relative flex h-full w-[clamp(60px,22%,82px)] flex-1 items-center justify-center overflow-hidden text-[clamp(22px,2vw,30px)] font-medium text-black transition-all ${
+            className={`relative flex h-full w-[clamp(60px,22%,82px)] flex-1 items-center justify-center overflow-hidden rounded-[10px] text-[clamp(22px,2vw,30px)] font-medium text-black transition-all ${
                 disabled
                     ? 'cursor-not-allowed opacity-60'
                     : active

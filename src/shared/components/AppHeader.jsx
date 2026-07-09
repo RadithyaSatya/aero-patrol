@@ -354,13 +354,13 @@ function NotificationPanel({
         <div className="absolute right-0 top-[calc(100%+12px)] z-[1200] w-[380px] max-w-[calc(100vw-32px)] overflow-hidden rounded-[24px] border border-[#D5D5D5] bg-white shadow-[0_24px_60px_rgba(0,0,0,0.16)]">
             <div ref={scrollRef} className="max-h-[480px] overflow-y-auto">
                 {isInitialLoading && !isReady ? (
-                    <div className="px-5 py-10 text-center text-[13px] text-[#8A94A6]">
+                    <div className="px-4 py-6 text-center text-[13px] text-[#8A94A6]">
                         {t('header.loadingNotifications')}
                     </div>
                 ) : null}
 
                 {!isInitialLoading && filteredNotifications.length === 0 ? (
-                    <div className="px-5 py-10 text-center text-[13px] text-[#8A94A6]">
+                    <div className="px-4 py-6 text-center text-[13px] text-[#8A94A6]">
                         {emptyLabel}
                     </div>
                 ) : null}

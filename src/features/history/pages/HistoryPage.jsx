@@ -111,8 +111,8 @@ const HistoryTableState = ({ children, tone = 'default' }) => {
 
 const SummaryCard = ({ value, label }) => (
     <div className="flex h-[96px] min-w-[142px] flex-col items-center justify-center rounded-[16px] border border-[#D2D2D2] bg-[rgba(255,255,255,0.36)] px-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
-        <div className="text-[26px] font-normal leading-none text-[#101010]">{value}</div>
-        <div className="mt-3 text-center text-[13px] font-medium text-[#3F3F3F]">{label}</div>
+        <div className="text-[26px] font-medium leading-none text-[#101010]">{value}</div>
+        <div className="mt-3 text-center text-[13px] font-regular text-[#3F3F3F]">{label}</div>
     </div>
 );
 
@@ -160,6 +160,7 @@ export default function HistoryPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState('');
     const requestVersionRef = useRef(0);
+    const scheduleDateInputRef = useRef(null);
 
     useEffect(() => {
         let isCancelled = false;
@@ -287,6 +288,22 @@ export default function HistoryPage() {
         });
     };
 
+    const handleOpenScheduleDatePicker = () => {
+        const inputElement = scheduleDateInputRef.current;
+
+        if (!inputElement) {
+            return;
+        }
+
+        if (typeof inputElement.showPicker === 'function') {
+            inputElement.showPicker();
+            return;
+        }
+
+        inputElement.focus();
+        inputElement.click();
+    };
+
     return (
         <div className="app-page">
             <div className="app-page__inner h-full overflow-hidden">
@@ -296,13 +313,13 @@ export default function HistoryPage() {
             >
                 <div className="flex items-start justify-between gap-8">
                     <div className="min-w-0 flex-1">
-                        <div className="flex items-start gap-4">
-                            <span className="mt-1 h-[48px] w-[6px] shrink-0 bg-[#FC4747]" />
+                        <div className="flex items-stretch gap-4">
+                            <span className="w-[6px] shrink-0 bg-[#FC4747]" />
                             <div className="min-w-0">
-                                <h1 className="text-[28px] font-semibold leading-none tracking-[-0.02em] text-[#151515]">
+                                <h1 className="text-[24px] font-semibold leading-none tracking-[-0.02em] text-[#151515]">
                                     {t('historyPage.recordedFootage')}
                                 </h1>
-                                <p className="mt-2 text-[15px] text-[#777777]">
+                                <p className="mt-1 text-[15px] text-[#777777]">
                                     {t('historyPage.recordedFootageSubtitle')}
                                 </p>
                             </div>
@@ -332,24 +349,34 @@ export default function HistoryPage() {
                             </div>
 
                             <div className="relative">
-                                <svg
-                                    className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#B0B0B0]"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
+                                <button
+                                    type="button"
+                                    onClick={handleOpenScheduleDatePicker}
+                                    className="absolute left-3 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-[#B0B0B0] transition-colors hover:bg-[#F5F5F5] hover:text-[#7A7A7A]"
+                                    aria-label={t('historyPage.schedule')}
                                 >
-                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                                    <line x1="16" y1="2" x2="16" y2="6" />
-                                    <line x1="8" y1="2" x2="8" y2="6" />
-                                    <line x1="3" y1="10" x2="21" y2="10" />
-                                </svg>
+                                    <svg
+                                        className="h-4 w-4"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    >
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                        <line x1="16" y1="2" x2="16" y2="6" />
+                                        <line x1="8" y1="2" x2="8" y2="6" />
+                                        <line x1="3" y1="10" x2="21" y2="10" />
+                                    </svg>
+                                </button>
                                 <input
+                                    ref={scheduleDateInputRef}
                                     type="date"
                                     value={scheduleDate}
                                     onChange={(event) => setScheduleDate(event.target.value)}
+                                    onClick={handleOpenScheduleDatePicker}
+                                    onFocus={handleOpenScheduleDatePicker}
                                     className={`mission-picker-input h-[48px] w-[clamp(168px,14vw,184px)] rounded-[8px] border border-[#E2E2E2] bg-[#FFFFFF] pl-12 pr-4 text-[14px] outline-none transition-colors focus:border-[#D6D6D6] ${scheduleDate ? 'text-[#000000]' : 'text-[#A0A7B4]'}`}
                                     style={{ colorScheme: 'light' }}
                                 />
@@ -375,7 +402,7 @@ export default function HistoryPage() {
                         <div>{t('historyPage.task')}</div>
                         <div>{t('historyPage.status')}</div>
                         <div>{t('historyPage.reason')}</div>
-                        <div className="pr-6 text-right">{t('historyPage.duration')}</div>
+                        <div className="text-center">{t('historyPage.duration')}</div>
                     </div>
 
                     <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto bg-transparent">
@@ -429,7 +456,7 @@ export default function HistoryPage() {
                                         >
                                             {getHistoryReason(row)}
                                         </div>
-                                        <div className="pr-4 text-right text-[15px] text-[#3A3A3A]">
+                                        <div className="pr-4 text-center text-[15px] text-[#3A3A3A]">
                                             {getHistoryDuration(row)}
                                         </div>
                                     </button>

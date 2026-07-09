@@ -19,13 +19,13 @@ export default function DockCamPanel() {
                 className="relative flex h-full w-full flex-col overflow-hidden rounded-[29px] px-5 py-4"
                 style={{ background: STREAM_PANEL_FILL }}
             >
-                <div className="flex shrink-0 items-center gap-3 pb-3">
+                <div className="flex shrink-0 items-center gap-3 pb-1.5">
                     <span className="h-[20px] w-[5px] bg-[#FF383C]" />
-                    <p className="text-left text-[18px] font-medium tracking-wide text-[#1F1F1F]">Dock Cam</p>
+                    <p className="text-left text-[18px] font-semibold text-[#1F1F1F]">Dock Cam</p>
                 </div>
 
-                <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-[22px] bg-black">
-                    <div className="relative h-full w-full overflow-hidden rounded-[22px]">
+                <div className="mt-1.5 min-h-0 flex-1 overflow-hidden bg-black">
+                    <div className="relative h-full w-full overflow-hidden">
                         <TopBottomFadeOverlay startColor="#ED0000" midColor="#5E0A0A" />
                         <WebRtcStream
                             src={DOCK_CCTV_STREAM_URL}

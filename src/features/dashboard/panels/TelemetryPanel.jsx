@@ -34,8 +34,8 @@ const formatGpsFixLabel = (value) => {
 
 const TelemetryRow = ({ label, value }) => (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 py-1.5">
-        <span className="font-inter text-[15px] font-medium tracking-[0.01em] text-[#111111]">{label}</span>
-        <span className="font-inter text-right text-[15px] font-medium tracking-[0.01em] text-[#111111]">{value}</span>
+        <span className="font-tomorrow text-[15px] font-medium tracking-[0.01em] text-[#111111]">{label}</span>
+        <span className="font-tomorrow text-right text-[15px] font-medium tracking-[0.01em] text-[#111111]">{value}</span>
     </div>
 );
 
@@ -153,12 +153,12 @@ export default function TelemetryPanel({
                 <div className="flex shrink-0 items-center justify-between gap-3 pb-5">
                     <div className="flex items-center gap-3">
                         <span className="h-[34px] w-[6px] bg-[#FF4A4A]" />
-                        <p className="font-inter text-left text-[22px] font-bold tracking-[-0.01em] text-[#111111]">{t('dashboard.droneStatus')}</p>
+                        <p className="font-inter text-left text-[24px] font-bold tracking-[-0.01em] text-[#111111]">{t('dashboard.droneStatus')}</p>
                     </div>
                     {headerAction}
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-auto pr-1">
+                <div className="font-tomorrow min-h-0 flex-1 overflow-auto pr-1">
                     {telemetryRows.map((item) => (
                         <TelemetryRow key={item.label} label={item.label} value={item.value} />
                     ))}

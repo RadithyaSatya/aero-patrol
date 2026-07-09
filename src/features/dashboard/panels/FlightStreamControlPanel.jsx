@@ -56,8 +56,8 @@ export default function FlightStreamControlPanel({
     const { t, language } = useI18n();
     const isIndonesian = language === 'id';
     const actionLabelClassName = isIndonesian
-        ? 'text-[13px] tracking-[0.08em]'
-        : 'text-[16px] tracking-[0.16em]';
+        ? 'text-[13px] tracking-normal'
+        : 'text-[16px] tracking-normal';
     const outerGapClassName = compact ? 'gap-4' : 'gap-5';
     const panelPaddingClassName = compact ? 'p-2.5' : 'p-3';
     const rightColumnClassName = 'grid-rows-[repeat(3,minmax(0,1fr))]';
