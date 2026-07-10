@@ -5,14 +5,13 @@ import 'leaflet/dist/leaflet.css';
 import navUpIcon from '../../../assets/images/icon_nav_up.svg';
 import droneIconImage from '../../../assets/images/icon_drone.svg';
 import droneCenterMissionIcon from '../../../assets/images/icon_drone_center_mission_white.svg';
-import geofenceData from '../../../services/geofence.json';
 import {
     buildGeofenceMaskGeoJson,
     geofenceAreaPathOptions,
     geofenceMaskPathOptions,
     geofenceRadiusPathOptions,
 } from '../../../shared/utils/geofence';
-import { IS_GEOFENCE_JSON_ENABLED } from '../../../shared/config/geofenceConfig';
+import { ACTIVE_GEOFENCE_DATA as geofenceData, IS_GEOFENCE_JSON_ENABLED } from '../../../shared/config/geofenceConfig';
 
 // Fix Leaflet's default icon path issues
 delete L.Icon.Default.prototype._getIconUrl;
@@ -131,9 +130,9 @@ function MapInteractionHandler({ shouldFollow, onUserMove }) {
 }
 
 const trailPathOptions = {
-    color: '#F54E4E',
+    color: '#BCBCBC',
     weight: 2,
-    dashArray: '6, 8',
+    dashArray: '4, 6',
     opacity: 0.9
 };
 
@@ -235,7 +234,8 @@ export default function MapViewPanel({
         : null;
 
     // Map center — use drone position, then home, then default
-    const center = dronePosition || homePosition || defaultCenter;
+    const displayDronePosition = dronePosition || homePosition || null;
+    const center = displayDronePosition || defaultCenter;
 
     const parsedMaxRange = Number(selectedDrone?.max_range_meter);
     const maxRange = Number.isFinite(parsedMaxRange) && parsedMaxRange > 0 ? parsedMaxRange : null;
@@ -247,7 +247,7 @@ export default function MapViewPanel({
     }, [selectedDrone?.id]);
 
     useEffect(() => {
-        if (!selectedDrone?.id || !dronePosition || !isFollowEnabled) {
+        if (!selectedDrone?.id || !displayDronePosition || !isFollowEnabled) {
             return;
         }
 
@@ -258,14 +258,14 @@ export default function MapViewPanel({
 
         autoCenterKeyRef.current = autoCenterKey;
         setRecenterRequest((current) => current + 1);
-    }, [selectedDrone?.id, dronePosition, isFollowEnabled]);
+    }, [selectedDrone?.id, displayDronePosition, isFollowEnabled]);
 
     const handleDisableFollow = () => {
         setIsFollowEnabled(false);
     };
 
     const handleRecenter = () => {
-        if (!dronePosition) {
+        if (!displayDronePosition) {
             return;
         }
 
@@ -329,8 +329,8 @@ export default function MapViewPanel({
 
                 {/* Follow drone position */}
                 <MapFollower
-                    position={dronePosition}
-                    shouldFollow={Boolean(dronePosition) && isFollowEnabled}
+                    position={displayDronePosition}
+                    shouldFollow={Boolean(displayDronePosition) && isFollowEnabled}
                     followZoom={INITIAL_MAP_ZOOM}
                     recenterRequest={recenterRequest}
                 />
@@ -358,9 +358,9 @@ export default function MapViewPanel({
                 )}
 
                 {/* Drone Marker — live from telemetry */}
-                {dronePosition && (
+                {displayDronePosition && (
                     <Marker
-                        position={dronePosition}
+                        position={displayDronePosition}
                         icon={createDroneIcon(heading)}
                         zIndexOffset={DRONE_MARKER_Z_INDEX}
                     />
@@ -378,7 +378,7 @@ export default function MapViewPanel({
             {showControls ? (
                 <div className="absolute top-[60vh] left-4 z-[450] flex flex-col">
                     <div className="flex flex-col gap-1">
-                        <MapControlButton onClick={handleRecenter} disabled={!dronePosition} aria-label="Center drone on map">
+                        <MapControlButton onClick={handleRecenter} disabled={!displayDronePosition} aria-label="Center drone on map">
                             <img
                                 src={droneCenterMissionIcon}
                                 alt=""

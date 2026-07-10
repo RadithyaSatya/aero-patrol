@@ -77,7 +77,7 @@ export default function MissionRecentHistoryGuardModal({
                 <div className="pointer-events-none absolute bottom-0 left-0 h-px w-full" style={{ backgroundImage: dividerGradient }} />
 
                 <div className="px-6 py-6 sm:px-7 sm:py-7">
-                    <h2 className="text-[20px] font-medium uppercase tracking-[0.18em] text-[#000000]">{t('conflict.continueMissionCreation')}</h2>
+                    <h2 className="text-[20px] font-medium text-[#000000]">{t('conflict.continueMissionCreation')}</h2>
 
                     <p className="mt-4 text-[13px] leading-6 text-[#454545]">
                         {t('conflict.minimumGapNotMet')}
@@ -92,7 +92,7 @@ export default function MissionRecentHistoryGuardModal({
                         >
                             {detailRows.map((item) => (
                                 <div key={item.label}>
-                                    <div className="text-[10px] uppercase tracking-[0.18em] text-[#B87917]">{item.label}</div>
+                                    <div className="text-[10px] uppercase text-[#B87917]">{item.label}</div>
                                     <div className="mt-1 text-[13px] text-[#1F1F1F]">{item.value}</div>
                                 </div>
                             ))}
@@ -110,7 +110,7 @@ export default function MissionRecentHistoryGuardModal({
                             type="button"
                             onClick={() => onClose?.()}
                             disabled={isSubmitting}
-                            className="h-[46px] min-w-[140px] rounded-[14px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-[#4A4A4A] shadow-[0_8px_18px_rgba(0,0,0,0.08)] transition duration-200 hover:-translate-y-[1px] hover:brightness-[0.99] hover:shadow-[0_12px_22px_rgba(0,0,0,0.14)] disabled:cursor-not-allowed disabled:opacity-60"
+                            className="h-[46px] min-w-[140px] rounded-[16px] border px-6 text-[11px] font-medium text-[#4A4A4A] shadow-[0_8px_18px_rgba(0,0,0,0.08)] transition duration-200 hover:-translate-y-[1px] hover:brightness-[0.99] hover:shadow-[0_12px_22px_rgba(0,0,0,0.14)] disabled:cursor-not-allowed disabled:opacity-60"
                             style={{ borderColor: '#D7D7D7', background: cancelBackground }}
                         >
                             {t('common.cancel')}
@@ -119,7 +119,7 @@ export default function MissionRecentHistoryGuardModal({
                             type="button"
                             onClick={() => onConfirm?.()}
                             disabled={isSubmitting}
-                            className="h-[46px] min-w-[160px] rounded-[14px] border px-6 text-[11px] font-medium uppercase tracking-[0.18em] text-[#B42323] shadow-[0_8px_18px_rgba(180,35,35,0.10)] transition duration-200 hover:-translate-y-[1px] hover:brightness-[0.98] hover:shadow-[0_12px_24px_rgba(180,35,35,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
+                            className="h-[46px] min-w-[160px] rounded-[16px] border px-6 text-[11px] font-medium text-[#B42323] shadow-[0_8px_18px_rgba(180,35,35,0.10)] transition duration-200 hover:-translate-y-[1px] hover:brightness-[0.98] hover:shadow-[0_12px_24px_rgba(180,35,35,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
                             style={{ borderColor: actionStroke, background: confirmBackground }}
                         >
                             {isSubmitting ? t('common.submit') : t('common.continue')}

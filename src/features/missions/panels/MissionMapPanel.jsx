@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Circle, GeoJSON, useMapEvents } from 'react-leaflet';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Polyline, Circle, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import droneIconImage from '../../../assets/images/icon_drone.svg';
@@ -25,14 +25,13 @@ import {
     getMissionProfileLengthMeters,
 } from '../utils/missionMetrics';
 import { useI18n } from '../../../shared/i18n/I18nProvider';
-import geofenceData from '../../../services/geofence.json';
 import {
     buildGeofenceMaskGeoJson,
     geofenceAreaPathOptions,
     geofenceMaskPathOptions,
     geofenceRadiusPathOptions,
 } from '../../../shared/utils/geofence';
-import { IS_GEOFENCE_JSON_ENABLED } from '../../../shared/config/geofenceConfig';
+import { ACTIVE_GEOFENCE_DATA as geofenceData, IS_GEOFENCE_JSON_ENABLED } from '../../../shared/config/geofenceConfig';
 
 // Fix Leaflet's default icon path issues
 delete L.Icon.Default.prototype._getIconUrl;
@@ -80,6 +79,7 @@ const overlayDividerStroke = 'linear-gradient(90deg, rgba(251,85,85,0.18) 0%, #E
 const panelBackground = 'linear-gradient(to bottom, #F5F5F5 0%, #EDEDED 100%)';
 const panelBorderImage = 'conic-gradient(from 0deg at 50% 50%, rgba(251,85,85,0) 0deg 22deg, #FB5555 72deg, #ED0000 142deg, #ED0000 196deg, rgba(251,85,85,0) 214deg 252deg, #FB5555 304deg, #ED0000 342deg, rgba(251,85,85,0) 360deg)';
 const INITIAL_MAP_ZOOM = 18;
+const FIT_BOUNDS_PADDING = [36, 36];
 
 const formatDurationMinutes = (durationSeconds, unitLabel = 'min') => {
     const normalizedDuration = Number(durationSeconds);
@@ -99,6 +99,30 @@ function MapClickHandler({ onAddWaypoint }) {
             onAddWaypoint(e.latlng);
         },
     });
+    return null;
+}
+
+function MapBoundsController({ bounds, boundsKey }) {
+    const map = useMap();
+    const lastBoundsKeyRef = useRef('');
+
+    useEffect(() => {
+        if (!bounds || !bounds.isValid()) {
+            return;
+        }
+
+        if (lastBoundsKeyRef.current === boundsKey) {
+            return;
+        }
+
+        lastBoundsKeyRef.current = boundsKey;
+        map.fitBounds(bounds, {
+            animate: false,
+            padding: FIT_BOUNDS_PADDING,
+            maxZoom: INITIAL_MAP_ZOOM,
+        });
+    }, [bounds, boundsKey, map]);
+
     return null;
 }
 
@@ -162,6 +186,58 @@ const toLatLng = (latitude, longitude) => {
     }
 
     return [parsedLatitude, parsedLongitude];
+};
+
+const extendBoundsWithCoordinates = (bounds, coordinates) => {
+    coordinates.forEach((coordinate) => {
+        const latLng = toLatLng(coordinate?.[1], coordinate?.[0]);
+        if (latLng) {
+            bounds.extend(latLng);
+        }
+    });
+};
+
+const extendBoundsWithGeometry = (bounds, geometry) => {
+    if (!geometry) {
+        return;
+    }
+
+    if (geometry.type === 'Polygon') {
+        (geometry.coordinates || []).forEach((ring) => {
+            extendBoundsWithCoordinates(bounds, Array.isArray(ring) ? ring : []);
+        });
+        return;
+    }
+
+    if (geometry.type === 'MultiPolygon') {
+        (geometry.coordinates || []).forEach((polygon) => {
+            (polygon || []).forEach((ring) => {
+                extendBoundsWithCoordinates(bounds, Array.isArray(ring) ? ring : []);
+            });
+        });
+    }
+};
+
+const buildMissionFocusBounds = ({ dockPosition, maxRange, isGeofenceEnabled, geofenceFeatures }) => {
+    const bounds = L.latLngBounds([]);
+
+    if (dockPosition && Number.isFinite(maxRange) && maxRange > 0) {
+        const latitude = Number(dockPosition[0]);
+        const longitude = Number(dockPosition[1]);
+        const latitudeDelta = maxRange / 111320;
+        const longitudeDelta = maxRange / (111320 * Math.max(Math.cos((latitude * Math.PI) / 180), 0.2));
+
+        bounds.extend([latitude - latitudeDelta, longitude - longitudeDelta]);
+        bounds.extend([latitude + latitudeDelta, longitude + longitudeDelta]);
+    }
+
+    if (isGeofenceEnabled) {
+        geofenceFeatures.forEach((feature) => {
+            extendBoundsWithGeometry(bounds, feature?.geometry);
+        });
+    }
+
+    return bounds.isValid() ? bounds : null;
 };
 
 const formatDateTime = (value, timeZone) => {
@@ -287,6 +363,17 @@ export default function MissionMapPanel({
     const allLines = rtlAnchorPosition && linePositions.length > 0
         ? [rtlAnchorPosition, ...linePositions, rtlAnchorPosition]
         : [];
+    const focusBounds = useMemo(() => buildMissionFocusBounds({
+        dockPosition,
+        maxRange,
+        isGeofenceEnabled: IS_GEOFENCE_JSON_ENABLED,
+        geofenceFeatures: Array.isArray(geofenceData?.features) ? geofenceData.features : [],
+    }), [dockPosition, maxRange]);
+    const focusBoundsKey = useMemo(() => JSON.stringify({
+        dockPosition,
+        maxRange,
+        geofenceEnabled: IS_GEOFENCE_JSON_ENABLED,
+    }), [dockPosition, maxRange]);
 
     const handleCenterDrone = () => {
         if (!mapRef.current) return;
@@ -337,7 +424,11 @@ export default function MissionMapPanel({
                 <TileLayer
                     url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                     attribution='Tiles &copy; Esri'
+                    keepBuffer={8}
+                    updateWhenIdle={false}
                 />
+
+                <MapBoundsController bounds={focusBounds} boundsKey={focusBoundsKey} />
 
                 <MapClickHandler onAddWaypoint={onAddWaypoint} />
 

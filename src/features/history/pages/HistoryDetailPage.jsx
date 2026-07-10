@@ -58,7 +58,7 @@ const droneIcon = new L.DivIcon({
 
 const createWaypointIcon = (number) => new L.DivIcon({
     className: 'custom-waypoint-icon',
-    html: `<div class="w-5 h-5 rounded-full bg-[#682F2F] border border-[#682F2F] text-white text-[10px] font-bold flex items-center justify-center shadow-lg">${number}</div>`,
+    html: `<div class="w-5 h-5 rounded-full bg-[#FD5050] border border-[#FD5050] text-white text-[10px] font-bold flex items-center justify-center shadow-lg">${number}</div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10],
 });

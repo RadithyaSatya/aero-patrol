@@ -284,6 +284,17 @@ export default function DashboardPage() {
         telemetryHistoryId != null ||
         telemetryRuntimeStatus
     );
+    const hasFreshRealtimeSignal = Boolean(
+        isLocationFresh ||
+        isBatteryFresh ||
+        isLinkFresh ||
+        isVehicleStateFresh ||
+        isCameraStateFresh
+    );
+    const isDroneOffline = !isDroneInMission && (
+        (isVehicleStateFresh && telemetryVehicleState.connected === false) ||
+        (!hasFreshRealtimeSignal && !hasMissionTelemetrySignal)
+    );
     const isStreamBlockedByRuntimeStatus = STREAM_BLOCKED_RUNTIME_STATUSES.has(normalizedRuntimeStatus);
     const isStreamAllowedByRuntimeStatus = STREAM_ELIGIBLE_RUNTIME_STATUSES.has(normalizedRuntimeStatus);
     const canOpenStreamMode = !isStreamBlockedByRuntimeStatus && (
@@ -296,9 +307,10 @@ export default function DashboardPage() {
     const selectedLocation = selectedTelemetry?.location || {};
     const selectedHeading = isLocationFresh && selectedLocation.heading != null ? Number(selectedLocation.heading) : 0;
     const selectedTrack = selectedDrone ? (droneTrailById[selectedDrone.id] || EMPTY_ACTIVE_TRACK) : EMPTY_ACTIVE_TRACK;
-    const activeMissionHistoryId = missionStatusHistoryId ?? telemetryHistoryId ?? selectedTrack.historyId ?? null;
-    const selectedTrail = selectedTrack.points.map((point) => [point.latitude, point.longitude]);
-    const lastTrackedPoint = selectedTrack.points[selectedTrack.points.length - 1] || null;
+    const effectiveTrack = isDroneOffline ? EMPTY_ACTIVE_TRACK : selectedTrack;
+    const activeMissionHistoryId = missionStatusHistoryId ?? telemetryHistoryId ?? effectiveTrack.historyId ?? null;
+    const selectedTrail = effectiveTrack.points.map((point) => [point.latitude, point.longitude]);
+    const lastTrackedPoint = effectiveTrack.points[effectiveTrack.points.length - 1] || null;
     const fallbackMapPosition = lastTrackedPoint
         ? [lastTrackedPoint.latitude, lastTrackedPoint.longitude]
         : null;

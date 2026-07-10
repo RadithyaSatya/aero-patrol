@@ -260,6 +260,23 @@ export default function LiveVideoPage() {
         droneStatus.is_in_flight ??
         (telemetryVehicleState.armed && telemetryVehicleState.landed_state !== 'LANDED')
     );
+    const hasFreshRealtimeSignal = Boolean(
+        isLocationFresh ||
+        isBatteryFresh ||
+        isLinkFresh ||
+        isVehicleStateFresh ||
+        isCameraStateFresh
+    );
+    const hasMissionTelemetrySignal = Boolean(
+        missionStatusHistoryId != null ||
+        missionStatusMissionId != null ||
+        telemetryHistoryId != null ||
+        telemetryRuntimeStatus
+    );
+    const isDroneOffline = !isDroneInMission && (
+        (isVehicleStateFresh && telemetryVehicleState.connected === false) ||
+        (!hasFreshRealtimeSignal && !hasMissionTelemetrySignal)
+    );
     const isDroneActiveForStream = Boolean(
         (isVehicleStateFresh && telemetryVehicleState.connected === true) ||
         isCameraStateFresh ||
@@ -274,9 +291,10 @@ export default function LiveVideoPage() {
     const selectedLocation = selectedTelemetry?.location || {};
     const selectedHeading = isLocationFresh && selectedLocation.heading != null ? Number(selectedLocation.heading) : 0;
     const selectedTrack = selectedDrone ? (droneTrailById[selectedDrone.id] || EMPTY_ACTIVE_TRACK) : EMPTY_ACTIVE_TRACK;
-    const activeMissionHistoryId = missionStatusHistoryId ?? telemetryHistoryId ?? selectedTrack.historyId ?? null;
-    const selectedTrail = selectedTrack.points.map((point) => [point.latitude, point.longitude]);
-    const lastTrackedPoint = selectedTrack.points[selectedTrack.points.length - 1] || null;
+    const effectiveTrack = isDroneOffline ? EMPTY_ACTIVE_TRACK : selectedTrack;
+    const activeMissionHistoryId = missionStatusHistoryId ?? telemetryHistoryId ?? effectiveTrack.historyId ?? null;
+    const selectedTrail = effectiveTrack.points.map((point) => [point.latitude, point.longitude]);
+    const lastTrackedPoint = effectiveTrack.points[effectiveTrack.points.length - 1] || null;
     const fallbackMapPosition = lastTrackedPoint
         ? [lastTrackedPoint.latitude, lastTrackedPoint.longitude]
         : null;

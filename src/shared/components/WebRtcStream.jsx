@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import disconnectIcon from '../../assets/images/icon_disconnect.svg';
 import {
     STREAM_AUTH_PASS,
-    STREAM_AUTH_TOKEN,
     STREAM_AUTH_USER,
 } from '../config/streamConfig';
 
@@ -365,7 +364,6 @@ export default function WebRtcStream({
     controls = false,
     user = STREAM_AUTH_USER,
     pass = STREAM_AUTH_PASS,
-    token = STREAM_AUTH_TOKEN,
     unavailableMessage = 'Stream not available',
     fallbackClassName = '',
     fallbackStyle = undefined,
@@ -408,14 +406,13 @@ export default function WebRtcStream({
             controls,
             user,
             pass,
-            token,
         });
 
         return () => {
             session.listeners.delete(handleSessionUpdate);
             releaseSession(session);
         };
-    }, [autoPlay, controls, muted, pass, playsInline, src, token, user]);
+    }, [autoPlay, controls, muted, pass, playsInline, src, user]);
 
     useEffect(() => {
         onStatusChange?.(snapshot.status);

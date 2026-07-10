@@ -8,14 +8,13 @@ import cancelQuickLaunchButtonId from '../../../assets/images/btn_cancel_quickla
 import launchQuickLaunchButton from '../../../assets/images/btn_launch_quicklaunch.svg';
 import launchQuickLaunchButtonId from '../../../assets/images/btn_launch_quicklaunch_id.svg';
 import { useI18n } from '../../../shared/i18n/I18nProvider';
-import geofenceData from '../../../services/geofence.json';
 import {
     buildGeofenceMaskGeoJson,
     geofenceAreaPathOptions,
     geofenceMaskPathOptions,
     geofenceRadiusPathOptions,
 } from '../../../shared/utils/geofence';
-import { IS_GEOFENCE_JSON_ENABLED } from '../../../shared/config/geofenceConfig';
+import { ACTIVE_GEOFENCE_DATA as geofenceData, IS_GEOFENCE_JSON_ENABLED } from '../../../shared/config/geofenceConfig';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
