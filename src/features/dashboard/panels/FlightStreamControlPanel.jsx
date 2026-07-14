@@ -15,6 +15,43 @@ const ACTION_WRAPPER_BORDER_IMAGE = 'linear-gradient(180.75deg, rgba(253, 87, 87
 const ACTION_BUTTON_BORDER_IMAGE = 'linear-gradient(180.75deg, #FD5757 69.94%, #FC4747 102.16%)';
 const SWITCH_PANEL_BORDER_IMAGE = 'linear-gradient(179.72deg, rgba(251, 85, 85, 0) 0.24%, #EA3535 112.6%)';
 const BOTTOM_PANEL_BORDER = 'linear-gradient(0deg, #ED0000 0%, #FB5555 51.28%, rgba(251, 85, 85, 0) 100%)';
+const GIB_IN_BYTES = 1024 ** 3;
+
+const toFiniteNumber = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatStorageValue = (bytes) => {
+    const normalizedBytes = toFiniteNumber(bytes);
+
+    if (normalizedBytes == null || normalizedBytes < 0) {
+        return null;
+    }
+
+    const gibValue = normalizedBytes / GIB_IN_BYTES;
+    const fractionDigits = gibValue >= 100 ? 0 : 1;
+
+    return `${gibValue.toFixed(fractionDigits)}GB`;
+};
+
+const buildStorageCapacityLabel = ({ cameraState, isCameraStateFresh, fallbackLabel }) => {
+    if (!isCameraStateFresh) {
+        return fallbackLabel;
+    }
+
+    if (cameraState?.connected === false) {
+        return fallbackLabel;
+    }
+
+    const usedLabel = formatStorageValue(cameraState?.storage_used_bytes);
+    const totalLabel = formatStorageValue(cameraState?.storage_total_bytes);
+    if (usedLabel && totalLabel) {
+        return `${usedLabel}/${totalLabel}`;
+    }
+
+    return totalLabel || fallbackLabel;
+};
 
 const StorageCard = ({ value, label, isIndonesian = false }) => (
     <div
@@ -43,18 +80,27 @@ export default function FlightStreamControlPanel({
     secondaryPanel,
     onSwitchPanel,
     compact = false,
+    cameraState = null,
+    isCameraStateFresh = false,
+    isRecording = false,
     onAbortMission = null,
     isAbortDisabled = false,
     isAbortingMission = false,
     abortMissionError = '',
     onTakePicture = null,
-    onStartRecording = null,
+    onRecordingToggle = null,
     isCaptureDisabled = false,
     isRecordDisabled = false,
     cameraCommandError = '',
 }) {
     const { t, language } = useI18n();
     const isIndonesian = language === 'id';
+    const storageCapacityLabel = buildStorageCapacityLabel({
+        cameraState,
+        isCameraStateFresh,
+        fallbackLabel: t('dashboard.awaitingData'),
+    });
+    const recordButtonLabel = isRecording ? t('dashboard.stopRecording') : t('dashboard.record');
     const actionLabelClassName = isIndonesian
         ? 'text-[13px] tracking-normal'
         : 'text-[16px] tracking-normal';
@@ -115,7 +161,7 @@ export default function FlightStreamControlPanel({
                             <div className="h-full overflow-hidden rounded-[12px] p-[0.68px]" style={{ backgroundImage: ACTION_BUTTON_BORDER_IMAGE }}>
                                 <button
                                     type="button"
-                                    onClick={onStartRecording}
+                                    onClick={onRecordingToggle}
                                     disabled={isRecordDisabled}
                                     className={`flex h-full min-h-full w-full items-center justify-center gap-3 rounded-[11.32px] transition-[filter,opacity] ${
                                         isRecordDisabled ? 'cursor-not-allowed' : 'hover:brightness-[0.98]'
@@ -124,10 +170,10 @@ export default function FlightStreamControlPanel({
                                 >
                                     <img
                                         src={recordIcon}
-                                        alt={t('dashboard.record')}
+                                        alt={recordButtonLabel}
                                         className={`h-7 w-7 object-contain ${isRecordDisabled ? 'opacity-60' : ''}`}
                                     />
-                                    <span className={`${actionLabelClassName} font-medium ${isRecordDisabled ? 'text-[#7B7B7B]' : 'text-[#000000]'}`}>{t('dashboard.record')}</span>
+                                    <span className={`${actionLabelClassName} font-medium ${isRecordDisabled ? 'text-[#7B7B7B]' : 'text-[#000000]'}`}>{recordButtonLabel}</span>
                                 </button>
                             </div>
                             <div className="h-full overflow-hidden rounded-[12px] p-[0.68px]" style={{ backgroundImage: ACTION_BUTTON_BORDER_IMAGE }}>
@@ -152,7 +198,7 @@ export default function FlightStreamControlPanel({
                     </div>
 
                     <div className="min-h-0">
-                        <StorageCard value="140/100GB" label={t('dashboard.storageCapacity')} isIndonesian={isIndonesian} />
+                        <StorageCard value={storageCapacityLabel} label={t('dashboard.storageCapacity')} isIndonesian={isIndonesian} />
                     </div>
 
                     <div className="min-h-0 h-full">

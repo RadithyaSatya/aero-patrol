@@ -24,9 +24,9 @@ Main variables used by the app:
 - `VITE_MISSION_NOW_OFFSET_MINUTES`: offset for "run now" mission scheduling.
 - `VITE_GEOFENCE_JSON_ENABLED`: enable or disable GeoJSON geofence overlay rendering.
 - `VITE_GEOFENCE_FILE`: selects which geofence file is loaded. Supported by default:
-  - `geofence.json`
-  - `sample-rectangle.json`
-  - `sample-tight.json`
+  - `kopasuss.json`
+  - `sample_geofences.json`
+  - `wo-08.json`
 
 If you need more geofence options, add more `.json` files under `src/services/geofences/`, then set `VITE_GEOFENCE_FILE` to the file name you want to activate.
 

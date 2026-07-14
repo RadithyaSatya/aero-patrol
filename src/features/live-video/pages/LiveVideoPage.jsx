@@ -558,22 +558,24 @@ export default function LiveVideoPage() {
         }
     }, [publishCameraCommand, t]);
 
-    const handleStartRecording = useCallback(async () => {
-        if (isCameraRecording) {
-            return;
-        }
-
+    const handleRecordingToggle = useCallback(async () => {
         setCameraCommandError('');
         setIsCameraRecordingCommandPending(true);
 
         try {
             await publishCameraCommand({
                 command: 'set_recording',
-                enabled: true,
+                enabled: !isCameraRecording,
             });
         } catch (error) {
-            console.error('Error starting recording:', error);
-            setCameraCommandError(error.message || t('dashboard.errorStartRecording'));
+            console.error(`Error ${isCameraRecording ? 'stopping' : 'starting'} recording:`, error);
+            setCameraCommandError(
+                error.message || (
+                    isCameraRecording
+                        ? t('dashboard.errorStopRecording')
+                        : t('dashboard.errorStartRecording')
+                )
+            );
         } finally {
             setIsCameraRecordingCommandPending(false);
         }
@@ -745,14 +747,17 @@ export default function LiveVideoPage() {
                                 secondaryPanel={renderSecondaryPanel()}
                                 onSwitchPanel={() => setIsMapPrimary((value) => !value)}
                                 compact
+                                cameraState={telemetryCameraState}
+                                isCameraStateFresh={isCameraStateFresh}
                                 onAbortMission={handleAbortMission}
                                 isAbortDisabled={isStreamInteractionDisabled || !canAbortMission}
                                 isAbortingMission={isAbortingMission}
                                 abortMissionError={abortMissionError}
                                 onTakePicture={handleTakePicture}
-                                onStartRecording={handleStartRecording}
+                                onRecordingToggle={handleRecordingToggle}
+                                isRecording={isCameraRecording}
                                 isCaptureDisabled={isStreamInteractionDisabled || !isCameraConnected || isCaptureCommandPending}
-                                isRecordDisabled={isStreamInteractionDisabled || !isCameraConnected || isCameraRecording || isCameraRecordingCommandPending}
+                                isRecordDisabled={isStreamInteractionDisabled || !isCameraConnected || isCameraRecordingCommandPending}
                                 cameraCommandError={cameraCommandError}
                             />
                         </div>
